@@ -1,4 +1,4 @@
-export type Tool = 'pencil' | 'eraser' | 'fill' | 'picker' | 'select' | 'selection' | 'shade'
+export type Tool = 'pencil' | 'eraser' | 'fill' | 'picker' | 'selection' | 'shade'
 
 export interface PixelData {
   width: number

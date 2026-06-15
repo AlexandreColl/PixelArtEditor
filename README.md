@@ -137,7 +137,6 @@ Para obtener una copia local y ejecutarla, sigue estos pasos.
 | 💉 | Selector de color | Captura el color de un píxel |
 | 🌗 | Sombreado | Difumina mezclando colores de píxeles adyacentes |
 | 👉 | Selección | Selecciona una región rectangular |
-| ✋ | Mano | Desplaza la vista (pan) |
 
 ### Carga y guardado
 

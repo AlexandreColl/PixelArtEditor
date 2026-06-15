@@ -123,12 +123,6 @@ export default function Canvas({
         return
       }
 
-      if (tool === 'select') {
-        setIsPanning(true)
-        setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y })
-        return
-      }
-
       if (tool === 'selection') {
         setSelStart(null)
         setSelEnd(null)
@@ -216,7 +210,6 @@ export default function Canvas({
     fill: 'crosshair',
     picker: 'crosshair',
     selection: 'crosshair',
-    select: 'grab',
   }
 
   return (

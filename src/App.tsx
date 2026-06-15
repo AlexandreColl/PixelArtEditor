@@ -8,6 +8,7 @@ import ColorPalette from './components/ColorPalette'
 import AIChat from './components/AIChat'
 import { useEditor } from './hooks/useEditor'
 import type { PixelData, Selection } from './types'
+import { Save, FolderOpen, BotMessageSquare } from 'lucide-react'
 
 function pixelsToPngBlob(pixels: string[][], width: number, height: number): Promise<Blob> {
   const canvas = document.createElement('canvas')
@@ -181,24 +182,14 @@ export default function App() {
   }, [state.pixelData, showToast])
 
   const handleSave = useCallback(async () => {
-    const fp = await save({
-      filters: [{ name: 'PNG Image', extensions: ['png'] }],
-      defaultPath: filePathRef.current || `${fileNameRef.current}.png`,
-    })
-    if (fp) {
-      await doSavePng(fp)
-    }
-  }, [doSavePng])
-
-  const handleSaveAs = useCallback(async () => {
-    try {
+    if (filePathRef.current) {
+      await doSavePng(filePathRef.current)
+    } else {
       const fp = await save({
         filters: [{ name: 'PNG Image', extensions: ['png'] }],
         defaultPath: `${fileNameRef.current}.png`,
       })
       if (fp) await doSavePng(fp)
-    } catch (err) {
-      console.error(err)
     }
   }, [doSavePng])
 
@@ -261,7 +252,7 @@ export default function App() {
         e.preventDefault(); handleSave()
       }
       if ((e.ctrlKey || e.metaKey) && e.key === 's' && e.shiftKey) {
-        e.preventDefault(); handleSaveAs()
+        e.preventDefault(); handleSave()
       }
       if ((e.ctrlKey || e.metaKey) && e.key === 'o') {
         e.preventDefault(); handleOpen()
@@ -275,7 +266,7 @@ export default function App() {
       window.removeEventListener('canvas-zoom', handleZoom)
       window.removeEventListener('keydown', handleKey)
     }
-  }, [setPrimaryColor, setZoom, state.zoom, undo, redo, handleSave, handleSaveAs, handleOpen])
+  }, [setPrimaryColor, setZoom, state.zoom, undo, redo, handleSave, handleOpen])
 
   const handleResize = useCallback(() => {
     const w = Math.max(1, Math.min(256, Number(sizeWRef.current)))
@@ -363,18 +354,8 @@ export default function App() {
           style={{ display: 'none' }}
         />
 
-        <button onClick={handleOpen} style={btnStyle}>📂 Open</button>
-
-        <div style={{ width: 1, height: 24, background: '#444', margin: '0 8px' }} />
-
-        <button title="Undo (Ctrl+Z)" onClick={undo} disabled={!canUndo}
-          style={{ ...btnStyle, color: canUndo ? '#e0e0e0' : '#555', cursor: canUndo ? 'pointer' : 'default' }}>
-          ↩ Undo
-        </button>
-        <button title="Redo (Ctrl+Shift+Z)" onClick={redo} disabled={!canRedo}
-          style={{ ...btnStyle, color: canRedo ? '#e0e0e0' : '#555', cursor: canRedo ? 'pointer' : 'default' }}>
-          ↪ Redo
-        </button>
+        <button onClick={handleOpen} style={btnStyle}><FolderOpen size={16} style={{ marginRight: 4 }} />Open</button>
+        <button title="Save (Ctrl+S)" onClick={handleSave} style={btnAccent}><Save size={16} style={{ marginRight: 4 }} />Save</button>
 
         <div style={{ width: 1, height: 24, background: '#444', margin: '0 8px' }} />
 
@@ -392,13 +373,6 @@ export default function App() {
 
         <div style={{ flex: 1 }} />
 
-        <button title="Save (Ctrl+S)" onClick={handleSave} style={btnAccent}>
-          💾 Save
-        </button>
-        <button title="Save As (Ctrl+Shift+S)" onClick={handleSaveAs} style={btnStyle}>
-          Save As...
-        </button>
-
         <button onClick={() => setAiOpen(!aiOpen)}
           style={{
             padding: '4px 12px', borderRadius: 6,
@@ -406,7 +380,7 @@ export default function App() {
             background: aiOpen ? '#1a3a4a' : 'transparent',
             color: aiOpen ? '#4fc3f7' : '#aaa', cursor: 'pointer', fontSize: 13,
           }}>
-          🤖 AI
+          <BotMessageSquare size={16} style={{ marginRight: 4 }} /> AI
         </button>
       </div>
 

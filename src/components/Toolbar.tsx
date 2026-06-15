@@ -1,4 +1,5 @@
 import type { Tool } from '../types'
+import { Pencil, Eraser, PaintBucket, Pipette, Blend, MousePointer } from 'lucide-react'
 
 interface ToolbarProps {
   activeTool: Tool
@@ -12,14 +13,13 @@ interface ToolbarProps {
   canRedo: boolean
 }
 
-const tools: { id: Tool; label: string; symbol: string }[] = [
-  { id: 'pencil', label: 'Pencil', symbol: '✏️' },
-  { id: 'eraser', label: 'Eraser', symbol: '🧹' },
-  { id: 'fill', label: 'Fill', symbol: '💧' },
-  { id: 'picker', label: 'Picker', symbol: '💉' },
-  { id: 'shade', label: 'Shade', symbol: '🌗' },
-  { id: 'selection', label: 'Select', symbol: '👉' },
-  { id: 'select', label: 'Hand', symbol: '✋' },
+const tools: { id: Tool; label: string; icon: React.ComponentType<{ size?: number }> }[] = [
+  { id: 'pencil', label: 'Pencil', icon: Pencil },
+  { id: 'eraser', label: 'Eraser', icon: Eraser },
+  { id: 'fill', label: 'Fill', icon: PaintBucket },
+  { id: 'picker', label: 'Picker', icon: Pipette },
+  { id: 'shade', label: 'Shade', icon: Blend },
+  { id: 'selection', label: 'Select', icon: MousePointer },
 ]
 
 export default function Toolbar({ activeTool, onToolChange, zoom, onZoomChange, onClear, onUndo, onRedo, canUndo, canRedo }: ToolbarProps) {
@@ -51,20 +51,23 @@ export default function Toolbar({ activeTool, onToolChange, zoom, onZoomChange, 
         borderRight: '1px solid #444',
       }}
     >
-      {tools.map(t => (
-        <button
-          key={t.id}
-          title={t.label}
-          onClick={() => onToolChange(t.id)}
-          style={{
-            ...btnBase,
-            border: activeTool === t.id ? '2px solid #4fc3f7' : '2px solid transparent',
-            background: activeTool === t.id ? '#3a3a3a' : 'transparent',
-          }}
-        >
-          {t.symbol}
-        </button>
-      ))}
+      {tools.map(t => {
+        const Icon = t.icon
+        return (
+          <button
+            key={t.id}
+            title={t.label}
+            onClick={() => onToolChange(t.id)}
+            style={{
+              ...btnBase,
+              border: activeTool === t.id ? '2px solid #4fc3f7' : '2px solid transparent',
+              background: activeTool === t.id ? '#3a3a3a' : 'transparent',
+            }}
+          >
+            <Icon size={18} />
+          </button>
+        )
+      })}
 
       <div style={{ width: 36, height: 1, background: '#444', margin: '8px 0' }} />
 
