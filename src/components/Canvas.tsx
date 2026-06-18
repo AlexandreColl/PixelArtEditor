@@ -1,12 +1,19 @@
 import { useRef, useEffect, useCallback, useState } from 'react'
 import type { PixelData, Tool, Selection } from '../types'
 
+const cursorMap: Record<string, string> = {
+  fill: 'crosshair',
+  picker: 'crosshair',
+  selection: 'crosshair',
+}
+
 interface CanvasProps {
   pixelData: PixelData
   tool: Tool
   primaryColor: string
   zoom: number
-  onPaintPixel: (x: number, y: number, color: string) => void
+  brushSize: number
+  onPaintBrush: (x: number, y: number, color: string, size: number) => void
   onFillRegion: (x: number, y: number, color: string) => void
   onShadePixel: (x: number, y: number) => void
   onPickColor: (x: number, y: number) => string | null
@@ -18,7 +25,8 @@ export default function Canvas({
   tool,
   primaryColor,
   zoom,
-  onPaintPixel,
+  brushSize,
+  onPaintBrush,
   onFillRegion,
   onShadePixel,
   onPickColor,
@@ -28,8 +36,8 @@ export default function Canvas({
   const [isDrawing, setIsDrawing] = useState(false)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [isPanning, setIsPanning] = useState(false)
-  const [panStart, setPanStart] = useState({ x: 0, y: 0 })
-  const [selStart, setSelStart] = useState<{ x: number; y: number } | null>(null)
+  const panStartRef = useRef({ x: 0, y: 0 })
+  const selStartRef = useRef<{ x: number; y: number } | null>(null)
   const [selEnd, setSelEnd] = useState<{ x: number; y: number } | null>(null)
 
   const { width, height, pixels } = pixelData
@@ -46,7 +54,7 @@ export default function Canvas({
       if (px < 0 || px >= width || py < 0 || py >= height) return null
       return { x: px, y: py }
     },
-    [pixelSize, width, height, pan]
+    [pixelSize, width, height, pan],
   )
 
   const draw = useCallback(() => {
@@ -60,7 +68,6 @@ export default function Canvas({
 
     canvas.width = canvasWidth + Math.abs(pan.x) * 2
     canvas.height = canvasHeight + Math.abs(pan.y) * 2
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
     ctx.save()
     ctx.translate(pan.x, pan.y)
 
@@ -87,7 +94,7 @@ export default function Canvas({
       ctx.stroke()
     }
 
-    const sx = selStart
+    const sx = selStartRef.current
     const ex = selEnd
     if (sx && ex) {
       const x = Math.min(sx.x, ex.x) * pixelSize
@@ -109,7 +116,7 @@ export default function Canvas({
     }
 
     ctx.restore()
-  }, [pixels, width, height, pixelSize, pan, selStart, selEnd])
+  }, [pixels, width, height, pixelSize, pan, selEnd])
 
   useEffect(() => {
     draw()
@@ -119,17 +126,17 @@ export default function Canvas({
     (e: React.PointerEvent) => {
       if (e.button === 1) {
         setIsPanning(true)
-        setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y })
+        panStartRef.current = { x: e.clientX - pan.x, y: e.clientY - pan.y }
         return
       }
 
       if (tool === 'selection') {
-        setSelStart(null)
+        selStartRef.current = null
         setSelEnd(null)
         onSelectionChange(null)
         const coords = getPixelCoords(e.clientX, e.clientY)
         if (!coords) return
-        setSelStart(coords)
+        selStartRef.current = coords
         setSelEnd(coords)
         return
       }
@@ -152,20 +159,20 @@ export default function Canvas({
       } else {
         setIsDrawing(true)
         const color = tool === 'eraser' ? 'rgba(0,0,0,0)' : primaryColor
-        onPaintPixel(coords.x, coords.y, color)
+        onPaintBrush(coords.x, coords.y, color, brushSize)
       }
     },
-    [tool, primaryColor, getPixelCoords, onPaintPixel, onFillRegion, onPickColor, pan, onSelectionChange]
+    [tool, primaryColor, getPixelCoords, onFillRegion, onPickColor, pan, onSelectionChange, brushSize],
   )
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
       if (isPanning) {
-        setPan({ x: e.clientX - panStart.x, y: e.clientY - panStart.y })
+        setPan({ x: e.clientX - panStartRef.current.x, y: e.clientY - panStartRef.current.y })
         return
       }
 
-      if (tool === 'selection' && selStart) {
+      if (tool === 'selection' && selStartRef.current) {
         const coords = getPixelCoords(e.clientX, e.clientY)
         if (coords) setSelEnd(coords)
         return
@@ -178,39 +185,32 @@ export default function Canvas({
         onShadePixel(coords.x, coords.y)
       } else {
         const color = tool === 'eraser' ? 'rgba(0,0,0,0)' : primaryColor
-        onPaintPixel(coords.x, coords.y, color)
+        onPaintBrush(coords.x, coords.y, color, brushSize)
       }
     },
-    [isDrawing, isPanning, panStart, tool, primaryColor, getPixelCoords, onPaintPixel, selStart]
+    [isDrawing, isPanning, tool, primaryColor, getPixelCoords, brushSize],
   )
 
   const handlePointerUp = useCallback(() => {
     setIsDrawing(false)
     setIsPanning(false)
 
-    if (tool === 'selection' && selStart && selEnd) {
-      const x = Math.min(selStart.x, selEnd.x)
-      const y = Math.min(selStart.y, selEnd.y)
-      const w = Math.abs(selEnd.x - selStart.x) + 1
-      const h = Math.abs(selEnd.y - selStart.y) + 1
+    const sx = selStartRef.current
+    const ex = selEnd
+    if (tool === 'selection' && sx && ex) {
+      const x = Math.min(sx.x, ex.x)
+      const y = Math.min(sx.y, ex.y)
+      const w = Math.abs(ex.x - sx.x) + 1
+      const h = Math.abs(ex.y - sx.y) + 1
       onSelectionChange({ x, y, width: w, height: h })
     }
-  }, [tool, selStart, selEnd, onSelectionChange])
+  }, [tool, selEnd, onSelectionChange])
 
-  const handleWheel = useCallback(
-    (e: React.WheelEvent) => {
-      e.preventDefault()
-      const event = new CustomEvent('canvas-zoom', { detail: e.deltaY < 0 ? 1 : -1 })
-      window.dispatchEvent(event)
-    },
-    []
-  )
-
-  const cursorMap: Record<string, string> = {
-    fill: 'crosshair',
-    picker: 'crosshair',
-    selection: 'crosshair',
-  }
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault()
+    const event = new CustomEvent('canvas-zoom', { detail: e.deltaY < 0 ? 1 : -1 })
+    window.dispatchEvent(event)
+  }, [])
 
   return (
     <div

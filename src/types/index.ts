@@ -19,5 +19,5 @@ export interface EditorState {
   primaryColor: string
   secondaryColor: string
   zoom: number
-  selectedLayer: number
+  brushSize: number
 }

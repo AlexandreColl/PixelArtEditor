@@ -29,7 +29,7 @@ export function useEditor() {
     primaryColor: '#000000',
     secondaryColor: '#ffffff',
     zoom: 16,
-    selectedLayer: 0,
+    brushSize: 1,
   })
 
   const historyRef = useRef([clonePixels(state.pixelData.pixels)])
@@ -61,100 +61,150 @@ export function useEditor() {
     setState(prev => ({ ...prev, zoom: Math.max(2, Math.min(64, zoom)) }))
   }, [])
 
-  const paintPixel = useCallback((x: number, y: number, color: string) => {
-    setState(prev => {
-      const pixels = clonePixels(prev.pixelData.pixels)
-      if (y >= 0 && y < pixels.length && x >= 0 && x < pixels[0].length) {
-        pixels[y][x] = color
-      }
-      pushHistory(pixels)
-      return {
-        ...prev,
-        pixelData: { ...prev.pixelData, pixels },
-      }
-    })
-  }, [pushHistory])
+  const setBrushSize = useCallback((size: number) => {
+    setState(prev => ({ ...prev, brushSize: Math.max(1, Math.min(16, size)) }))
+  }, [])
 
-  const fillRegion = useCallback((startX: number, startY: number, fillColor: string) => {
-    setState(prev => {
-      const { pixels: oldPixels, width, height } = prev.pixelData
-      const targetColor = oldPixels[startY]?.[startX]
-      if (!targetColor || targetColor === fillColor) return prev
-
-      const pixels = clonePixels(oldPixels)
-      const visited = new Set<number>()
-
-      const stack: [number, number][] = [[startX, startY]]
-      while (stack.length > 0) {
-        const [cx, cy] = stack.pop()!
-        const key = cy * width + cx
-        if (visited.has(key)) continue
-        visited.add(key)
-
-        if (cx < 0 || cx >= width || cy < 0 || cy >= height) continue
-        if (pixels[cy][cx] !== targetColor) continue
-
-        pixels[cy][cx] = fillColor
-
-        stack.push([cx - 1, cy], [cx + 1, cy], [cx, cy - 1], [cx, cy + 1])
-      }
-
-      pushHistory(pixels)
-      return { ...prev, pixelData: { ...prev.pixelData, pixels } }
-    })
-  }, [pushHistory])
-
-  const pickColor = useCallback((x: number, y: number): string | null => {
-    return state.pixelData.pixels[y]?.[x] ?? null
-  }, [state.pixelData.pixels])
-
-  const shadePixel = useCallback((x: number, y: number) => {
-    setState(prev => {
-      const { pixels, width, height } = prev.pixelData
-      const newPixels = clonePixels(pixels)
-
-      const rgba = (s: string): [number, number, number, number] => {
-        const m = s.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/)
-        if (!m) return [0, 0, 0, 0]
-        return [Number(m[1]), Number(m[2]), Number(m[3]), m[4] !== undefined ? Number(m[4]) : 1]
-      }
-
-      let r = 0, g = 0, b = 0, a = 0, count = 0
-      for (let dy = -1; dy <= 1; dy++) {
-        for (let dx = -1; dx <= 1; dx++) {
-          const nx = x + dx, ny = y + dy
-          if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue
-          const [cr, cg, cb, ca] = rgba(newPixels[ny][nx])
-          r += cr; g += cg; b += cb; a += ca; count++
+  const paintPixel = useCallback(
+    (x: number, y: number, color: string) => {
+      setState(prev => {
+        const pixels = clonePixels(prev.pixelData.pixels)
+        if (y >= 0 && y < pixels.length && x >= 0 && x < pixels[0].length) {
+          pixels[y][x] = color
         }
-      }
-      if (count > 0) {
-        const avg = `rgba(${Math.round(r / count)},${Math.round(g / count)},${Math.round(b / count)},${a / count})`
-        newPixels[y][x] = avg
-      }
-
-      pushHistory(newPixels)
-      return { ...prev, pixelData: { ...prev.pixelData, pixels: newPixels } }
-    })
-  }, [pushHistory])
-
-  const resizeCanvas = useCallback((newWidth: number, newHeight: number) => {
-    setState(prev => {
-      const pixels: string[][] = []
-      for (let y = 0; y < newHeight; y++) {
-        const row: string[] = []
-        for (let x = 0; x < newWidth; x++) {
-          row.push(prev.pixelData.pixels[y]?.[x] ?? 'rgba(0,0,0,0)')
+        pushHistory(pixels)
+        return {
+          ...prev,
+          pixelData: { ...prev.pixelData, pixels },
         }
-        pixels.push(row)
-      }
-      pushHistory(pixels)
-      return {
-        ...prev,
-        pixelData: { width: newWidth, height: newHeight, pixels },
-      }
-    })
-  }, [pushHistory])
+      })
+    },
+    [pushHistory],
+  )
+
+  const paintBrush = useCallback(
+    (cx: number, cy: number, color: string, size: number) => {
+      setState(prev => {
+        const { pixels, width, height } = prev.pixelData
+        const newPixels = clonePixels(pixels)
+        const off = Math.floor((size - 1) / 2)
+        for (let dy = 0; dy < size; dy++) {
+          for (let dx = 0; dx < size; dx++) {
+            const px = cx - off + dx
+            const py = cy - off + dy
+            if (px >= 0 && px < width && py >= 0 && py < height) {
+              newPixels[py][px] = color
+            }
+          }
+        }
+        pushHistory(newPixels)
+        return { ...prev, pixelData: { ...prev.pixelData, pixels: newPixels } }
+      })
+    },
+    [pushHistory],
+  )
+
+  const fillRegion = useCallback(
+    (startX: number, startY: number, fillColor: string) => {
+      setState(prev => {
+        const { pixels: oldPixels, width, height } = prev.pixelData
+        const targetColor = oldPixels[startY]?.[startX]
+        if (!targetColor || targetColor === fillColor) return prev
+
+        const pixels = clonePixels(oldPixels)
+        const visited = new Set<number>()
+
+        const stack: [number, number][] = [[startX, startY]]
+        while (stack.length > 0) {
+          const [cx, cy] = stack.pop()!
+          const key = cy * width + cx
+          if (visited.has(key)) continue
+          visited.add(key)
+
+          if (cx < 0 || cx >= width || cy < 0 || cy >= height) continue
+          if (pixels[cy][cx] !== targetColor) continue
+
+          pixels[cy][cx] = fillColor
+
+          stack.push([cx - 1, cy], [cx + 1, cy], [cx, cy - 1], [cx, cy + 1])
+        }
+
+        pushHistory(pixels)
+        return { ...prev, pixelData: { ...prev.pixelData, pixels } }
+      })
+    },
+    [pushHistory],
+  )
+
+  const pickColor = useCallback(
+    (x: number, y: number): string | null => {
+      return state.pixelData.pixels[y]?.[x] ?? null
+    },
+    [state.pixelData.pixels],
+  )
+
+  const shadePixel = useCallback(
+    (x: number, y: number) => {
+      setState(prev => {
+        const { pixels, width, height } = prev.pixelData
+        const newPixels = clonePixels(pixels)
+
+        const rgba = (s: string): [number, number, number, number] => {
+          const m = s.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/)
+          if (!m) return [0, 0, 0, 0]
+          return [Number(m[1]), Number(m[2]), Number(m[3]), m[4] !== undefined ? Number(m[4]) : 1]
+        }
+
+        let r = 0,
+          g = 0,
+          b = 0,
+          a = 0,
+          count = 0
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const nx = x + dx,
+              ny = y + dy
+            if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue
+            const [cr, cg, cb, ca] = rgba(newPixels[ny][nx])
+            r += cr
+            g += cg
+            b += cb
+            a += ca
+            count++
+          }
+        }
+        if (count > 0) {
+          const avg = `rgba(${Math.round(r / count)},${Math.round(g / count)},${Math.round(b / count)},${a / count})`
+          newPixels[y][x] = avg
+        }
+
+        pushHistory(newPixels)
+        return { ...prev, pixelData: { ...prev.pixelData, pixels: newPixels } }
+      })
+    },
+    [pushHistory],
+  )
+
+  const resizeCanvas = useCallback(
+    (newWidth: number, newHeight: number) => {
+      setState(prev => {
+        const pixels: string[][] = []
+        for (let y = 0; y < newHeight; y++) {
+          const row: string[] = []
+          for (let x = 0; x < newWidth; x++) {
+            row.push(prev.pixelData.pixels[y]?.[x] ?? 'rgba(0,0,0,0)')
+          }
+          pixels.push(row)
+        }
+        pushHistory(pixels)
+        return {
+          ...prev,
+          pixelData: { width: newWidth, height: newHeight, pixels },
+        }
+      })
+    },
+    [pushHistory],
+  )
 
   const clearCanvas = useCallback(() => {
     setState(prev => {
@@ -214,7 +264,9 @@ export function useEditor() {
     setPrimaryColor,
     setSecondaryColor,
     setZoom,
+    setBrushSize,
     paintPixel,
+    paintBrush,
     fillRegion,
     shadePixel,
     pickColor,

@@ -8,10 +8,26 @@ interface ColorPaletteProps {
 }
 
 const PRESET_COLORS = [
-  '#000000', '#ffffff', '#ff0000', '#00ff00', '#0000ff',
-  '#ffff00', '#ff00ff', '#00ffff', '#808080', '#800000',
-  '#008000', '#000080', '#808000', '#800080', '#008080',
-  '#c0c0c0', '#ff8800', '#88ff00', '#0088ff', '#ff0088',
+  '#000000',
+  '#ffffff',
+  '#ff0000',
+  '#00ff00',
+  '#0000ff',
+  '#ffff00',
+  '#ff00ff',
+  '#00ffff',
+  '#808080',
+  '#800000',
+  '#008000',
+  '#000080',
+  '#808000',
+  '#800080',
+  '#008080',
+  '#c0c0c0',
+  '#ff8800',
+  '#88ff00',
+  '#0088ff',
+  '#ff0088',
 ]
 
 export default function ColorPalette({
@@ -94,11 +110,12 @@ export default function ColorPalette({
               width: '100%',
               aspectRatio: '1',
               background: color,
-              border: primaryColor === color
-                ? '2px solid #4fc3f7'
-                : secondaryColor === color
-                  ? '2px solid #999'
-                  : '2px solid transparent',
+              border:
+                primaryColor === color
+                  ? '2px solid #4fc3f7'
+                  : secondaryColor === color
+                    ? '2px solid #999'
+                    : '2px solid transparent',
               borderRadius: 3,
               cursor: 'pointer',
             }}

@@ -26,11 +26,15 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+pnpm-debug.log*
 
 # Tauri
 src-tauri/target/
 src-tauri/gen/
 src-tauri/.env
+
+# TypeScript
+*.tsbuildinfo
 
 # Python (if used for AI backend)
 __pycache__/

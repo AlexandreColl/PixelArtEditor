@@ -62,16 +62,16 @@
 
 Pixel Art Editor es una aplicación de escritorio para crear y editar pixel art, sprites y assets para videojuegos. Está construida con **Tauri** + **React** + **TypeScript**, lo que resulta en un binario pequeño, rápido y nativo.
 
-El editor ofrece herramientas esenciales de dibujo (lápiz, borrador, bote de pintura, selector de color, selección y paneo), historia completa de deshacer/rehacer, y la posibilidad de abrir y guardar archivos PNG directamente desde el sistema de archivos.
+El editor ofrece herramientas esenciales de dibujo (lápiz, borrador, bote de pintura, selector de color, selección y sombreado), historia completa de deshacer/rehacer, y la posibilidad de abrir y guardar archivos PNG directamente desde el sistema de archivos.
 
 Además, incluye un **panel de IA** que permite modificar el arte mediante lenguaje natural usando OpenAI GPT-4o con visión, ideal para iterar rápido sin necesidad de editar píxel por píxel.
 
 Características principales:
-* :pencil2: Herramientas completas: lápiz, borrador, relleno, selector de color, selección, sombreado y mano
+* :pencil2: Herramientas completas: lápiz, borrador, relleno, selector de color, selección, sombreado y pincel de tamaño ajustable
 * :floppy_disk: Abre y guarda PNG reales directamente en tu disco
 * :robot: Agente IA integrado que entiende tu arte y lo modifica con lenguaje natural
 * :arrows_counterclockwise: Historia ilimitada de deshacer/rehacer (Ctrl+Z / Ctrl+Shift+Z)
-* :mag: Zoom y paneo con rueda del ratón y herramienta mano
+* :mag: Zoom y paneo con rueda del ratón (clic central)
 * :rainbow: Paleta de colores con colores primario/secundario y muestras predefinidas
 
 <p align="right">(<a href="#readme-top">volver arriba</a>)</p>
@@ -84,6 +84,7 @@ Características principales:
 * [![Vite](https://img.shields.io/badge/Vite-8.x-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
 * [![Rust](https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
 * [![pnpm](https://img.shields.io/badge/pnpm-F69220?style=for-the-badge&logo=pnpm&logoColor=white)](https://pnpm.io/)
+* [![Lucide](https://img.shields.io/badge/Lucide-2A2A2A?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTUgMTJoMTQiLz48L3N2Zz4=&logoColor=white)](https://lucide.dev/)
 * [![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=for-the-badge&logo=openai&logoColor=white)](https://openai.com/)
 
 <p align="right">(<a href="#readme-top">volver arriba</a>)</p>
@@ -131,24 +132,32 @@ Para obtener una copia local y ejecutarla, sigue estos pasos.
 
 | Icono | Herramienta | Descripción |
 |-------|-------------|-------------|
-| ✏️ | Lápiz | Dibuja píxel a píxel con el color primario |
-| 🧹 | Borrador | Elimina píxeles (los deja transparentes) |
-| 💧 | Bote de pintura | Rellena una región conectada del mismo color |
-| 💉 | Selector de color | Captura el color de un píxel |
-| 🌗 | Sombreado | Difumina mezclando colores de píxeles adyacentes |
-| 👉 | Selección | Selecciona una región rectangular |
+| `Pencil` | Lápiz | Dibuja píxel a píxel con el color primario |
+| `Eraser` | Borrador | Elimina píxeles (los deja transparentes) |
+| `PaintBucket` | Bote de pintura | Rellena una región conectada del mismo color |
+| `Pipette` | Selector de color | Captura el color de un píxel |
+| `Blend` | Sombreado | Difumina mezclando colores de píxeles adyacentes |
+| `MousePointer` | Selección | Selecciona una región rectangular |
+
+### Tamaño de pincel
+
+Botones **+** / **−** en la barra lateral para ajustar el tamaño del pincel (1–16). Aplica a lápiz y borrador.
+
+### Paneo
+
+Usa el **botón central del ratón** (rueda) para arrastrar la vista.
 
 ### Carga y guardado
 
 * **Abrir imagen** — `Ctrl+O` o arrastra un PNG directamente al editor
-* **Guardar** — `Ctrl+S` sobrescribe el archivo original
-* **Guardar como** — `Ctrl+Shift+S` elige una nueva ubicación
+* **Guardar** — `Ctrl+S` abre el diálogo la primera vez y sobrescribe el archivo original en adelante
+* **Ctrl+Shift+S** — equivalente a Ctrl+S
 
 ### Agente IA
 
-1. Abre el panel IA con el botón 🤖 en la esquina superior derecha
+1. Abre el panel IA con el botón `BotMessageSquare` en la esquina superior derecha
 2. Introduce tu clave de API de OpenAI (se guarda localmente)
-3. Selecciona una región con la herramienta 👉
+3. Selecciona una región con la herramienta `MousePointer`
 4. Describe el cambio que quieres (ej: "haz el fondo azul" o "duplica este sprite")
 5. Revisa el resultado y haz clic en **Aplicar Edición**
 
@@ -162,7 +171,6 @@ Para obtener una copia local y ejecutarla, sigue estos pasos.
 | `Ctrl+Z` | Deshacer |
 | `Ctrl+Shift+Z` / `Ctrl+Y` | Rehacer |
 | `Ctrl+S` | Guardar PNG |
-| `Ctrl+Shift+S` | Guardar como... |
 | `Ctrl+O` | Abrir imagen |
 
 <p align="right">(<a href="#readme-top">volver arriba</a>)</p>
@@ -220,6 +228,7 @@ pixel-art-editor/
 │   └── tauri.conf.json         # Configuración de ventana y build
 ├── scripts/
 │   └── dev.ps1                 # Helper que configura VS + Node + Cargo
+├── .npmrc                      # Configuración de pnpm (shamefully-hoist)
 ├── build.bat                   # Build con un clic
 ├── dev.bat                     # Dev con un clic
 └── package.json
@@ -235,9 +244,9 @@ pixel-art-editor/
 - [x] Abrir y guardar PNG
 - [x] Panel de IA con OpenAI GPT-4o
 - [x] Herramienta de sombreado (difuminado)
+- [x] Tamaño de pincel ajustable
 - [ ] Exportar a formatos adicionales (GIF, sprite sheet)
 - [ ] Herramienta de línea y rectángulo
-- [ ] Capa de guías (transparencia on/off)
 - [ ] Atajos de teclado personalizables
 - [ ] Plugins / scripting
 
