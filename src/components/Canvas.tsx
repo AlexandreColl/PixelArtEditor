@@ -7,6 +7,19 @@ const cursorMap: Record<string, string> = {
   selection: 'crosshair',
 }
 
+function hexToRgba(hex: string): [number, number, number, number] {
+  if (hex.startsWith('rgba')) {
+    const m = hex.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/)
+    if (m) return [Number(m[1]), Number(m[2]), Number(m[3]), m[4] !== undefined ? Math.round(Number(m[4]) * 255) : 255]
+    return [0, 0, 0, 0]
+  }
+  if (hex.startsWith('#')) {
+    const v = parseInt(hex.slice(1), 16)
+    return [(v >> 16) & 255, (v >> 8) & 255, v & 255, 255]
+  }
+  return [0, 0, 0, 0]
+}
+
 interface CanvasProps {
   pixelData: PixelData
   tool: Tool
@@ -33,6 +46,7 @@ export default function Canvas({
   onSelectionChange,
 }: CanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const textureRef = useRef<HTMLCanvasElement | null>(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [isPanning, setIsPanning] = useState(false)
@@ -41,7 +55,100 @@ export default function Canvas({
   const [selEnd, setSelEnd] = useState<{ x: number; y: number } | null>(null)
 
   const { width, height, pixels } = pixelData
-  const pixelSize = zoom
+
+  const draw = useCallback(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    const tc = textureRef.current
+    if (!tc) return
+
+    const pixelSize = zoom
+    const cw = width * pixelSize
+    const ch = height * pixelSize
+
+    canvas.width = cw
+    canvas.height = ch
+    ctx.save()
+    ctx.translate(pan.x, pan.y)
+    ctx.imageSmoothingEnabled = false
+    ctx.drawImage(tc, 0, 0, cw, ch)
+
+    ctx.strokeStyle = '#c0c0c0'
+    ctx.lineWidth = 0.5
+    for (let x = 0; x <= width; x++) {
+      ctx.beginPath()
+      ctx.moveTo(x * pixelSize, 0)
+      ctx.lineTo(x * pixelSize, ch)
+      ctx.stroke()
+    }
+    for (let y = 0; y <= height; y++) {
+      ctx.beginPath()
+      ctx.moveTo(0, y * pixelSize)
+      ctx.lineTo(cw, y * pixelSize)
+      ctx.stroke()
+    }
+
+    const sx = selStartRef.current
+    const ex = selEnd
+    if (sx && ex) {
+      const rx = Math.min(sx.x, ex.x) * pixelSize
+      const ry = Math.min(sx.y, ex.y) * pixelSize
+      const rw = (Math.abs(ex.x - sx.x) + 1) * pixelSize
+      const rh = (Math.abs(ex.y - sx.y) + 1) * pixelSize
+
+      ctx.fillStyle = 'rgba(79, 195, 247, 0.1)'
+      ctx.fillRect(rx, ry, rw, rh)
+      ctx.strokeStyle = '#4fc3f7'
+      ctx.lineWidth = 2
+      ctx.strokeRect(rx, ry, rw, rh)
+      ctx.setLineDash([4, 4])
+      ctx.strokeStyle = '#fff'
+      ctx.lineWidth = 1
+      ctx.strokeRect(rx, ry, rw, rh)
+      ctx.setLineDash([])
+    }
+
+    ctx.restore()
+  }, [zoom, pan, selEnd, width, height])
+
+  const drawRef = useRef(draw)
+  drawRef.current = draw
+
+  useEffect(() => {
+    const tc = document.createElement('canvas')
+    tc.width = width
+    tc.height = height
+    const tctx = tc.getContext('2d')!
+    const imageData = tctx.createImageData(width, height)
+    const data = imageData.data
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const color = pixels[y][x]
+        const i = (y * width + x) * 4
+        if (color === 'rgba(0,0,0,0)') {
+          data[i] = 224
+          data[i + 1] = 224
+          data[i + 2] = 224
+          data[i + 3] = 255
+        } else {
+          const [r, g, b, a] = hexToRgba(color)
+          data[i] = r
+          data[i + 1] = g
+          data[i + 2] = b
+          data[i + 3] = a
+        }
+      }
+    }
+    tctx.putImageData(imageData, 0, 0)
+    textureRef.current = tc
+    drawRef.current()
+  }, [pixels, width, height])
+
+  useEffect(() => {
+    draw()
+  }, [draw])
 
   const getPixelCoords = useCallback(
     (clientX: number, clientY: number) => {
@@ -49,78 +156,13 @@ export default function Canvas({
       if (!rect) return null
       const mx = clientX - rect.left - pan.x
       const my = clientY - rect.top - pan.y
-      const px = Math.floor(mx / pixelSize)
-      const py = Math.floor(my / pixelSize)
+      const px = Math.floor(mx / zoom)
+      const py = Math.floor(my / zoom)
       if (px < 0 || px >= width || py < 0 || py >= height) return null
       return { x: px, y: py }
     },
-    [pixelSize, width, height, pan],
+    [zoom, width, height, pan],
   )
-
-  const draw = useCallback(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    const canvasWidth = width * pixelSize
-    const canvasHeight = height * pixelSize
-
-    canvas.width = canvasWidth + Math.abs(pan.x) * 2
-    canvas.height = canvasHeight + Math.abs(pan.y) * 2
-    ctx.save()
-    ctx.translate(pan.x, pan.y)
-
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const color = pixels[y][x]
-        ctx.fillStyle = color === 'rgba(0,0,0,0)' ? '#e0e0e0' : color
-        ctx.fillRect(x * pixelSize, y * pixelSize, pixelSize, pixelSize)
-      }
-    }
-
-    ctx.strokeStyle = '#c0c0c0'
-    ctx.lineWidth = 0.5
-    for (let x = 0; x <= width; x++) {
-      ctx.beginPath()
-      ctx.moveTo(x * pixelSize, 0)
-      ctx.lineTo(x * pixelSize, height * pixelSize)
-      ctx.stroke()
-    }
-    for (let y = 0; y <= height; y++) {
-      ctx.beginPath()
-      ctx.moveTo(0, y * pixelSize)
-      ctx.lineTo(width * pixelSize, y * pixelSize)
-      ctx.stroke()
-    }
-
-    const sx = selStartRef.current
-    const ex = selEnd
-    if (sx && ex) {
-      const x = Math.min(sx.x, ex.x) * pixelSize
-      const y = Math.min(sx.y, ex.y) * pixelSize
-      const w = (Math.abs(ex.x - sx.x) + 1) * pixelSize
-      const h = (Math.abs(ex.y - sx.y) + 1) * pixelSize
-
-      ctx.fillStyle = 'rgba(79, 195, 247, 0.1)'
-      ctx.fillRect(x, y, w, h)
-      ctx.strokeStyle = '#4fc3f7'
-      ctx.lineWidth = 2
-      ctx.strokeRect(x, y, w, h)
-
-      ctx.setLineDash([4, 4])
-      ctx.strokeStyle = '#fff'
-      ctx.lineWidth = 1
-      ctx.strokeRect(x, y, w, h)
-      ctx.setLineDash([])
-    }
-
-    ctx.restore()
-  }, [pixels, width, height, pixelSize, pan, selEnd])
-
-  useEffect(() => {
-    draw()
-  }, [draw])
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {

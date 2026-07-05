@@ -1,5 +1,13 @@
 export const DEFAULT_MODEL = 'gpt-4o'
 
+const DEFAULT_SYSTEM_PROMPT =
+  'You are a pixel art editor. The user sends you a pixel art image and an edit request. ' +
+  'Return ONLY valid JSON with this structure: ' +
+  '{"pixels": [["#ff0000", "#00ff00", ...], [...]]} ' +
+  'where pixels[y][x] is a hex color string for each pixel. ' +
+  'Preserve the exact dimensions. Use the same color palette style. ' +
+  'Respond with nothing except the JSON object.'
+
 export interface AIEditRequest {
   apiKey: string
   model?: string
@@ -7,6 +15,7 @@ export interface AIEditRequest {
   prompt: string
   baseUrl?: string
   useJsonMode?: boolean
+  systemPrompt?: string
 }
 
 export interface AIEditResponse {
@@ -20,30 +29,26 @@ export async function editWithOpenAI(req: AIEditRequest): Promise<AIEditResponse
   const baseUrl = req.baseUrl || 'https://api.openai.com/v1'
   const useJson = req.useJsonMode !== false
 
-  const body: Record<string, unknown> = {
-    model,
-    messages: [
+  const sysPrompt = req.systemPrompt ?? DEFAULT_SYSTEM_PROMPT
+
+  const messages: Record<string, unknown>[] = []
+  if (sysPrompt) {
+    messages.push({ role: 'system', content: sysPrompt })
+  }
+  messages.push({
+    role: 'user',
+    content: [
+      { type: 'text', text: req.prompt },
       {
-        role: 'system',
-        content:
-          'You are a pixel art editor. The user sends you a pixel art image and an edit request. ' +
-          'Return ONLY valid JSON with this structure: ' +
-          '{"pixels": [["#ff0000", "#00ff00", ...], [...]]} ' +
-          'where pixels[y][x] is a hex color string for each pixel. ' +
-          'Preserve the exact dimensions. Use the same color palette style. ' +
-          'Respond with nothing except the JSON object.',
-      },
-      {
-        role: 'user',
-        content: [
-          { type: 'text', text: req.prompt },
-          {
-            type: 'image_url',
-            image_url: { url: `data:image/png;base64,${req.imageBase64}` },
-          },
-        ],
+        type: 'image_url',
+        image_url: { url: `data:image/png;base64,${req.imageBase64}` },
       },
     ],
+  })
+
+  const body: Record<string, unknown> = {
+    model,
+    messages,
     temperature: 0.3,
   }
   if (useJson) {

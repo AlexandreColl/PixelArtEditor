@@ -8,7 +8,7 @@ import ColorPalette from './components/ColorPalette'
 import AIChat from './components/AIChat'
 import { useEditor } from './hooks/useEditor'
 import type { PixelData } from './types'
-import { Save, FolderOpen, BotMessageSquare } from 'lucide-react'
+import { Save, FolderOpen, BotMessageSquare, FilePlus } from 'lucide-react'
 
 function pixelsToPngDataUrl(pixels: string[][], width: number, height: number): string {
   const canvas = document.createElement('canvas')
@@ -205,6 +205,21 @@ export default function App() {
     }
   }, [doSavePng])
 
+  const handleNew = useCallback(() => {
+    const empty: string[][] = []
+    for (let y = 0; y < 32; y++) {
+      const row: string[] = []
+      for (let x = 0; x < 32; x++) row.push('rgba(0,0,0,0)')
+      empty.push(row)
+    }
+    importPixels(empty, 32, 32)
+    filePathRef.current = null
+    fileNameRef.current = 'untitled'
+    sizeWRef.current = 32
+    sizeHRef.current = 32
+    showToast('New canvas created')
+  }, [importPixels, showToast])
+
   const handleOpen = useCallback(async () => {
     try {
       const fp = await open({
@@ -374,13 +389,14 @@ export default function App() {
           style={{ display: 'none' }}
         />
 
-        <button onClick={handleOpen} style={btnStyle}>
-          <FolderOpen size={16} style={{ marginRight: 4 }} />
-          Open
+        <button title="New (32x32)" onClick={handleNew} style={btnStyle}>
+          <FilePlus size={16} />
+        </button>
+        <button title="Open (Ctrl+O)" onClick={handleOpen} style={btnStyle}>
+          <FolderOpen size={16} />
         </button>
         <button title="Save (Ctrl+S)" onClick={handleSave} style={btnAccent}>
-          <Save size={16} style={{ marginRight: 4 }} />
-          Save
+          <Save size={16} />
         </button>
 
         <div style={{ width: 1, height: 24, background: '#444', margin: '0 8px' }} />

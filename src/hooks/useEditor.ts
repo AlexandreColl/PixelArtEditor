@@ -58,7 +58,10 @@ export function useEditor() {
   }, [])
 
   const setZoom = useCallback((zoom: number) => {
-    setState(prev => ({ ...prev, zoom: Math.max(2, Math.min(64, zoom)) }))
+    setState(prev => {
+      const maxSafe = Math.floor(8192 / Math.max(prev.pixelData.width, prev.pixelData.height))
+      return { ...prev, zoom: Math.max(2, Math.min(maxSafe, zoom)) }
+    })
   }, [])
 
   const setBrushSize = useCallback((size: number) => {

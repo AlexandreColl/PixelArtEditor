@@ -31,8 +31,7 @@ const modelOptions: Record<AIProvider, { value: string; label: string }[]> = {
     { value: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku' },
   ],
   groq: [
-    { value: 'llama-3.2-90b-vision-preview', label: 'LLaMA 3.2 90B Vision' },
-    { value: 'llama-3.2-11b-vision-preview', label: 'LLaMA 3.2 11B Vision' },
+    { value: 'meta-llama/llama-4-scout-17b-16e-instruct', label: 'Llama 4 Scout (gratis)' },
   ],
   gemini: [
     { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
@@ -96,6 +95,14 @@ export default function AIChat({ isOpen, onToggle, extractCanvasAsBase64, applyP
         return
       }
 
+      const groqSystemPrefix =
+        'You are a pixel art editor. The user sends you a pixel art image and an edit request. ' +
+        'Return ONLY valid JSON with this structure: ' +
+        '{"pixels": [["#ff0000", "#00ff00", ...], [...]]} ' +
+        'where pixels[y][x] is a hex color string for each pixel. ' +
+        'Preserve the exact dimensions. Use the same color palette style. ' +
+        'Respond with nothing except the JSON object.\n\n'
+
       const params = {
         apiKey: apiKey.trim(),
         imageBase64: base64,
@@ -107,7 +114,13 @@ export default function AIChat({ isOpen, onToggle, extractCanvasAsBase64, applyP
       if (provider === 'openai') {
         result = await editWithOpenAI(params)
       } else if (provider === 'groq') {
-        result = await editWithOpenAI({ ...params, baseUrl: 'https://api.groq.com/openai/v1', useJsonMode: false })
+        result = await editWithOpenAI({
+          ...params,
+          baseUrl: 'https://api.groq.com/openai/v1',
+          useJsonMode: false,
+          systemPrompt: '',
+          prompt: groqSystemPrefix + params.prompt,
+        })
       } else if (provider === 'gemini') {
         result = await editWithGemini(params)
       } else {
