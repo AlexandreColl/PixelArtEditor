@@ -59,8 +59,8 @@ export function useEditor() {
 
   const setZoom = useCallback((zoom: number) => {
     setState(prev => {
-      const maxSafe = Math.floor(8192 / Math.max(prev.pixelData.width, prev.pixelData.height))
-      return { ...prev, zoom: Math.max(2, Math.min(maxSafe, zoom)) }
+      const maxSafe = Math.floor(16384 / Math.max(prev.pixelData.width, prev.pixelData.height))
+      return { ...prev, zoom: Math.max(1, Math.min(maxSafe, zoom)) }
     })
   }, [])
 
@@ -252,7 +252,7 @@ export function useEditor() {
     setState(prev => ({
       ...prev,
       pixelData: { width, height, pixels },
-      zoom: Math.max(2, Math.min(64, Math.floor(512 / Math.max(width, height)))),
+      zoom: Math.max(1, Math.floor(1024 / Math.max(width, height))),
     }))
   }, [])
 

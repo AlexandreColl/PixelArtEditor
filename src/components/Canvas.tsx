@@ -258,10 +258,7 @@ export default function Canvas({
     <div
       style={{
         flex: 1,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        overflow: 'hidden',
+        overflow: 'auto',
         background: '#1e1e1e',
         cursor: cursorMap[tool] || 'default',
       }}
@@ -274,9 +271,8 @@ export default function Canvas({
         onPointerLeave={handlePointerUp}
         onWheel={handleWheel}
         style={{
+          display: 'block',
           imageRendering: 'pixelated',
-          maxWidth: '100%',
-          maxHeight: '100%',
         }}
       />
     </div>
