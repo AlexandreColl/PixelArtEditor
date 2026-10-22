@@ -62,7 +62,10 @@ export async function editWithGemini(req: GeminiEditRequest): Promise<AIEditResp
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text
   if (!text) throw new Error('Empty response from Gemini')
 
-  const cleaned = text.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '').trim()
+  const cleaned = text
+    .replace(/^```(?:json)?\s*/, '')
+    .replace(/\s*```$/, '')
+    .trim()
   const parsed = JSON.parse(cleaned)
   if (!parsed.pixels || !Array.isArray(parsed.pixels) || !parsed.pixels.length) {
     throw new Error('Invalid response format from Gemini')
