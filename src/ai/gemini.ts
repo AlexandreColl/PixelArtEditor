@@ -1,6 +1,6 @@
 import type { AIEditResponse } from './openai'
 
-export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash'
+export const DEFAULT_GEMINI_MODEL = 'gemini-3.8-flash'
 
 export interface GeminiEditRequest {
   apiKey: string
@@ -40,7 +40,7 @@ export async function editWithGemini(req: GeminiEditRequest): Promise<AIEditResp
       },
     ],
     generation_config: {
-      temperature: 0.3,
+      response_mime_type: 'application/json',
     },
   }
 
