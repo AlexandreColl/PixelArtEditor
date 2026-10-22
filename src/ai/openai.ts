@@ -1,4 +1,4 @@
-export const DEFAULT_MODEL = 'gpt-4o'
+export const DEFAULT_MODEL = 'gpt-6.1-sol'
 
 const SYSTEM_PROMPT =
   'You are a pixel art editor. The user sends you a pixel art image and an edit request. ' +
@@ -35,10 +35,10 @@ export async function editWithOpenAI(req: AIEditRequest): Promise<AIEditResponse
     ],
   })
 
+  // No temperature: GPT-6 models are reasoning models, which may reject a custom value
   const body: Record<string, unknown> = {
     model,
     messages,
-    temperature: 0.3,
     response_format: { type: 'json_object' },
   }
 
