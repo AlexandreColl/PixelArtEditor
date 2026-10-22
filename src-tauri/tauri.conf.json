@@ -1,0 +1,40 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Pixel Art Editor",
+  "version": "0.1.0",
+  "identifier": "com.pixelarteditor.editor",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:5173",
+    "beforeDevCommand": "pnpm run dev",
+    "beforeBuildCommand": "pnpm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Pixel Art Editor",
+        "width": 800,
+        "height": 600,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
+    "android": {
+      "debugApplicationIdSuffix": ".debug"
+    },
+    "publisher": "Alexandre Coll Molina",
+    "copyright": "Copyright (c) 2026 Alexandre Coll Molina",
+    "category": "GraphicsAndDesign",
+    "shortDescription": "Editor de pixel art con agente IA",
+    "longDescription": "Editor de pixel art de escritorio para crear sprites y assets de videojuegos, con un panel de IA que edita el arte mediante lenguaje natural.",
+    "license": "MIT"
+  }
+}

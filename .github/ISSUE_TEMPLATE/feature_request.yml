@@ -1,0 +1,21 @@
+name: ✨ Solicitar funcionalidad
+description: Propón una mejora o una idea nueva
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problema o motivación
+      description: ¿Qué necesidad cubriría esta funcionalidad?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Solución propuesta
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternativas consideradas
