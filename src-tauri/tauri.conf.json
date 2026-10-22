@@ -6,7 +6,7 @@
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
-    "beforeDevCommand": "npm run dev",
+    "beforeDevCommand": "pnpm run dev",
     "beforeBuildCommand": "pnpm run build"
   },
   "app": {
@@ -26,15 +26,15 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/icon.ico"
-    ],
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
     "android": {
       "debugApplicationIdSuffix": ".debug"
-    }
+    },
+    "publisher": "Alexandre Coll Molina",
+    "copyright": "Copyright (c) 2026 Alexandre Coll Molina",
+    "category": "GraphicsAndDesign",
+    "shortDescription": "Editor de pixel art con agente IA",
+    "longDescription": "Editor de pixel art de escritorio para crear sprites y assets de videojuegos, con un panel de IA que edita el arte mediante lenguaje natural.",
+    "license": "MIT"
   }
 }

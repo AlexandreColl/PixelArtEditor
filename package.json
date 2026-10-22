@@ -1,15 +1,31 @@
 {
   "name": "pixelarteditor",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
+  "description": "Editor de pixel art de escritorio con agente IA integrado",
+  "author": "Alexandre Coll Molina",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AlexandreColl/PixelArtEditor.git"
+  },
+  "bugs": {
+    "url": "https://github.com/AlexandreColl/PixelArtEditor/issues"
+  },
+  "homepage": "https://github.com/AlexandreColl/PixelArtEditor#readme",
   "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "powershell -NoProfile -File scripts/dev.ps1 dev",
-    "tauri:build": "powershell -NoProfile -File scripts/dev.ps1 build"
+    "tauri:build": "powershell -NoProfile -File scripts/dev.ps1 build",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.11.2",
