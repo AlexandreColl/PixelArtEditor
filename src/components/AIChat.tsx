@@ -8,7 +8,7 @@ type AIProvider = 'openai' | 'anthropic' | 'groq' | 'gemini'
 interface AIChatProps {
   isOpen: boolean
   onToggle: () => void
-  extractCanvasAsBase64: () => string
+  extractCanvas: () => { base64: string; width: number; height: number }
   applyPixels: (pixels: string[][]) => void
 }
 
@@ -27,25 +27,31 @@ const modelOptions: Record<AIProvider, { value: string; label: string }[]> = {
     { value: 'gpt-4.1-nano', label: 'GPT-4.1 Nano' },
   ],
   anthropic: [
-    { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4' },
-    { value: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku' },
+    { value: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5' },
+    { value: 'claude-haiku-5-5', label: 'Claude Haiku 5.5' },
+    { value: 'claude-opus-5-5', label: 'Claude Opus 5.5' },
   ],
   groq: [{ value: 'meta-llama/llama-4-scout-17b-16e-instruct', label: 'Llama 4 Scout (gratis)' }],
   gemini: [
     { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
     { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite' },
-    { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
   ],
 }
 
-export default function AIChat({ isOpen, onToggle, extractCanvasAsBase64, applyPixels }: AIChatProps) {
-  const [provider, setProvider] = useState<AIProvider>(
-    () => (localStorage.getItem('ai_provider') as AIProvider) || 'openai',
-  )
+/** The stored model for a provider, or its first option if none is stored or it is no longer offered. */
+function savedModel(provider: AIProvider): string {
+  const options = modelOptions[provider] ?? modelOptions.openai
+  const stored = localStorage.getItem(`ai_model_${provider}`)
+  return options.some(o => o.value === stored) ? stored! : options[0].value
+}
+
+export default function AIChat({ isOpen, onToggle, extractCanvas, applyPixels }: AIChatProps) {
+  const [provider, setProvider] = useState<AIProvider>(() => {
+    const stored = localStorage.getItem('ai_provider') as AIProvider | null
+    return stored && stored in modelOptions ? stored : 'openai'
+  })
   const [apiKey, setApiKey] = useState(() => localStorage.getItem(`ai_key_${provider}`) || '')
-  const [model, setModel] = useState(
-    () => localStorage.getItem(`ai_model_${provider}`) || modelOptions[provider][0].value,
-  )
+  const [model, setModel] = useState(() => savedModel(provider))
   const [prompt, setPrompt] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -54,8 +60,7 @@ export default function AIChat({ isOpen, onToggle, extractCanvasAsBase64, applyP
     setProvider(p)
     localStorage.setItem('ai_provider', p)
     setApiKey(localStorage.getItem(`ai_key_${p}`) || '')
-    const savedModel = localStorage.getItem(`ai_model_${p}`)
-    setModel(savedModel || modelOptions[p][0].value)
+    setModel(savedModel(p))
   }, [])
 
   const handleModelChange = useCallback(
@@ -88,7 +93,7 @@ export default function AIChat({ isOpen, onToggle, extractCanvasAsBase64, applyP
     setError('')
 
     try {
-      const base64 = extractCanvasAsBase64()
+      const { base64, width, height } = extractCanvas()
       if (!base64) {
         setError('Could not extract canvas')
         setLoading(false)
@@ -99,14 +104,14 @@ export default function AIChat({ isOpen, onToggle, extractCanvasAsBase64, applyP
         'You are a pixel art editor. The user sends you a pixel art image and an edit request. ' +
         'Return ONLY valid JSON with this structure: ' +
         '{"pixels": [["#ff0000", "#00ff00", ...], [...]]} ' +
-        'where pixels[y][x] is a hex color string for each pixel. ' +
+        'where pixels[y][x] is a hex color string for each pixel, or "transparent" for empty pixels. ' +
         'Preserve the exact dimensions. Use the same color palette style. ' +
         'Respond with nothing except the JSON object.\n\n'
 
       const params = {
         apiKey: apiKey.trim(),
         imageBase64: base64,
-        prompt: prompt.trim(),
+        prompt: `${prompt.trim()}\n\nThe image is ${width}x${height} pixels: return exactly ${height} rows of ${width} colors.`,
         model: model || undefined,
       }
 
@@ -133,7 +138,7 @@ export default function AIChat({ isOpen, onToggle, extractCanvasAsBase64, applyP
     } finally {
       setLoading(false)
     }
-  }, [apiKey, prompt, provider, model, extractCanvasAsBase64, applyPixels])
+  }, [apiKey, prompt, provider, model, extractCanvas, applyPixels])
 
   if (!isOpen) return null
 

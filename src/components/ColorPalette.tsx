@@ -5,6 +5,7 @@ interface ColorPaletteProps {
   secondaryColor: string
   onPrimaryChange: (color: string) => void
   onSecondaryChange: (color: string) => void
+  onSwap: () => void
 }
 
 const PRESET_COLORS = [
@@ -35,6 +36,7 @@ export default function ColorPalette({
   secondaryColor,
   onPrimaryChange,
   onSecondaryChange,
+  onSwap,
 }: ColorPaletteProps) {
   const [showPicker, setShowPicker] = useState(false)
 
@@ -60,7 +62,7 @@ export default function ColorPalette({
     >
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         <div
-          title="Left click to copy"
+          title="Primary color (click to edit)"
           style={{
             width: 32,
             height: 32,
@@ -72,7 +74,7 @@ export default function ColorPalette({
           onClick={() => setShowPicker(!showPicker)}
         />
         <div
-          title="Right click to copy"
+          title="Secondary color (click to swap)"
           style={{
             width: 20,
             height: 20,
@@ -81,9 +83,11 @@ export default function ColorPalette({
             borderRadius: 4,
             cursor: 'pointer',
           }}
-          onClick={() => onSecondaryChange(primaryColor)}
+          onClick={onSwap}
         />
-        <span style={{ color: '#aaa', fontSize: 11 }}>Swap</span>
+        <span style={{ color: '#aaa', fontSize: 11, cursor: 'pointer' }} onClick={onSwap}>
+          Swap
+        </span>
       </div>
 
       {showPicker && (
