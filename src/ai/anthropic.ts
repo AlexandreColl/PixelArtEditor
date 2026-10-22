@@ -18,7 +18,8 @@ export async function editWithAnthropic(req: AIEditRequest): Promise<AIEditRespo
 
   const body = {
     model,
-    max_tokens: 8192,
+    // Adaptive thinking counts towards max_tokens, so leave room for the pixel JSON
+    max_tokens: 32000,
     system:
       'You are a pixel art editor. The user sends you a pixel art image and an edit request. ' +
       'Return ONLY valid JSON with this structure: ' +

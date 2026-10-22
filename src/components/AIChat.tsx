@@ -20,16 +20,19 @@ const providerLabels: Record<AIProvider, string> = {
 
 const modelOptions: Record<AIProvider, { value: string; label: string }[]> = {
   openai: [
-    { value: 'gpt-4o', label: 'GPT-4o' },
-    { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
-    { value: 'gpt-4.1', label: 'GPT-4.1' },
+    { value: 'gpt-6.1-sol', label: 'GPT-6.1 Sol' },
+    { value: 'gpt-6-astra', label: 'GPT-6 Astra (best quality)' },
+    { value: 'gpt-6-luna', label: 'GPT-6 Luna (budget)' },
   ],
   anthropic: [
     { value: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5' },
-    { value: 'claude-haiku-5-5', label: 'Claude Haiku 5.5' },
     { value: 'claude-opus-5-5', label: 'Claude Opus 5.5' },
+    { value: 'claude-fable-5-1', label: 'Claude Fable 5.1 (best quality)' },
   ],
-  gemini: [{ value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' }],
+  gemini: [
+    { value: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash' },
+    { value: 'gemini-4-argon', label: 'Gemini 4 Argon (best quality)' },
+  ],
 }
 
 /** The stored model for a provider, or its first option if none is stored or it is no longer offered. */
@@ -41,9 +44,6 @@ function savedModel(provider: AIProvider): string {
 
 export default function AIChat({ isOpen, onToggle, extractCanvas, applyPixels }: AIChatProps) {
   const [provider, setProvider] = useState<AIProvider>(() => {
-    // Groq was removed: don't leave its API key stored on the machine
-    localStorage.removeItem('ai_key_groq')
-    localStorage.removeItem('ai_model_groq')
     const stored = localStorage.getItem('ai_provider') as AIProvider | null
     return stored && stored in modelOptions ? stored : 'openai'
   })
@@ -169,7 +169,7 @@ export default function AIChat({ isOpen, onToggle, extractCanvas, applyPixels }:
         <select value={provider} onChange={e => handleProviderChange(e.target.value as AIProvider)} style={selectStyle}>
           <option value="openai">OpenAI</option>
           <option value="anthropic">Claude (Anthropic)</option>
-          <option value="gemini">Gemini (gratis)</option>
+          <option value="gemini">Gemini (Google)</option>
         </select>
 
         <label style={{ fontSize: 11, color: '#888' }}>Model</label>
