@@ -1,5 +1,6 @@
 import { useRef, useEffect, useCallback, useState } from 'react'
 import type { PixelData, Tool, Selection } from '../types'
+import { TRANSPARENT, parseColor } from '../utils/color'
 
 const cursorMap: Record<string, string> = {
   fill: 'crosshair',
@@ -7,47 +8,45 @@ const cursorMap: Record<string, string> = {
   selection: 'crosshair',
 }
 
-function hexToRgba(hex: string): [number, number, number, number] {
-  if (hex.startsWith('rgba')) {
-    const m = hex.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/)
-    if (m) return [Number(m[1]), Number(m[2]), Number(m[3]), m[4] !== undefined ? Math.round(Number(m[4]) * 255) : 255]
-    return [0, 0, 0, 0]
-  }
-  if (hex.startsWith('#')) {
-    const v = parseInt(hex.slice(1), 16)
-    return [(v >> 16) & 255, (v >> 8) & 255, v & 255, 255]
-  }
-  return [0, 0, 0, 0]
-}
-
 interface CanvasProps {
   pixelData: PixelData
   tool: Tool
   primaryColor: string
+  secondaryColor: string
   zoom: number
   brushSize: number
-  onPaintBrush: (x: number, y: number, color: string, size: number) => void
+  onPaintLine: (x0: number, y0: number, x1: number, y1: number, color: string, size: number) => void
   onFillRegion: (x: number, y: number, color: string) => void
   onShadePixel: (x: number, y: number) => void
+  onStrokeEnd: () => void
   onPickColor: (x: number, y: number) => string | null
+  onColorPicked: (color: string, secondary: boolean) => void
   onSelectionChange: (sel: Selection | null) => void
+  onZoomStep: (direction: 1 | -1) => void
 }
 
 export default function Canvas({
   pixelData,
   tool,
   primaryColor,
+  secondaryColor,
   zoom,
   brushSize,
-  onPaintBrush,
+  onPaintLine,
   onFillRegion,
   onShadePixel,
+  onStrokeEnd,
   onPickColor,
+  onColorPicked,
   onSelectionChange,
+  onZoomStep,
 }: CanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const textureRef = useRef<HTMLCanvasElement | null>(null)
-  const [isDrawing, setIsDrawing] = useState(false)
+  // Refs rather than state so pointer events that arrive before the next render see the stroke
+  const isDrawingRef = useRef(false)
+  const strokeColorRef = useRef(primaryColor)
+  const lastPosRef = useRef<{ x: number; y: number } | null>(null)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [isPanning, setIsPanning] = useState(false)
   const panStartRef = useRef({ x: 0, y: 0 })
@@ -70,8 +69,6 @@ export default function Canvas({
 
     canvas.width = cw
     canvas.height = ch
-    ctx.save()
-    ctx.translate(pan.x, pan.y)
     ctx.imageSmoothingEnabled = false
     ctx.drawImage(tc, 0, 0, cw, ch)
 
@@ -109,9 +106,7 @@ export default function Canvas({
       ctx.strokeRect(rx, ry, rw, rh)
       ctx.setLineDash([])
     }
-
-    ctx.restore()
-  }, [zoom, pan, selEnd, width, height])
+  }, [zoom, selEnd, width, height])
 
   const drawRef = useRef(draw)
   drawRef.current = draw
@@ -125,15 +120,15 @@ export default function Canvas({
     const data = imageData.data
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
-        const color = pixels[y][x]
+        const color = pixels[y]?.[x] ?? TRANSPARENT
         const i = (y * width + x) * 4
-        if (color === 'rgba(0,0,0,0)') {
+        const [r, g, b, a] = parseColor(color) ?? [0, 0, 0, 0]
+        if (a === 0) {
           data[i] = 224
           data[i + 1] = 224
           data[i + 2] = 224
           data[i + 3] = 255
         } else {
-          const [r, g, b, a] = hexToRgba(color)
           data[i] = r
           data[i + 1] = g
           data[i + 2] = b
@@ -150,29 +145,51 @@ export default function Canvas({
     draw()
   }, [draw])
 
+  // A selection from the previous canvas size would point outside the new one
+  useEffect(() => {
+    selStartRef.current = null
+    setSelEnd(null)
+    onSelectionChange(null)
+  }, [width, height, onSelectionChange])
+
+  // React registers wheel listeners as passive, so preventDefault only works on a native listener
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      onZoomStep(e.deltaY < 0 ? 1 : -1)
+    }
+    canvas.addEventListener('wheel', handleWheel, { passive: false })
+    return () => canvas.removeEventListener('wheel', handleWheel)
+  }, [onZoomStep])
+
   const getPixelCoords = useCallback(
     (clientX: number, clientY: number) => {
+      // The bounding rect already includes the pan transform
       const rect = canvasRef.current?.getBoundingClientRect()
       if (!rect) return null
-      const mx = clientX - rect.left - pan.x
-      const my = clientY - rect.top - pan.y
-      const px = Math.floor(mx / zoom)
-      const py = Math.floor(my / zoom)
+      const px = Math.floor((clientX - rect.left) / zoom)
+      const py = Math.floor((clientY - rect.top) / zoom)
       if (px < 0 || px >= width || py < 0 || py >= height) return null
       return { x: px, y: py }
     },
-    [zoom, width, height, pan],
+    [zoom, width, height],
   )
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
       if (e.button === 1) {
+        e.preventDefault()
         setIsPanning(true)
         panStartRef.current = { x: e.clientX - pan.x, y: e.clientY - pan.y }
         return
       }
+      if (e.button !== 0 && e.button !== 2) return
+      const secondary = e.button === 2
 
       if (tool === 'selection') {
+        if (secondary) return
         selStartRef.current = null
         setSelEnd(null)
         onSelectionChange(null)
@@ -183,28 +200,40 @@ export default function Canvas({
         return
       }
 
-      if (e.button !== 0) return
       const coords = getPixelCoords(e.clientX, e.clientY)
       if (!coords) return
+      const color = secondary ? secondaryColor : primaryColor
 
       if (tool === 'fill') {
-        onFillRegion(coords.x, coords.y, primaryColor)
-      } else if (tool === 'shade') {
-        setIsDrawing(true)
-        onShadePixel(coords.x, coords.y)
+        onFillRegion(coords.x, coords.y, color)
       } else if (tool === 'picker') {
-        const color = onPickColor(coords.x, coords.y)
-        if (color) {
-          const event = new CustomEvent('pick-color', { detail: color })
-          window.dispatchEvent(event)
-        }
+        const picked = onPickColor(coords.x, coords.y)
+        if (picked) onColorPicked(picked, secondary)
+      } else if (tool === 'shade') {
+        isDrawingRef.current = true
+        lastPosRef.current = coords
+        onShadePixel(coords.x, coords.y)
       } else {
-        setIsDrawing(true)
-        const color = tool === 'eraser' ? 'rgba(0,0,0,0)' : primaryColor
-        onPaintBrush(coords.x, coords.y, color, brushSize)
+        isDrawingRef.current = true
+        lastPosRef.current = coords
+        strokeColorRef.current = tool === 'eraser' ? TRANSPARENT : color
+        onPaintLine(coords.x, coords.y, coords.x, coords.y, strokeColorRef.current, brushSize)
       }
     },
-    [tool, primaryColor, getPixelCoords, onFillRegion, onPickColor, pan, onSelectionChange, brushSize],
+    [
+      tool,
+      primaryColor,
+      secondaryColor,
+      getPixelCoords,
+      onFillRegion,
+      onPickColor,
+      onColorPicked,
+      onShadePixel,
+      onPaintLine,
+      pan,
+      onSelectionChange,
+      brushSize,
+    ],
   )
 
   const handlePointerMove = useCallback(
@@ -220,21 +249,27 @@ export default function Canvas({
         return
       }
 
-      if (!isDrawing) return
+      if (!isDrawingRef.current) return
       const coords = getPixelCoords(e.clientX, e.clientY)
       if (!coords) return
+      const last = lastPosRef.current ?? coords
+      if (last.x === coords.x && last.y === coords.y && lastPosRef.current) return
+      lastPosRef.current = coords
       if (tool === 'shade') {
         onShadePixel(coords.x, coords.y)
       } else {
-        const color = tool === 'eraser' ? 'rgba(0,0,0,0)' : primaryColor
-        onPaintBrush(coords.x, coords.y, color, brushSize)
+        onPaintLine(last.x, last.y, coords.x, coords.y, strokeColorRef.current, brushSize)
       }
     },
-    [isDrawing, isPanning, tool, primaryColor, getPixelCoords, brushSize],
+    [isPanning, tool, getPixelCoords, onShadePixel, onPaintLine, brushSize],
   )
 
   const handlePointerUp = useCallback(() => {
-    setIsDrawing(false)
+    if (isDrawingRef.current) {
+      isDrawingRef.current = false
+      lastPosRef.current = null
+      onStrokeEnd()
+    }
     setIsPanning(false)
 
     const sx = selStartRef.current
@@ -246,13 +281,7 @@ export default function Canvas({
       const h = Math.abs(ex.y - sx.y) + 1
       onSelectionChange({ x, y, width: w, height: h })
     }
-  }, [tool, selEnd, onSelectionChange])
-
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault()
-    const event = new CustomEvent('canvas-zoom', { detail: e.deltaY < 0 ? 1 : -1 })
-    window.dispatchEvent(event)
-  }, [])
+  }, [tool, selEnd, onSelectionChange, onStrokeEnd])
 
   return (
     <div
@@ -260,7 +289,7 @@ export default function Canvas({
         flex: 1,
         overflow: 'auto',
         background: '#1e1e1e',
-        cursor: cursorMap[tool] || 'default',
+        cursor: isPanning ? 'grabbing' : cursorMap[tool] || 'default',
       }}
     >
       <canvas
@@ -269,10 +298,11 @@ export default function Canvas({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerUp}
-        onWheel={handleWheel}
+        onContextMenu={e => e.preventDefault()}
         style={{
           display: 'block',
           imageRendering: 'pixelated',
+          transform: `translate(${pan.x}px, ${pan.y}px)`,
         }}
       />
     </div>

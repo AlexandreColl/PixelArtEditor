@@ -79,7 +79,7 @@ Características principales:
 - :robot: Agente IA integrado que entiende tu arte y lo modifica con lenguaje natural
 - :arrows_counterclockwise: Historia ilimitada de deshacer/rehacer (Ctrl+Z / Ctrl+Shift+Z)
 - :mag: Zoom y paneo con rueda del ratón (clic central)
-- :rainbow: Paleta de colores con colores primario/secundario y muestras predefinidas
+- :rainbow: Paleta de colores con colores primario/secundario (clic izquierdo / derecho) y muestras predefinidas
 
 <p align="right">(<a href="#readme-top">volver arriba</a>)</p>
 
@@ -173,7 +173,7 @@ Usa el **botón central del ratón** (rueda) para arrastrar la vista.
 
 1. Abre el panel IA con el botón `BotMessageSquare` en la esquina superior derecha
 2. Elige el proveedor (OpenAI, Anthropic, Gemini o Groq) y el modelo, e introduce tu clave de API (se guarda localmente)
-3. Selecciona una región con la herramienta `MousePointer`
+3. (Opcional) Selecciona una región con la herramienta `MousePointer`; sin selección se edita todo el lienzo
 4. Describe el cambio que quieres (ej: "haz el fondo azul" o "duplica este sprite")
 5. Revisa el resultado y haz clic en **Aplicar Edición**
 
