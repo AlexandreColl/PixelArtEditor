@@ -70,7 +70,7 @@ Pixel Art Editor es una aplicación de escritorio para crear y editar pixel art,
 
 El editor ofrece herramientas esenciales de dibujo (lápiz, borrador, bote de pintura, selector de color, selección y sombreado), historia completa de deshacer/rehacer, y la posibilidad de abrir y guardar archivos PNG directamente desde el sistema de archivos.
 
-Además, incluye un **panel de IA** que permite modificar el arte mediante lenguaje natural usando modelos con visión de **OpenAI**, **Anthropic**, **Google Gemini** o **Groq**, ideal para iterar rápido sin necesidad de editar píxel por píxel.
+Además, incluye un **panel de IA** que permite modificar el arte mediante lenguaje natural usando modelos con visión de **OpenAI**, **Anthropic** o **Google Gemini**, ideal para iterar rápido sin necesidad de editar píxel por píxel.
 
 Características principales:
 
@@ -95,7 +95,6 @@ Características principales:
 - [![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=for-the-badge&logo=openai&logoColor=white)](https://openai.com/)
 - [![Anthropic](https://img.shields.io/badge/Anthropic-191919?style=for-the-badge&logo=anthropic&logoColor=white)](https://www.anthropic.com/)
 - [![Gemini](https://img.shields.io/badge/Gemini-8E75B2?style=for-the-badge&logo=googlegemini&logoColor=white)](https://ai.google.dev/)
-- [![Groq](https://img.shields.io/badge/Groq-F55036?style=for-the-badge)](https://groq.com/)
 
 <p align="right">(<a href="#readme-top">volver arriba</a>)</p>
 
@@ -172,7 +171,7 @@ Usa el **botón central del ratón** (rueda) para arrastrar la vista.
 ### Agente IA
 
 1. Abre el panel IA con el botón `BotMessageSquare` en la esquina superior derecha
-2. Elige el proveedor (OpenAI, Anthropic, Gemini o Groq) y el modelo, e introduce tu clave de API (se guarda localmente)
+2. Elige el proveedor (OpenAI, Anthropic o Gemini) y el modelo, e introduce tu clave de API (se guarda localmente)
 3. (Opcional) Selecciona una región con la herramienta `MousePointer`; sin selección se edita todo el lienzo
 4. Describe el cambio que quieres (ej: "haz el fondo azul" o "duplica este sprite")
 5. Revisa el resultado y haz clic en **Aplicar Edición**
@@ -236,7 +235,7 @@ pixel-art-editor/
 │   ├── hooks/
 │   │   └── useEditor.ts        # Estado global, herramientas e historial
 │   ├── ai/
-│   │   ├── openai.ts           # Cliente OpenAI / Groq (visión + JSON)
+│   │   ├── openai.ts           # Cliente OpenAI (visión + JSON)
 │   │   ├── anthropic.ts        # Cliente Anthropic
 │   │   └── gemini.ts           # Cliente Google Gemini
 │   ├── types/
@@ -270,7 +269,7 @@ pixel-art-editor/
 - [x] Herramientas básicas de dibujo
 - [x] Deshacer/rehacer con historial
 - [x] Abrir y guardar PNG
-- [x] Panel de IA multiproveedor (OpenAI, Anthropic, Gemini, Groq)
+- [x] Panel de IA multiproveedor (OpenAI, Anthropic, Gemini)
 - [x] Crear lienzo nuevo
 - [x] Herramienta de sombreado (difuminado)
 - [x] Tamaño de pincel ajustable

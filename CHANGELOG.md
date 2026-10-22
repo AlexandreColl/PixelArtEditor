@@ -21,7 +21,7 @@ Primera versión pública.
 - Creación de un lienzo nuevo en blanco.
 - Zoom con la rueda del ratón y paneo con el botón central.
 - Paleta con color primario/secundario y muestras predefinidas: el clic izquierdo usa el primario y el derecho el secundario, con botón para intercambiarlos.
-- Panel de IA para editar el arte (o solo la región seleccionada) con lenguaje natural, con soporte para OpenAI, Anthropic, Google Gemini y Groq. Las ediciones de IA se pueden deshacer.
+- Panel de IA para editar el arte (o solo la región seleccionada) con lenguaje natural, con soporte para OpenAI, Anthropic y Google Gemini. Las ediciones de IA se pueden deshacer.
 - Barra de herramientas con iconos de lucide-react.
 - Scripts `dev.bat` / `build.bat` y helper `scripts/dev.ps1` para Windows.
 
