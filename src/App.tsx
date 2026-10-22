@@ -7,7 +7,8 @@ import Toolbar from './components/Toolbar'
 import ColorPalette from './components/ColorPalette'
 import AIChat from './components/AIChat'
 import { useEditor } from './hooks/useEditor'
-import type { PixelData } from './types'
+import type { PixelData, Selection } from './types'
+import { formatColor } from './utils/color'
 import { Save, FolderOpen, BotMessageSquare, FilePlus } from 'lucide-react'
 
 function pixelsToPngDataUrl(pixels: string[][], width: number, height: number): string {
@@ -32,7 +33,9 @@ async function savePngFile(pixels: string[][], width: number, height: number, fi
 function loadImageFile(file: File): Promise<PixelData> {
   return new Promise((resolve, reject) => {
     const img = new Image()
+    const url = URL.createObjectURL(file)
     img.onload = () => {
+      URL.revokeObjectURL(url)
       const canvas = document.createElement('canvas')
       canvas.width = img.width
       canvas.height = img.height
@@ -48,14 +51,17 @@ function loadImageFile(file: File): Promise<PixelData> {
           const g = imageData.data[i + 1]
           const b = imageData.data[i + 2]
           const a = imageData.data[i + 3]
-          row.push(a === 0 ? 'rgba(0,0,0,0)' : `rgba(${r},${g},${b},${a / 255})`)
+          row.push(formatColor([r, g, b, a]))
         }
         pixels.push(row)
       }
       resolve({ width: img.width, height: img.height, pixels })
     }
-    img.onerror = () => reject(new Error('Failed to load image'))
-    img.src = URL.createObjectURL(file)
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('Failed to load image'))
+    }
+    img.src = url
   })
 }
 
@@ -110,14 +116,17 @@ export default function App() {
     setTool,
     setPrimaryColor,
     setSecondaryColor,
+    swapColors,
     setZoom,
     setBrushSize,
-    paintBrush,
+    paintLine,
     fillRegion,
     shadePixel,
+    commitHistory,
     pickColor,
     resizeCanvas,
     clearCanvas,
+    applyPixels,
     importPixels,
     undo,
     redo,
@@ -129,42 +138,53 @@ export default function App() {
   const filePathRef = useRef<string | null>(null)
   const fileNameRef = useRef('untitled')
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const sizeWRef = useRef(state.pixelData.width)
-  const sizeHRef = useRef(state.pixelData.height)
+  const [sizeW, setSizeW] = useState(String(state.pixelData.width))
+  const [sizeH, setSizeH] = useState(String(state.pixelData.height))
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pixelDataRef = useRef(state.pixelData)
+  const selectionRef = useRef<Selection | null>(null)
 
   pixelDataRef.current = state.pixelData
 
-  const extractFullCanvasAsBase64 = useCallback((): string => {
+  // Keep the W/H inputs in sync when the canvas changes size (open, new, undo of a resize...)
+  useEffect(() => {
+    setSizeW(String(state.pixelData.width))
+    setSizeH(String(state.pixelData.height))
+  }, [state.pixelData.width, state.pixelData.height])
+
+  const handleSelectionChange = useCallback((sel: Selection | null) => {
+    selectionRef.current = sel
+  }, [])
+
+  /** The region the AI edits: the current selection, or the whole canvas. */
+  const getAiRegion = useCallback((): Selection => {
     const pd = pixelDataRef.current
+    return selectionRef.current ?? { x: 0, y: 0, width: pd.width, height: pd.height }
+  }, [])
+
+  const extractCanvasForAI = useCallback(() => {
+    const pd = pixelDataRef.current
+    const region = getAiRegion()
     const c = document.createElement('canvas')
-    c.width = pd.width
-    c.height = pd.height
+    c.width = region.width
+    c.height = region.height
     const ctx = c.getContext('2d')!
-    for (let y = 0; y < pd.height; y++) {
-      for (let x = 0; x < pd.width; x++) {
-        ctx.fillStyle = pd.pixels[y][x]
+    for (let y = 0; y < region.height; y++) {
+      for (let x = 0; x < region.width; x++) {
+        ctx.fillStyle = pd.pixels[region.y + y][region.x + x]
         ctx.fillRect(x, y, 1, 1)
       }
     }
-    return c.toDataURL('image/png').split(',')[1] || ''
-  }, [])
+    return { base64: c.toDataURL('image/png').split(',')[1] || '', width: region.width, height: region.height }
+  }, [getAiRegion])
 
-  const applyFullPixels = useCallback(
+  const applyAiPixels = useCallback(
     (pixels: string[][]) => {
-      const pd = pixelDataRef.current
-      const h = Math.min(pixels.length, pd.height)
-      const w = Math.min(pixels[0]?.length ?? pd.width, pd.width)
-      const merged = pd.pixels.map(row => [...row])
-      for (let y = 0; y < h; y++) {
-        for (let x = 0; x < w; x++) {
-          merged[y][x] = pixels[y][x]
-        }
-      }
-      importPixels(merged, pd.width, pd.height)
+      const region = getAiRegion()
+      const applied = applyPixels(pixels, region.x, region.y, region.width, region.height)
+      if (applied === 0) throw new Error('The AI response did not contain any valid pixel colors')
     },
-    [importPixels],
+    [applyPixels, getAiRegion],
   )
 
   const showToast = useCallback((message: string) => {
@@ -201,7 +221,7 @@ export default function App() {
         filters: [{ name: 'PNG Image', extensions: ['png'] }],
         defaultPath: `${fileNameRef.current}.png`,
       })
-      if (fp) await doSavePng(fp)
+      if (fp) await doSavePng(/\.png$/i.test(fp) ? fp : `${fp}.png`)
     }
   }, [doSavePng])
 
@@ -215,8 +235,6 @@ export default function App() {
     importPixels(empty, 32, 32)
     filePathRef.current = null
     fileNameRef.current = 'untitled'
-    sizeWRef.current = 32
-    sizeHRef.current = 32
     showToast('New canvas created')
   }, [importPixels, showToast])
 
@@ -234,7 +252,8 @@ export default function App() {
       const file = new File([blob], fp.split(/[\\/]/).pop() || 'image.png')
       const pixelData = await loadImageFile(file)
       importPixels(pixelData.pixels, pixelData.width, pixelData.height)
-      filePathRef.current = fp
+      // Saving always writes PNG, so only overwrite the original when it is a PNG
+      filePathRef.current = /\.png$/i.test(fp) ? fp : null
       const name =
         fp
           .split(/[\\/]/)
@@ -268,54 +287,61 @@ export default function App() {
   const handleOpenRef = useRef(handleOpen)
   handleOpenRef.current = handleOpen
 
+  const handleZoomStep = useCallback(
+    (direction: 1 | -1) => {
+      const z = zoomRef.current
+      // Small steps at low zoom so every level stays reachable
+      const step = z < 8 ? 1 : 4
+      setZoom(z + direction * step)
+    },
+    [setZoom],
+  )
+
+  const handleColorPicked = useCallback(
+    (color: string, secondary: boolean) => {
+      if (secondary) setSecondaryColor(color)
+      else setPrimaryColor(color)
+    },
+    [setPrimaryColor, setSecondaryColor],
+  )
+
   useEffect(() => {
-    const handlePick = (e: Event) => {
-      const detail = (e as CustomEvent).detail
-      if (typeof detail === 'string') setPrimaryColor(detail)
-    }
-    const handleZoom = (e: Event) => {
-      const detail = (e as CustomEvent).detail
-      if (typeof detail === 'number') setZoom(zoomRef.current + detail * 4)
-    }
     const handleKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+      if (!(e.ctrlKey || e.metaKey)) return
+      // Leave text editing shortcuts alone in inputs and textareas
+      const target = e.target as HTMLElement | null
+      if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return
+      // With Shift or Caps Lock e.key is upper case
+      const key = e.key.toLowerCase()
+      if (key === 'z' && !e.shiftKey) {
         e.preventDefault()
         undo()
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && e.shiftKey) {
+      } else if ((key === 'z' && e.shiftKey) || key === 'y') {
         e.preventDefault()
         redo()
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
-        e.preventDefault()
-        redo()
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      } else if (key === 's') {
         e.preventDefault()
         handleSaveRef.current()
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === 'o') {
+      } else if (key === 'o') {
         e.preventDefault()
         handleOpenRef.current()
       }
     }
-    window.addEventListener('pick-color', handlePick)
-    window.addEventListener('canvas-zoom', handleZoom)
     window.addEventListener('keydown', handleKey)
-    return () => {
-      window.removeEventListener('pick-color', handlePick)
-      window.removeEventListener('canvas-zoom', handleZoom)
-      window.removeEventListener('keydown', handleKey)
-    }
-  }, [setPrimaryColor, setZoom, undo, redo])
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [undo, redo])
 
   const handleResize = useCallback(() => {
-    const w = Math.max(1, Math.min(256, Number(sizeWRef.current)))
-    const h = Math.max(1, Math.min(256, Number(sizeHRef.current)))
-    sizeWRef.current = w
-    sizeHRef.current = h
+    const clamp = (v: string, fallback: number) => {
+      const n = Math.round(Number(v))
+      return Number.isFinite(n) && n > 0 ? Math.min(256, n) : fallback
+    }
+    const w = clamp(sizeW, state.pixelData.width)
+    const h = clamp(sizeH, state.pixelData.height)
+    setSizeW(String(w))
+    setSizeH(String(h))
     resizeCanvas(w, h)
-  }, [resizeCanvas])
+  }, [sizeW, sizeH, state.pixelData.width, state.pixelData.height, resizeCanvas])
 
   return (
     <div
@@ -404,12 +430,10 @@ export default function App() {
         <label style={{ fontSize: 12, color: '#aaa' }}>W:</label>
         <input
           type="number"
-          defaultValue={state.pixelData.width}
+          value={sizeW}
           min={1}
           max={256}
-          onChange={e => {
-            sizeWRef.current = Number(e.target.value)
-          }}
+          onChange={e => setSizeW(e.target.value)}
           style={{
             width: 48,
             padding: '2px 6px',
@@ -423,12 +447,10 @@ export default function App() {
         <label style={{ fontSize: 12, color: '#aaa' }}>H:</label>
         <input
           type="number"
-          defaultValue={state.pixelData.height}
+          value={sizeH}
           min={1}
           max={256}
-          onChange={e => {
-            sizeHRef.current = Number(e.target.value)
-          }}
+          onChange={e => setSizeH(e.target.value)}
           style={{
             width: 48,
             padding: '2px 6px',
@@ -491,13 +513,17 @@ export default function App() {
           pixelData={state.pixelData}
           tool={state.activeTool}
           primaryColor={state.primaryColor}
+          secondaryColor={state.secondaryColor}
           zoom={state.zoom}
           brushSize={state.brushSize}
-          onPaintBrush={paintBrush}
+          onPaintLine={paintLine}
           onFillRegion={fillRegion}
           onShadePixel={shadePixel}
+          onStrokeEnd={commitHistory}
           onPickColor={pickColor}
-          onSelectionChange={() => {}}
+          onColorPicked={handleColorPicked}
+          onSelectionChange={handleSelectionChange}
+          onZoomStep={handleZoomStep}
         />
 
         <ColorPalette
@@ -505,13 +531,14 @@ export default function App() {
           secondaryColor={state.secondaryColor}
           onPrimaryChange={setPrimaryColor}
           onSecondaryChange={setSecondaryColor}
+          onSwap={swapColors}
         />
 
         <AIChat
           isOpen={aiOpen}
           onToggle={() => setAiOpen(!aiOpen)}
-          extractCanvasAsBase64={extractFullCanvasAsBase64}
-          applyPixels={applyFullPixels}
+          extractCanvas={extractCanvasForAI}
+          applyPixels={applyAiPixels}
         />
       </div>
 

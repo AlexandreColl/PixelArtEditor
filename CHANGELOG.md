@@ -20,8 +20,8 @@ Primera versión pública.
 - Apertura y guardado de PNG en disco (`Ctrl+O`, `Ctrl+S`) y carga mediante arrastrar y soltar.
 - Creación de un lienzo nuevo en blanco.
 - Zoom con la rueda del ratón y paneo con el botón central.
-- Paleta con color primario/secundario y muestras predefinidas.
-- Panel de IA para editar el arte con lenguaje natural, con soporte para OpenAI, Anthropic, Google Gemini y Groq.
+- Paleta con color primario/secundario y muestras predefinidas: el clic izquierdo usa el primario y el derecho el secundario, con botón para intercambiarlos.
+- Panel de IA para editar el arte (o solo la región seleccionada) con lenguaje natural, con soporte para OpenAI, Anthropic, Google Gemini y Groq. Las ediciones de IA se pueden deshacer.
 - Barra de herramientas con iconos de lucide-react.
 - Scripts `dev.bat` / `build.bat` y helper `scripts/dev.ps1` para Windows.
 

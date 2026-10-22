@@ -1,4 +1,4 @@
-export const DEFAULT_MODEL = 'claude-sonnet-4-20250514'
+export const DEFAULT_MODEL = 'claude-sonnet-5-5'
 
 export interface AIEditRequest {
   apiKey: string
@@ -23,7 +23,7 @@ export async function editWithAnthropic(req: AIEditRequest): Promise<AIEditRespo
       'You are a pixel art editor. The user sends you a pixel art image and an edit request. ' +
       'Return ONLY valid JSON with this structure: ' +
       '{"pixels": [["#ff0000", "#00ff00", ...], [...]]} ' +
-      'where pixels[y][x] is a hex color string for each pixel. ' +
+      'where pixels[y][x] is a hex color string for each pixel, or "transparent" for empty pixels. ' +
       'Preserve the exact dimensions. Use the same color palette style. ' +
       'Respond with nothing except the JSON object. No markdown, no code fences.',
     messages: [
@@ -46,6 +46,8 @@ export async function editWithAnthropic(req: AIEditRequest): Promise<AIEditRespo
       'Content-Type': 'application/json',
       'x-api-key': req.apiKey,
       'anthropic-version': '2023-06-01',
+      // Required for requests made from a webview, otherwise the CORS preflight is rejected
+      'anthropic-dangerous-direct-browser-access': 'true',
     },
     body: JSON.stringify(body),
   })
@@ -56,7 +58,7 @@ export async function editWithAnthropic(req: AIEditRequest): Promise<AIEditRespo
   }
 
   const data = await res.json()
-  const text = data.content?.[0]?.text
+  const text = data.content?.find((block: { type?: string }) => block.type === 'text')?.text
   if (!text) throw new Error('Empty response from Anthropic')
 
   const cleaned = text
