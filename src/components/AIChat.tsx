@@ -30,9 +30,7 @@ const modelOptions: Record<AIProvider, { value: string; label: string }[]> = {
     { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4' },
     { value: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku' },
   ],
-  groq: [
-    { value: 'meta-llama/llama-4-scout-17b-16e-instruct', label: 'Llama 4 Scout (gratis)' },
-  ],
+  groq: [{ value: 'meta-llama/llama-4-scout-17b-16e-instruct', label: 'Llama 4 Scout (gratis)' }],
   gemini: [
     { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
     { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite' },
@@ -45,7 +43,9 @@ export default function AIChat({ isOpen, onToggle, extractCanvasAsBase64, applyP
     () => (localStorage.getItem('ai_provider') as AIProvider) || 'openai',
   )
   const [apiKey, setApiKey] = useState(() => localStorage.getItem(`ai_key_${provider}`) || '')
-  const [model, setModel] = useState(() => localStorage.getItem(`ai_model_${provider}`) || modelOptions[provider][0].value)
+  const [model, setModel] = useState(
+    () => localStorage.getItem(`ai_model_${provider}`) || modelOptions[provider][0].value,
+  )
   const [prompt, setPrompt] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')

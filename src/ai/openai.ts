@@ -73,7 +73,10 @@ export async function editWithOpenAI(req: AIEditRequest): Promise<AIEditResponse
   const text = data.choices?.[0]?.message?.content
   if (!text) throw new Error('Empty response')
 
-  const cleaned = text.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '').trim()
+  const cleaned = text
+    .replace(/^```(?:json)?\s*/, '')
+    .replace(/\s*```$/, '')
+    .trim()
   const parsed = JSON.parse(cleaned)
   if (!parsed.pixels || !Array.isArray(parsed.pixels) || !parsed.pixels.length) {
     throw new Error('Invalid response format')
