@@ -1,6 +1,6 @@
 export const DEFAULT_MODEL = 'gpt-4o'
 
-const DEFAULT_SYSTEM_PROMPT =
+const SYSTEM_PROMPT =
   'You are a pixel art editor. The user sends you a pixel art image and an edit request. ' +
   'Return ONLY valid JSON with this structure: ' +
   '{"pixels": [["#ff0000", "#00ff00", ...], [...]]} ' +
@@ -13,9 +13,6 @@ export interface AIEditRequest {
   model?: string
   imageBase64: string
   prompt: string
-  baseUrl?: string
-  useJsonMode?: boolean
-  systemPrompt?: string
 }
 
 export interface AIEditResponse {
@@ -26,15 +23,7 @@ export interface AIEditResponse {
 
 export async function editWithOpenAI(req: AIEditRequest): Promise<AIEditResponse> {
   const model = req.model || DEFAULT_MODEL
-  const baseUrl = req.baseUrl || 'https://api.openai.com/v1'
-  const useJson = req.useJsonMode !== false
-
-  const sysPrompt = req.systemPrompt ?? DEFAULT_SYSTEM_PROMPT
-
-  const messages: Record<string, unknown>[] = []
-  if (sysPrompt) {
-    messages.push({ role: 'system', content: sysPrompt })
-  }
+  const messages: Record<string, unknown>[] = [{ role: 'system', content: SYSTEM_PROMPT }]
   messages.push({
     role: 'user',
     content: [
@@ -50,12 +39,10 @@ export async function editWithOpenAI(req: AIEditRequest): Promise<AIEditResponse
     model,
     messages,
     temperature: 0.3,
-  }
-  if (useJson) {
-    body.response_format = { type: 'json_object' }
+    response_format: { type: 'json_object' },
   }
 
-  const res = await fetch(`${baseUrl}/chat/completions`, {
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

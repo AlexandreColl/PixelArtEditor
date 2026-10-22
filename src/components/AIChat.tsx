@@ -3,7 +3,7 @@ import { editWithOpenAI } from '../ai/openai'
 import { editWithAnthropic } from '../ai/anthropic'
 import { editWithGemini } from '../ai/gemini'
 
-type AIProvider = 'openai' | 'anthropic' | 'groq' | 'gemini'
+type AIProvider = 'openai' | 'anthropic' | 'gemini'
 
 interface AIChatProps {
   isOpen: boolean
@@ -15,7 +15,6 @@ interface AIChatProps {
 const providerLabels: Record<AIProvider, string> = {
   openai: 'OpenAI',
   anthropic: 'Claude',
-  groq: 'Groq',
   gemini: 'Gemini',
 }
 
@@ -24,18 +23,13 @@ const modelOptions: Record<AIProvider, { value: string; label: string }[]> = {
     { value: 'gpt-4o', label: 'GPT-4o' },
     { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
     { value: 'gpt-4.1', label: 'GPT-4.1' },
-    { value: 'gpt-4.1-nano', label: 'GPT-4.1 Nano' },
   ],
   anthropic: [
     { value: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5' },
     { value: 'claude-haiku-5-5', label: 'Claude Haiku 5.5' },
     { value: 'claude-opus-5-5', label: 'Claude Opus 5.5' },
   ],
-  groq: [{ value: 'meta-llama/llama-4-scout-17b-16e-instruct', label: 'Llama 4 Scout (gratis)' }],
-  gemini: [
-    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
-    { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite' },
-  ],
+  gemini: [{ value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' }],
 }
 
 /** The stored model for a provider, or its first option if none is stored or it is no longer offered. */
@@ -47,6 +41,9 @@ function savedModel(provider: AIProvider): string {
 
 export default function AIChat({ isOpen, onToggle, extractCanvas, applyPixels }: AIChatProps) {
   const [provider, setProvider] = useState<AIProvider>(() => {
+    // Groq was removed: don't leave its API key stored on the machine
+    localStorage.removeItem('ai_key_groq')
+    localStorage.removeItem('ai_model_groq')
     const stored = localStorage.getItem('ai_provider') as AIProvider | null
     return stored && stored in modelOptions ? stored : 'openai'
   })
@@ -100,14 +97,6 @@ export default function AIChat({ isOpen, onToggle, extractCanvas, applyPixels }:
         return
       }
 
-      const groqSystemPrefix =
-        'You are a pixel art editor. The user sends you a pixel art image and an edit request. ' +
-        'Return ONLY valid JSON with this structure: ' +
-        '{"pixels": [["#ff0000", "#00ff00", ...], [...]]} ' +
-        'where pixels[y][x] is a hex color string for each pixel, or "transparent" for empty pixels. ' +
-        'Preserve the exact dimensions. Use the same color palette style. ' +
-        'Respond with nothing except the JSON object.\n\n'
-
       const params = {
         apiKey: apiKey.trim(),
         imageBase64: base64,
@@ -118,14 +107,6 @@ export default function AIChat({ isOpen, onToggle, extractCanvas, applyPixels }:
       let result
       if (provider === 'openai') {
         result = await editWithOpenAI(params)
-      } else if (provider === 'groq') {
-        result = await editWithOpenAI({
-          ...params,
-          baseUrl: 'https://api.groq.com/openai/v1',
-          useJsonMode: false,
-          systemPrompt: '',
-          prompt: groqSystemPrefix + params.prompt,
-        })
       } else if (provider === 'gemini') {
         result = await editWithGemini(params)
       } else {
@@ -188,7 +169,6 @@ export default function AIChat({ isOpen, onToggle, extractCanvas, applyPixels }:
         <select value={provider} onChange={e => handleProviderChange(e.target.value as AIProvider)} style={selectStyle}>
           <option value="openai">OpenAI</option>
           <option value="anthropic">Claude (Anthropic)</option>
-          <option value="groq">Groq (gratis)</option>
           <option value="gemini">Gemini (gratis)</option>
         </select>
 
@@ -206,15 +186,7 @@ export default function AIChat({ isOpen, onToggle, extractCanvas, applyPixels }:
           type="password"
           value={apiKey}
           onChange={e => handleKeyChange(e.target.value)}
-          placeholder={
-            provider === 'openai'
-              ? 'sk-...'
-              : provider === 'anthropic'
-                ? 'sk-ant-...'
-                : provider === 'groq'
-                  ? 'gsk_...'
-                  : 'AIza...'
-          }
+          placeholder={provider === 'openai' ? 'sk-...' : provider === 'anthropic' ? 'sk-ant-...' : 'AIza...'}
           style={{
             width: '100%',
             padding: '8px',
