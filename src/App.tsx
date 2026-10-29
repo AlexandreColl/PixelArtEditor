@@ -122,7 +122,10 @@ export default function App() {
     setZoom,
     setBrushSize,
     toggleGrid,
+    toggleShapeFilled,
     paintLine,
+    beginShape,
+    drawShape,
     fillRegion,
     shadePixel,
     commitHistory,
@@ -615,6 +618,8 @@ export default function App() {
           onFit={handleFit}
           showGrid={state.showGrid}
           onToggleGrid={toggleGrid}
+          shapeFilled={state.shapeFilled}
+          onToggleShapeFilled={toggleShapeFilled}
           brushSize={state.brushSize}
           onBrushSizeChange={setBrushSize}
           onClear={clearCanvas}
@@ -633,7 +638,10 @@ export default function App() {
           secondaryColor={state.secondaryColor}
           zoom={state.zoom}
           brushSize={state.brushSize}
+          shapeFilled={state.shapeFilled}
           onPaintLine={paintLine}
+          onShapeStart={beginShape}
+          onDrawShape={drawShape}
           onFillRegion={fillRegion}
           onShadePixel={shadePixel}
           onStrokeEnd={commitHistory}
