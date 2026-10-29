@@ -12,24 +12,11 @@ import { useEditor } from './hooks/useEditor'
 import type { PixelData, Selection } from './types'
 import { formatColor } from './utils/color'
 import { countColors } from './utils/pixelate'
-import { Save, FolderOpen, BotMessageSquare, FilePlus, ImagePlus } from 'lucide-react'
+import { EXPORT_SCALES, pixelsToPngDataUrl } from './utils/png'
+import { Save, FolderOpen, BotMessageSquare, FilePlus, ImagePlus, ImageDown } from 'lucide-react'
 
-function pixelsToPngDataUrl(pixels: string[][], width: number, height: number): string {
-  const canvas = document.createElement('canvas')
-  canvas.width = width
-  canvas.height = height
-  const ctx = canvas.getContext('2d')!
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      ctx.fillStyle = pixels[y][x]
-      ctx.fillRect(x, y, 1, 1)
-    }
-  }
-  return canvas.toDataURL('image/png')
-}
-
-async function savePngFile(pixels: string[][], width: number, height: number, filePath: string) {
-  const dataUrl = pixelsToPngDataUrl(pixels, width, height)
+async function savePngFile(pixels: string[][], width: number, height: number, filePath: string, scale = 1) {
+  const dataUrl = pixelsToPngDataUrl(pixels, width, height, scale)
   await invoke('save_png_file', { path: filePath, base64Data: dataUrl.split(',')[1] })
 }
 
@@ -150,6 +137,7 @@ export default function App() {
 
   const [aiOpen, setAiOpen] = useState(false)
   const [pendingImage, setPendingImage] = useState<PendingImage | null>(null)
+  const [exportScale, setExportScale] = useState(4)
   const forceConvertRef = useRef(false)
   const [dragOver, setDragOver] = useState(false)
   const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: '', visible: false })
@@ -230,6 +218,23 @@ export default function App() {
     },
     [state.pixelData, showToast],
   )
+
+  /** Saves a scaled copy as a new file; unlike Save it leaves the current file path and name alone. */
+  const handleExport = useCallback(async () => {
+    try {
+      const { pixels, width, height } = state.pixelData
+      const fp = await save({
+        filters: [{ name: 'PNG Image', extensions: ['png'] }],
+        defaultPath: `${fileNameRef.current}@${exportScale}x.png`,
+      })
+      if (!fp) return
+      await savePngFile(pixels, width, height, /\.png$/i.test(fp) ? fp : `${fp}.png`, exportScale)
+      showToast(`Exported ${width * exportScale}x${height * exportScale} PNG`)
+    } catch (err) {
+      showToast('Export failed')
+      console.error(err)
+    }
+  }, [state.pixelData, exportScale, showToast])
 
   const handleSave = useCallback(async () => {
     if (filePathRef.current) {
@@ -509,6 +514,28 @@ export default function App() {
         <button title="Save (Ctrl+S)" onClick={handleSave} style={btnAccent}>
           <Save size={16} />
         </button>
+        <button title="Export scaled PNG" onClick={handleExport} style={{ ...btnStyle, padding: '4px 6px 4px 10px' }}>
+          <ImageDown size={16} />
+        </button>
+        <select
+          title="Export scale"
+          value={exportScale}
+          onChange={e => setExportScale(Number(e.target.value))}
+          style={{
+            padding: '3px 4px',
+            borderRadius: 4,
+            border: '1px solid #555',
+            background: '#1e1e1e',
+            color: '#e0e0e0',
+            fontSize: 12,
+          }}
+        >
+          {EXPORT_SCALES.map(n => (
+            <option key={n} value={n}>
+              ×{n}
+            </option>
+          ))}
+        </select>
 
         <div style={{ width: 1, height: 24, background: '#444', margin: '0 8px' }} />
 

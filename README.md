@@ -168,6 +168,7 @@ Usa el **botón central del ratón** (rueda) para arrastrar la vista.
 - **Abrir imagen** — `Ctrl+O` o arrastra un PNG directamente al editor
 - **Guardar** — `Ctrl+S` abre el diálogo la primera vez y sobrescribe el archivo original en adelante
 - **Ctrl+Shift+S** — equivalente a Ctrl+S
+- **Exportar PNG escalado** — botón `ImageDown` junto a Guardar, con escala ×1, ×2, ×4 u ×8. Cada píxel se amplía a un bloque exacto, sin suavizado, y la transparencia se conserva. Es una exportación: no cambia el archivo que tienes abierto
 
 ### Convertir una imagen en pixel art
 
@@ -302,7 +303,7 @@ pixel-art-editor/
 
 - [ ] Importar y exportar paletas (`.gpl`, `.hex`)
 - [ ] Bloquear el dibujo a la paleta activa
-- [ ] Exportar PNG escalado (×2, ×4, ×8)
+- [x] Exportar PNG escalado (×2, ×4, ×8)
 - [ ] Exportar sprite sheet
 
 ### 0.4 — Animación
