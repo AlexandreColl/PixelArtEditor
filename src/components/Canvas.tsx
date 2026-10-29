@@ -20,6 +20,8 @@ export interface CanvasHandle {
   resetPan: () => void
 }
 
+type Point = { x: number; y: number }
+
 /** Below this zoom the grid lines would hide the pixels, so they are not drawn */
 const MIN_GRID_ZOOM = 4
 
@@ -52,7 +54,11 @@ interface CanvasProps {
   onStrokeEnd: () => void
   onPickColor: (x: number, y: number) => string | null
   onColorPicked: (color: string, secondary: boolean) => void
+  selection: Selection | null
   onSelectionChange: (sel: Selection | null) => void
+  /** Starts dragging the selection; with copy the original stays in place. Returns false if nothing is selected. */
+  onMoveStart: (copy: boolean) => boolean
+  onMoveTo: (x: number, y: number) => void
   onZoomStep: (direction: 1 | -1) => void
 }
 
@@ -76,7 +82,10 @@ export default function Canvas({
   onStrokeEnd,
   onPickColor,
   onColorPicked,
+  selection,
   onSelectionChange,
+  onMoveStart,
+  onMoveTo,
   onZoomStep,
 }: CanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -90,8 +99,12 @@ export default function Canvas({
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [isPanning, setIsPanning] = useState(false)
   const panStartRef = useRef({ x: 0, y: 0 })
-  const selStartRef = useRef<{ x: number; y: number } | null>(null)
-  const [selEnd, setSelEnd] = useState<{ x: number; y: number } | null>(null)
+  // Rectangle being dragged out with the selection tool (kept in a ref too for the pointer handlers)
+  const selDragRef = useRef<{ start: Point; end: Point } | null>(null)
+  const [selDrag, setSelDragState] = useState<{ start: Point; end: Point } | null>(null)
+  // Drag of an existing selection: where the pointer started and where the selection was
+  const moveRef = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null)
+  const [hoverInSelection, setHoverInSelection] = useState(false)
 
   const { width, height, pixels } = pixelData
 
@@ -161,13 +174,19 @@ export default function Canvas({
       ctx.restore()
     }
 
-    const sx = selStartRef.current
-    const ex = selEnd
-    if (sx && ex) {
-      const rx = Math.min(sx.x, ex.x) * pixelSize
-      const ry = Math.min(sx.y, ex.y) * pixelSize
-      const rw = (Math.abs(ex.x - sx.x) + 1) * pixelSize
-      const rh = (Math.abs(ex.y - sx.y) + 1) * pixelSize
+    const rect = selDrag
+      ? {
+          x: Math.min(selDrag.start.x, selDrag.end.x),
+          y: Math.min(selDrag.start.y, selDrag.end.y),
+          width: Math.abs(selDrag.end.x - selDrag.start.x) + 1,
+          height: Math.abs(selDrag.end.y - selDrag.start.y) + 1,
+        }
+      : selection
+    if (rect) {
+      const rx = rect.x * pixelSize
+      const ry = rect.y * pixelSize
+      const rw = rect.width * pixelSize
+      const rh = rect.height * pixelSize
 
       ctx.fillStyle = 'rgba(79, 195, 247, 0.1)'
       ctx.fillRect(rx, ry, rw, rh)
@@ -180,7 +199,7 @@ export default function Canvas({
       ctx.strokeRect(rx, ry, rw, rh)
       ctx.setLineDash([])
     }
-  }, [zoom, selEnd, width, height, showGrid, mirrorX, mirrorY])
+  }, [zoom, selection, selDrag, width, height, showGrid, mirrorX, mirrorY])
 
   const drawRef = useRef(draw)
   drawRef.current = draw
@@ -219,13 +238,6 @@ export default function Canvas({
     draw()
   }, [draw])
 
-  // A selection from the previous canvas size would point outside the new one
-  useEffect(() => {
-    selStartRef.current = null
-    setSelEnd(null)
-    onSelectionChange(null)
-  }, [width, height, onSelectionChange])
-
   // React registers wheel listeners as passive, so preventDefault only works on a native listener
   useEffect(() => {
     const canvas = canvasRef.current
@@ -251,6 +263,21 @@ export default function Canvas({
     [zoom, width, height],
   )
 
+  /** Like getPixelCoords but also for pointers outside the canvas, so a dragged selection can reach the edges. */
+  const getRawCoords = useCallback(
+    (clientX: number, clientY: number): Point | null => {
+      const rect = canvasRef.current?.getBoundingClientRect()
+      if (!rect) return null
+      return { x: Math.floor((clientX - rect.left) / zoom), y: Math.floor((clientY - rect.top) / zoom) }
+    },
+    [zoom],
+  )
+
+  const setSelDrag = useCallback((drag: { start: Point; end: Point } | null) => {
+    selDragRef.current = drag
+    setSelDragState(drag)
+  }, [])
+
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
       if (e.button === 1) {
@@ -264,13 +291,22 @@ export default function Canvas({
 
       if (tool === 'selection') {
         if (secondary) return
-        selStartRef.current = null
-        setSelEnd(null)
-        onSelectionChange(null)
         const coords = getPixelCoords(e.clientX, e.clientY)
+        const inside =
+          !!selection &&
+          !!coords &&
+          coords.x >= selection.x &&
+          coords.x < selection.x + selection.width &&
+          coords.y >= selection.y &&
+          coords.y < selection.y + selection.height
+        // Dragging inside the selection moves it (Alt copies it); anywhere else starts a new selection
+        if (inside && onMoveStart(e.altKey)) {
+          moveRef.current = { startX: coords.x, startY: coords.y, originX: selection.x, originY: selection.y }
+          return
+        }
+        onSelectionChange(null)
         if (!coords) return
-        selStartRef.current = coords
-        setSelEnd(coords)
+        setSelDrag({ start: coords, end: coords })
         return
       }
 
@@ -315,7 +351,10 @@ export default function Canvas({
       onDrawShape,
       shapeFilled,
       pan,
+      selection,
       onSelectionChange,
+      onMoveStart,
+      setSelDrag,
       brushSize,
     ],
   )
@@ -327,9 +366,30 @@ export default function Canvas({
         return
       }
 
-      if (tool === 'selection' && selStartRef.current) {
+      const move = moveRef.current
+      if (move) {
+        const raw = getRawCoords(e.clientX, e.clientY)
+        if (raw) onMoveTo(move.originX + raw.x - move.startX, move.originY + raw.y - move.startY)
+        return
+      }
+
+      const drag = selDragRef.current
+      if (drag) {
         const coords = getPixelCoords(e.clientX, e.clientY)
-        if (coords) setSelEnd(coords)
+        if (coords) setSelDrag({ start: drag.start, end: coords })
+        return
+      }
+
+      if (tool === 'selection') {
+        const coords = getPixelCoords(e.clientX, e.clientY)
+        setHoverInSelection(
+          !!selection &&
+            !!coords &&
+            coords.x >= selection.x &&
+            coords.x < selection.x + selection.width &&
+            coords.y >= selection.y &&
+            coords.y < selection.y + selection.height,
+        )
         return
       }
 
@@ -348,7 +408,20 @@ export default function Canvas({
         onPaintLine(last.x, last.y, coords.x, coords.y, strokeColorRef.current, brushSize)
       }
     },
-    [isPanning, tool, getPixelCoords, onShadePixel, onPaintLine, onDrawShape, shapeFilled, brushSize],
+    [
+      isPanning,
+      tool,
+      selection,
+      getPixelCoords,
+      getRawCoords,
+      setSelDrag,
+      onMoveTo,
+      onShadePixel,
+      onPaintLine,
+      onDrawShape,
+      shapeFilled,
+      brushSize,
+    ],
   )
 
   const handlePointerUp = useCallback(() => {
@@ -360,16 +433,26 @@ export default function Canvas({
     }
     setIsPanning(false)
 
-    const sx = selStartRef.current
-    const ex = selEnd
-    if (tool === 'selection' && sx && ex) {
-      const x = Math.min(sx.x, ex.x)
-      const y = Math.min(sx.y, ex.y)
-      const w = Math.abs(ex.x - sx.x) + 1
-      const h = Math.abs(ex.y - sx.y) + 1
-      onSelectionChange({ x, y, width: w, height: h })
+    // Dropping a dragged selection is one undo step
+    if (moveRef.current) {
+      moveRef.current = null
+      onStrokeEnd()
     }
-  }, [tool, selEnd, onSelectionChange, onStrokeEnd])
+
+    const drag = selDragRef.current
+    if (drag) {
+      setSelDrag(null)
+      // A plain click, without dragging, just deselects (the selection was cleared when the click started)
+      if (drag.start.x !== drag.end.x || drag.start.y !== drag.end.y) {
+        onSelectionChange({
+          x: Math.min(drag.start.x, drag.end.x),
+          y: Math.min(drag.start.y, drag.end.y),
+          width: Math.abs(drag.end.x - drag.start.x) + 1,
+          height: Math.abs(drag.end.y - drag.start.y) + 1,
+        })
+      }
+    }
+  }, [onSelectionChange, onStrokeEnd, setSelDrag])
 
   return (
     <div
@@ -378,7 +461,11 @@ export default function Canvas({
         flex: 1,
         overflow: 'auto',
         background: '#1e1e1e',
-        cursor: isPanning ? 'grabbing' : cursorMap[tool] || 'default',
+        cursor: isPanning
+          ? 'grabbing'
+          : tool === 'selection' && hoverInSelection
+            ? 'move'
+            : cursorMap[tool] || 'default',
       }}
     >
       <canvas
