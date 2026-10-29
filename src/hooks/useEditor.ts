@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react'
-import type { Tool, PixelData, EditorState } from '../types'
+import type { Tool, ShapeTool, PixelData, EditorState } from '../types'
+import { linePoints, shapePoints } from '../utils/shapes'
 import { TRANSPARENT, formatColor, normalizeColor, parseColor, toHex } from '../utils/color'
 
 const MAX_HISTORY = 100
@@ -53,11 +54,14 @@ export function useEditor() {
     zoom: 16,
     brushSize: 1,
     showGrid: true,
+    shapeFilled: false,
   }))
 
   // Pixel data is never mutated in place, so history can hold the same objects as state.
   // The ref is updated synchronously so several events between renders see the latest pixels.
   const pixelDataRef = useRef(state.pixelData)
+  // Canvas as it was when the current shape drag started; the shape preview is redrawn on top of it
+  const shapeBaseRef = useRef<PixelData | null>(null)
   const historyRef = useRef<PixelData[]>([state.pixelData])
   const historyIndexRef = useRef(0)
   const [, setHistoryVersion] = useState(0)
@@ -69,6 +73,7 @@ export function useEditor() {
 
   /** Records the current pixels as one undo step (no-op if nothing changed). */
   const commitHistory = useCallback(() => {
+    shapeBaseRef.current = null
     const current = pixelDataRef.current
     const idx = historyIndexRef.current
     if (historyRef.current[idx] === current) return
@@ -112,33 +117,49 @@ export function useEditor() {
     setState(prev => ({ ...prev, showGrid: !prev.showGrid }))
   }, [])
 
+  const toggleShapeFilled = useCallback(() => {
+    setState(prev => ({ ...prev, shapeFilled: !prev.shapeFilled }))
+  }, [])
+
   /** Paints a brush line from (x0, y0) to (x1, y1). Part of a stroke: call commitHistory when it ends. */
   const paintLine = useCallback(
     (x0: number, y0: number, x1: number, y1: number, color: string, size: number) => {
       const { pixels, width, height } = pixelDataRef.current
       const newPixels = clonePixels(pixels)
-      // Bresenham, so fast pointer moves don't leave gaps
-      const dx = Math.abs(x1 - x0)
-      const dy = -Math.abs(y1 - y0)
-      const sx = x0 < x1 ? 1 : -1
-      const sy = y0 < y1 ? 1 : -1
-      let err = dx + dy
-      let x = x0
-      let y = y0
-      for (;;) {
+      // A full line rather than single points, so fast pointer moves don't leave gaps
+      for (const [x, y] of linePoints(x0, y0, x1, y1)) {
         stampBrush(newPixels, width, height, x, y, color, size)
-        if (x === x1 && y === y1) break
-        const e2 = 2 * err
-        if (e2 >= dy) {
-          err += dy
-          x += sx
-        }
-        if (e2 <= dx) {
-          err += dx
-          y += sy
-        }
       }
       setPixelData({ width, height, pixels: newPixels })
+    },
+    [setPixelData],
+  )
+
+  /** Marks the start of a shape drag so it can be redrawn from the same canvas on every pointer move. */
+  const beginShape = useCallback(() => {
+    shapeBaseRef.current = pixelDataRef.current
+  }, [])
+
+  /** Draws a shape preview from (x0, y0) to (x1, y1). Call commitHistory when the drag ends. */
+  const drawShape = useCallback(
+    (
+      shape: ShapeTool,
+      x0: number,
+      y0: number,
+      x1: number,
+      y1: number,
+      color: string,
+      size: number,
+      filled: boolean,
+    ) => {
+      const base = shapeBaseRef.current ?? pixelDataRef.current
+      const pixels = clonePixels(base.pixels)
+      // A filled shape is the exact area between the two corners, so the brush size only applies to outlines
+      const brush = filled && shape !== 'line' ? 1 : size
+      for (const [x, y] of shapePoints(shape, x0, y0, x1, y1, filled)) {
+        stampBrush(pixels, base.width, base.height, x, y, color, brush)
+      }
+      setPixelData({ width: base.width, height: base.height, pixels })
     },
     [setPixelData],
   )
@@ -305,7 +326,10 @@ export function useEditor() {
     setZoom,
     setBrushSize,
     toggleGrid,
+    toggleShapeFilled,
     paintLine,
+    beginShape,
+    drawShape,
     fillRegion,
     shadePixel,
     commitHistory,

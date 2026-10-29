@@ -152,12 +152,19 @@ Si prefieres compilarlo desde el código fuente, sigue estos pasos.
 | `Eraser`       | Borrador          | Elimina píxeles (los deja transparentes)         |
 | `PaintBucket`  | Bote de pintura   | Rellena una región conectada del mismo color     |
 | `Pipette`      | Selector de color | Captura el color de un píxel                     |
+| `Slash`        | Línea             | Arrastra para dibujar una línea recta            |
+| `Square`       | Rectángulo        | Arrastra para dibujar un rectángulo              |
+| `Circle`       | Elipse            | Arrastra para dibujar una elipse                 |
 | `Blend`        | Sombreado         | Difumina mezclando colores de píxeles adyacentes |
 | `MousePointer` | Selección         | Selecciona una región rectangular                |
 
 ### Tamaño de pincel
 
-Botones **+** / **−** en la barra lateral para ajustar el tamaño del pincel (1–16). Aplica a lápiz y borrador.
+Botones **+** / **−** en la barra lateral para ajustar el tamaño del pincel (1–16). Aplica a lápiz, borrador y al contorno de línea, rectángulo y elipse.
+
+### Formas
+
+Las formas se previsualizan mientras arrastras y se deshacen con un solo `Ctrl+Z`. El clic izquierdo usa el color primario y el derecho el secundario. En rectángulo y elipse, la casilla **Filled** las rellena; en ese caso el tamaño de pincel no se aplica.
 
 ### Paneo
 
@@ -294,7 +301,7 @@ pixel-art-editor/
 ### 0.2 — Herramientas
 
 - [x] Convertir imágenes a pixel art (tamaño, colores, dithering y vista previa)
-- [ ] Herramientas de línea, rectángulo y elipse
+- [x] Herramientas de línea, rectángulo y elipse
 - [ ] Mover, copiar y pegar la selección
 - [ ] Dibujo simétrico (espejo horizontal/vertical)
 - [x] Mostrar u ocultar la cuadrícula y ajustar el lienzo a la ventana

@@ -13,10 +13,12 @@ y el proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 - Botón **Import image as pixel art** para convertir cualquier imagen, aunque sea pequeña.
 - Botón y atajo (`G`) para mostrar u ocultar la cuadrícula. Con zoom inferior a 4x no se dibuja, porque taparía los píxeles.
 - Botón y atajo (`Ctrl+0`) para ajustar el lienzo a la ventana.
+- Herramientas de línea, rectángulo y elipse, con vista previa mientras se arrastra, relleno opcional y grosor según el tamaño de pincel.
 - Exportación de PNG escalado (×1, ×2, ×4, ×8) sin suavizado y con transparencia.
 
 ### Cambiado
 
+- La barra de herramientas usa dos columnas y agrupa los botones de zoom para que quepan las herramientas nuevas en la ventana de 800×600.
 - Las imágenes de más de 128 px o con muchos colores ya no se importan a resolución completa: se abre el diálogo de conversión. Abrirlas sin convertir está limitado a 512 px.
 
 ## [0.1.0] - 2026-10-22

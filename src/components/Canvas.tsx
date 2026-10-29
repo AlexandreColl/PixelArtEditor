@@ -1,12 +1,17 @@
 import { useRef, useEffect, useCallback, useImperativeHandle, useState } from 'react'
-import type { PixelData, Tool, Selection } from '../types'
+import type { PixelData, Tool, ShapeTool, Selection } from '../types'
 import { TRANSPARENT, parseColor } from '../utils/color'
 
 const cursorMap: Record<string, string> = {
   fill: 'crosshair',
   picker: 'crosshair',
   selection: 'crosshair',
+  line: 'crosshair',
+  rect: 'crosshair',
+  ellipse: 'crosshair',
 }
+
+const isShapeTool = (tool: Tool): tool is ShapeTool => tool === 'line' || tool === 'rect' || tool === 'ellipse'
 
 export interface CanvasHandle {
   /** Zoom at which the whole canvas fits the visible area, or null if the area has no size yet */
@@ -27,7 +32,19 @@ interface CanvasProps {
   secondaryColor: string
   zoom: number
   brushSize: number
+  shapeFilled: boolean
   onPaintLine: (x0: number, y0: number, x1: number, y1: number, color: string, size: number) => void
+  onShapeStart: () => void
+  onDrawShape: (
+    shape: ShapeTool,
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+    color: string,
+    size: number,
+    filled: boolean,
+  ) => void
   onFillRegion: (x: number, y: number, color: string) => void
   onShadePixel: (x: number, y: number) => void
   onStrokeEnd: () => void
@@ -46,7 +63,10 @@ export default function Canvas({
   secondaryColor,
   zoom,
   brushSize,
+  shapeFilled,
   onPaintLine,
+  onShapeStart,
+  onDrawShape,
   onFillRegion,
   onShadePixel,
   onStrokeEnd,
@@ -62,6 +82,7 @@ export default function Canvas({
   const isDrawingRef = useRef(false)
   const strokeColorRef = useRef(primaryColor)
   const lastPosRef = useRef<{ x: number; y: number } | null>(null)
+  const shapeStartRef = useRef<{ x: number; y: number } | null>(null)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [isPanning, setIsPanning] = useState(false)
   const panStartRef = useRef({ x: 0, y: 0 })
@@ -243,6 +264,13 @@ export default function Canvas({
         isDrawingRef.current = true
         lastPosRef.current = coords
         onShadePixel(coords.x, coords.y)
+      } else if (isShapeTool(tool)) {
+        isDrawingRef.current = true
+        lastPosRef.current = coords
+        shapeStartRef.current = coords
+        strokeColorRef.current = color
+        onShapeStart()
+        onDrawShape(tool, coords.x, coords.y, coords.x, coords.y, color, brushSize, shapeFilled)
       } else {
         isDrawingRef.current = true
         lastPosRef.current = coords
@@ -260,6 +288,9 @@ export default function Canvas({
       onColorPicked,
       onShadePixel,
       onPaintLine,
+      onShapeStart,
+      onDrawShape,
+      shapeFilled,
       pan,
       onSelectionChange,
       brushSize,
@@ -287,17 +318,21 @@ export default function Canvas({
       lastPosRef.current = coords
       if (tool === 'shade') {
         onShadePixel(coords.x, coords.y)
+      } else if (isShapeTool(tool)) {
+        const start = shapeStartRef.current ?? coords
+        onDrawShape(tool, start.x, start.y, coords.x, coords.y, strokeColorRef.current, brushSize, shapeFilled)
       } else {
         onPaintLine(last.x, last.y, coords.x, coords.y, strokeColorRef.current, brushSize)
       }
     },
-    [isPanning, tool, getPixelCoords, onShadePixel, onPaintLine, brushSize],
+    [isPanning, tool, getPixelCoords, onShadePixel, onPaintLine, onDrawShape, shapeFilled, brushSize],
   )
 
   const handlePointerUp = useCallback(() => {
     if (isDrawingRef.current) {
       isDrawingRef.current = false
       lastPosRef.current = null
+      shapeStartRef.current = null
       onStrokeEnd()
     }
     setIsPanning(false)
