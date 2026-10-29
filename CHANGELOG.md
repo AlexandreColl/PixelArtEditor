@@ -11,6 +11,8 @@ y el proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
 - Conversión de imágenes a pixel art al importarlas: tamaño de salida, número de colores (paleta por median cut), dithering Floyd–Steinberg, umbral de transparencia y vista previa en vivo.
 - Botón **Import image as pixel art** para convertir cualquier imagen, aunque sea pequeña.
+- Botón y atajo (`G`) para mostrar u ocultar la cuadrícula. Con zoom inferior a 4x no se dibuja, porque taparía los píxeles.
+- Botón y atajo (`Ctrl+0`) para ajustar el lienzo a la ventana.
 
 ### Cambiado
 
