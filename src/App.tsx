@@ -6,12 +6,13 @@ import Canvas from './components/Canvas'
 import Toolbar from './components/Toolbar'
 import ColorPalette from './components/ColorPalette'
 import AIChat from './components/AIChat'
+import type { CanvasHandle } from './components/Canvas'
 import ConvertDialog, { MAX_ORIGINAL_SIZE } from './components/ConvertDialog'
 import { useEditor } from './hooks/useEditor'
 import type { PixelData, Selection } from './types'
 import { formatColor } from './utils/color'
 import { countColors } from './utils/pixelate'
-import { Save, FolderOpen, BotMessageSquare, FilePlus, Grid3x3 } from 'lucide-react'
+import { Save, FolderOpen, BotMessageSquare, FilePlus, ImagePlus } from 'lucide-react'
 
 function pixelsToPngDataUrl(pixels: string[][], width: number, height: number): string {
   const canvas = document.createElement('canvas')
@@ -133,6 +134,7 @@ export default function App() {
     swapColors,
     setZoom,
     setBrushSize,
+    toggleGrid,
     paintLine,
     fillRegion,
     shadePixel,
@@ -332,6 +334,17 @@ export default function App() {
     [openImage, showToast],
   )
 
+  const canvasHandleRef = useRef<CanvasHandle>(null)
+
+  const handleFit = useCallback(() => {
+    const zoom = canvasHandleRef.current?.getFitZoom()
+    if (zoom == null) return
+    canvasHandleRef.current?.resetPan()
+    setZoom(zoom)
+  }, [setZoom])
+  const handleFitRef = useRef(handleFit)
+  handleFitRef.current = handleFit
+
   const zoomRef = useRef(state.zoom)
   zoomRef.current = state.zoom
   const handleSaveRef = useRef(handleSave)
@@ -359,13 +372,19 @@ export default function App() {
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey || e.metaKey)) return
       // Leave text editing shortcuts alone in inputs and textareas
       const target = e.target as HTMLElement | null
       if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return
       // With Shift or Caps Lock e.key is upper case
       const key = e.key.toLowerCase()
-      if (key === 'z' && !e.shiftKey) {
+      if (!(e.ctrlKey || e.metaKey)) {
+        if (key === 'g' && !e.altKey && !e.shiftKey) toggleGrid()
+        return
+      }
+      if (key === '0') {
+        e.preventDefault()
+        handleFitRef.current()
+      } else if (key === 'z' && !e.shiftKey) {
         e.preventDefault()
         undo()
       } else if ((key === 'z' && e.shiftKey) || key === 'y') {
@@ -381,7 +400,7 @@ export default function App() {
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [undo, redo])
+  }, [undo, redo, toggleGrid])
 
   const handleResize = useCallback(() => {
     const clamp = (v: string, fallback: number) => {
@@ -485,7 +504,7 @@ export default function App() {
           <FolderOpen size={16} />
         </button>
         <button title="Import image as pixel art" onClick={handleImportAsPixelArt} style={btnStyle}>
-          <Grid3x3 size={16} />
+          <ImagePlus size={16} />
         </button>
         <button title="Save (Ctrl+S)" onClick={handleSave} style={btnAccent}>
           <Save size={16} />
@@ -566,6 +585,9 @@ export default function App() {
           onToolChange={setTool}
           zoom={state.zoom}
           onZoomChange={setZoom}
+          onFit={handleFit}
+          showGrid={state.showGrid}
+          onToggleGrid={toggleGrid}
           brushSize={state.brushSize}
           onBrushSizeChange={setBrushSize}
           onClear={clearCanvas}
@@ -576,6 +598,8 @@ export default function App() {
         />
 
         <Canvas
+          handleRef={canvasHandleRef}
+          showGrid={state.showGrid}
           pixelData={state.pixelData}
           tool={state.activeTool}
           primaryColor={state.primaryColor}

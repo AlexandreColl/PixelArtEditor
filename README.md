@@ -171,7 +171,7 @@ Usa el **botón central del ratón** (rueda) para arrastrar la vista.
 
 ### Convertir una imagen en pixel art
 
-Al abrir o arrastrar una imagen grande (más de 128 px) o con muchos colores, como una foto, aparece el diálogo **Convert to pixel art**. Para convertir también imágenes pequeñas, usa el botón `Grid3x3` (**Import image as pixel art**).
+Al abrir o arrastrar una imagen grande (más de 128 px) o con muchos colores, como una foto, aparece el diálogo **Convert to pixel art**. Para convertir también imágenes pequeñas, usa el botón `ImagePlus` (**Import image as pixel art**).
 
 | Opción                 | Descripción                                                                                                              |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------ |
@@ -196,12 +196,14 @@ Al abrir o arrastrar una imagen grande (más de 128 px) o con muchos colores, co
 
 ## ⌨️ Atajos de Teclado
 
-| Tecla                     | Acción       |
-| ------------------------- | ------------ |
-| `Ctrl+Z`                  | Deshacer     |
-| `Ctrl+Shift+Z` / `Ctrl+Y` | Rehacer      |
-| `Ctrl+S`                  | Guardar PNG  |
-| `Ctrl+O`                  | Abrir imagen |
+| Tecla                     | Acción                          |
+| ------------------------- | ------------------------------- |
+| `Ctrl+Z`                  | Deshacer                        |
+| `Ctrl+Shift+Z` / `Ctrl+Y` | Rehacer                         |
+| `Ctrl+S`                  | Guardar PNG                     |
+| `Ctrl+O`                  | Abrir imagen                    |
+| `G`                       | Mostrar u ocultar la cuadrícula |
+| `Ctrl+0`                  | Ajustar el lienzo a la ventana  |
 
 <p align="right">(<a href="#readme-top">volver arriba</a>)</p>
 
@@ -294,7 +296,7 @@ pixel-art-editor/
 - [ ] Herramientas de línea, rectángulo y elipse
 - [ ] Mover, copiar y pegar la selección
 - [ ] Dibujo simétrico (espejo horizontal/vertical)
-- [ ] Mostrar u ocultar la cuadrícula y ajustar el lienzo a la ventana
+- [x] Mostrar u ocultar la cuadrícula y ajustar el lienzo a la ventana
 
 ### 0.3 — Paletas y exportación
 

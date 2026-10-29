@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useState } from 'react'
+import { useRef, useEffect, useCallback, useImperativeHandle, useState } from 'react'
 import type { PixelData, Tool, Selection } from '../types'
 import { TRANSPARENT, parseColor } from '../utils/color'
 
@@ -8,7 +8,19 @@ const cursorMap: Record<string, string> = {
   selection: 'crosshair',
 }
 
+export interface CanvasHandle {
+  /** Zoom at which the whole canvas fits the visible area, or null if the area has no size yet */
+  getFitZoom: () => number | null
+  /** Moves the view back to the origin */
+  resetPan: () => void
+}
+
+/** Below this zoom the grid lines would hide the pixels, so they are not drawn */
+const MIN_GRID_ZOOM = 4
+
 interface CanvasProps {
+  handleRef?: React.Ref<CanvasHandle>
+  showGrid: boolean
   pixelData: PixelData
   tool: Tool
   primaryColor: string
@@ -26,6 +38,8 @@ interface CanvasProps {
 }
 
 export default function Canvas({
+  handleRef,
+  showGrid,
   pixelData,
   tool,
   primaryColor,
@@ -42,6 +56,7 @@ export default function Canvas({
   onZoomStep,
 }: CanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   const textureRef = useRef<HTMLCanvasElement | null>(null)
   // Refs rather than state so pointer events that arrive before the next render see the stroke
   const isDrawingRef = useRef(false)
@@ -54,6 +69,19 @@ export default function Canvas({
   const [selEnd, setSelEnd] = useState<{ x: number; y: number } | null>(null)
 
   const { width, height, pixels } = pixelData
+
+  useImperativeHandle(
+    handleRef,
+    () => ({
+      getFitZoom: () => {
+        const box = containerRef.current
+        if (!box || box.clientWidth === 0 || box.clientHeight === 0) return null
+        return Math.max(1, Math.floor(Math.min(box.clientWidth / width, box.clientHeight / height)))
+      },
+      resetPan: () => setPan({ x: 0, y: 0 }),
+    }),
+    [width, height],
+  )
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current
@@ -72,19 +100,21 @@ export default function Canvas({
     ctx.imageSmoothingEnabled = false
     ctx.drawImage(tc, 0, 0, cw, ch)
 
-    ctx.strokeStyle = '#c0c0c0'
-    ctx.lineWidth = 0.5
-    for (let x = 0; x <= width; x++) {
-      ctx.beginPath()
-      ctx.moveTo(x * pixelSize, 0)
-      ctx.lineTo(x * pixelSize, ch)
-      ctx.stroke()
-    }
-    for (let y = 0; y <= height; y++) {
-      ctx.beginPath()
-      ctx.moveTo(0, y * pixelSize)
-      ctx.lineTo(cw, y * pixelSize)
-      ctx.stroke()
+    if (showGrid && pixelSize >= MIN_GRID_ZOOM) {
+      ctx.strokeStyle = '#c0c0c0'
+      ctx.lineWidth = 0.5
+      for (let x = 0; x <= width; x++) {
+        ctx.beginPath()
+        ctx.moveTo(x * pixelSize, 0)
+        ctx.lineTo(x * pixelSize, ch)
+        ctx.stroke()
+      }
+      for (let y = 0; y <= height; y++) {
+        ctx.beginPath()
+        ctx.moveTo(0, y * pixelSize)
+        ctx.lineTo(cw, y * pixelSize)
+        ctx.stroke()
+      }
     }
 
     const sx = selStartRef.current
@@ -106,7 +136,7 @@ export default function Canvas({
       ctx.strokeRect(rx, ry, rw, rh)
       ctx.setLineDash([])
     }
-  }, [zoom, selEnd, width, height])
+  }, [zoom, selEnd, width, height, showGrid])
 
   const drawRef = useRef(draw)
   drawRef.current = draw
@@ -285,6 +315,7 @@ export default function Canvas({
 
   return (
     <div
+      ref={containerRef}
       style={{
         flex: 1,
         overflow: 'auto',
