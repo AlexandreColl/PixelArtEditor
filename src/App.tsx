@@ -123,6 +123,8 @@ export default function App() {
     setBrushSize,
     toggleGrid,
     toggleShapeFilled,
+    toggleMirrorX,
+    toggleMirrorY,
     paintLine,
     beginShape,
     drawShape,
@@ -620,6 +622,10 @@ export default function App() {
           onToggleGrid={toggleGrid}
           shapeFilled={state.shapeFilled}
           onToggleShapeFilled={toggleShapeFilled}
+          mirrorX={state.mirrorX}
+          mirrorY={state.mirrorY}
+          onToggleMirrorX={toggleMirrorX}
+          onToggleMirrorY={toggleMirrorY}
           brushSize={state.brushSize}
           onBrushSizeChange={setBrushSize}
           onClear={clearCanvas}
@@ -632,6 +638,8 @@ export default function App() {
         <Canvas
           handleRef={canvasHandleRef}
           showGrid={state.showGrid}
+          mirrorX={state.mirrorX}
+          mirrorY={state.mirrorY}
           pixelData={state.pixelData}
           tool={state.activeTool}
           primaryColor={state.primaryColor}

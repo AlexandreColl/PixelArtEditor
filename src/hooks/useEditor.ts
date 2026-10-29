@@ -21,6 +21,10 @@ function clonePixels(pixels: string[][]): string[][] {
   return pixels.map(row => [...row])
 }
 
+/**
+ * Paints a size x size square brush centred on (cx, cy). With mirrorX / mirrorY the square is also painted
+ * reflected across the canvas centre; the reflected square is computed from its edges so even sizes stay symmetric.
+ */
 function stampBrush(
   pixels: string[][],
   width: number,
@@ -29,14 +33,22 @@ function stampBrush(
   cy: number,
   color: string,
   size: number,
+  mirrorX = false,
+  mirrorY = false,
 ) {
   const off = Math.floor((size - 1) / 2)
-  for (let dy = 0; dy < size; dy++) {
-    for (let dx = 0; dx < size; dx++) {
-      const px = cx - off + dx
-      const py = cy - off + dy
-      if (px >= 0 && px < width && py >= 0 && py < height) {
-        pixels[py][px] = color
+  const x0 = cx - off
+  const y0 = cy - off
+  const xs: [number, number][] = [[x0, x0 + size - 1]]
+  const ys: [number, number][] = [[y0, y0 + size - 1]]
+  if (mirrorX) xs.push([width - 1 - (x0 + size - 1), width - 1 - x0])
+  if (mirrorY) ys.push([height - 1 - (y0 + size - 1), height - 1 - y0])
+  for (const [ax, bx] of xs) {
+    for (const [ay, by] of ys) {
+      for (let y = Math.max(0, ay); y <= Math.min(height - 1, by); y++) {
+        for (let x = Math.max(0, ax); x <= Math.min(width - 1, bx); x++) {
+          pixels[y][x] = color
+        }
       }
     }
   }
@@ -55,11 +67,16 @@ export function useEditor() {
     brushSize: 1,
     showGrid: true,
     shapeFilled: false,
+    mirrorX: false,
+    mirrorY: false,
   }))
 
   // Pixel data is never mutated in place, so history can hold the same objects as state.
   // The ref is updated synchronously so several events between renders see the latest pixels.
   const pixelDataRef = useRef(state.pixelData)
+  // Read at call time so strokes already in progress follow the latest toggle
+  const mirrorRef = useRef({ x: state.mirrorX, y: state.mirrorY })
+  mirrorRef.current = { x: state.mirrorX, y: state.mirrorY }
   // Canvas as it was when the current shape drag started; the shape preview is redrawn on top of it
   const shapeBaseRef = useRef<PixelData | null>(null)
   const historyRef = useRef<PixelData[]>([state.pixelData])
@@ -121,6 +138,14 @@ export function useEditor() {
     setState(prev => ({ ...prev, shapeFilled: !prev.shapeFilled }))
   }, [])
 
+  const toggleMirrorX = useCallback(() => {
+    setState(prev => ({ ...prev, mirrorX: !prev.mirrorX }))
+  }, [])
+
+  const toggleMirrorY = useCallback(() => {
+    setState(prev => ({ ...prev, mirrorY: !prev.mirrorY }))
+  }, [])
+
   /** Paints a brush line from (x0, y0) to (x1, y1). Part of a stroke: call commitHistory when it ends. */
   const paintLine = useCallback(
     (x0: number, y0: number, x1: number, y1: number, color: string, size: number) => {
@@ -128,7 +153,7 @@ export function useEditor() {
       const newPixels = clonePixels(pixels)
       // A full line rather than single points, so fast pointer moves don't leave gaps
       for (const [x, y] of linePoints(x0, y0, x1, y1)) {
-        stampBrush(newPixels, width, height, x, y, color, size)
+        stampBrush(newPixels, width, height, x, y, color, size, mirrorRef.current.x, mirrorRef.current.y)
       }
       setPixelData({ width, height, pixels: newPixels })
     },
@@ -157,7 +182,7 @@ export function useEditor() {
       // A filled shape is the exact area between the two corners, so the brush size only applies to outlines
       const brush = filled && shape !== 'line' ? 1 : size
       for (const [x, y] of shapePoints(shape, x0, y0, x1, y1, filled)) {
-        stampBrush(pixels, base.width, base.height, x, y, color, brush)
+        stampBrush(pixels, base.width, base.height, x, y, color, brush, mirrorRef.current.x, mirrorRef.current.y)
       }
       setPixelData({ width: base.width, height: base.height, pixels })
     },
@@ -327,6 +352,8 @@ export function useEditor() {
     setBrushSize,
     toggleGrid,
     toggleShapeFilled,
+    toggleMirrorX,
+    toggleMirrorY,
     paintLine,
     beginShape,
     drawShape,

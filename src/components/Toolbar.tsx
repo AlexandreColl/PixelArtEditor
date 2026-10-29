@@ -11,6 +11,8 @@ import {
   Slash,
   Square,
   Circle,
+  FlipHorizontal,
+  FlipVertical,
 } from 'lucide-react'
 
 interface ToolbarProps {
@@ -23,6 +25,10 @@ interface ToolbarProps {
   onToggleGrid: () => void
   shapeFilled: boolean
   onToggleShapeFilled: () => void
+  mirrorX: boolean
+  mirrorY: boolean
+  onToggleMirrorX: () => void
+  onToggleMirrorY: () => void
   brushSize: number
   onBrushSizeChange: (size: number) => void
   onClear: () => void
@@ -59,6 +65,14 @@ const btnBase: React.CSSProperties = {
   lineHeight: 1,
 }
 
+const toggleBtn = (on: boolean): React.CSSProperties => ({
+  ...btnBase,
+  height: 28,
+  border: on ? '1px solid #4fc3f7' : '1px solid #555',
+  background: on ? '#3a3a3a' : 'transparent',
+  color: on ? '#4fc3f7' : '#ccc',
+})
+
 export default function Toolbar({
   activeTool,
   onToolChange,
@@ -69,6 +83,10 @@ export default function Toolbar({
   onToggleGrid,
   shapeFilled,
   onToggleShapeFilled,
+  mirrorX,
+  mirrorY,
+  onToggleMirrorX,
+  onToggleMirrorY,
   brushSize,
   onBrushSizeChange,
   onClear,
@@ -111,7 +129,7 @@ export default function Toolbar({
         })}
       </div>
 
-      <div style={{ width: 76, height: 1, background: '#444', margin: '8px 0' }} />
+      <div style={{ width: 76, height: 1, background: '#444', margin: '6px 0' }} />
 
       <div style={{ display: 'flex', gap: 4 }}>
         <button
@@ -132,7 +150,7 @@ export default function Toolbar({
         </button>
       </div>
 
-      <div style={{ width: 76, height: 1, background: '#444', margin: '8px 0' }} />
+      <div style={{ width: 76, height: 1, background: '#444', margin: '6px 0' }} />
 
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
         <div style={{ display: 'flex', gap: 4 }}>
@@ -176,6 +194,23 @@ export default function Toolbar({
         </div>
       </div>
 
+      <div style={{ display: 'flex', gap: 4 }}>
+        <button
+          title="Mirror horizontally: draw symmetric left and right (pencil, eraser, shapes)"
+          onClick={onToggleMirrorX}
+          style={toggleBtn(mirrorX)}
+        >
+          <FlipHorizontal size={16} />
+        </button>
+        <button
+          title="Mirror vertically: draw symmetric top and bottom (pencil, eraser, shapes)"
+          onClick={onToggleMirrorY}
+          style={toggleBtn(mirrorY)}
+        >
+          <FlipVertical size={16} />
+        </button>
+      </div>
+
       {(activeTool === 'rect' || activeTool === 'ellipse') && (
         <label
           title="Fill the shape instead of drawing only its outline"
@@ -191,9 +226,10 @@ export default function Toolbar({
         activeTool === 'line' ||
         ((activeTool === 'rect' || activeTool === 'ellipse') && !shapeFilled)) && (
         <div style={{ width: 76, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-          <div style={{ width: 76, height: 1, background: '#444', margin: '8px 0' }} />
-          <span style={{ color: '#aaa', fontSize: 11 }}>Brush</span>
-          <span style={{ color: '#e0e0e0', fontSize: 13, fontWeight: 600 }}>{brushSize}</span>
+          <div style={{ width: 76, height: 1, background: '#444', margin: '6px 0' }} />
+          <span style={{ color: '#aaa', fontSize: 11 }}>
+            Brush <b style={{ color: '#e0e0e0', fontSize: 13 }}>{brushSize}</b>
+          </span>
           <input
             type="range"
             min={1}

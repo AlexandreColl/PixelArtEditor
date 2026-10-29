@@ -23,4 +23,6 @@ export interface EditorState {
   brushSize: number
   showGrid: boolean
   shapeFilled: boolean
+  mirrorX: boolean
+  mirrorY: boolean
 }
