@@ -13,6 +13,7 @@ y el proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 - Botón **Import image as pixel art** para convertir cualquier imagen, aunque sea pequeña.
 - Botón y atajo (`G`) para mostrar u ocultar la cuadrícula. Con zoom inferior a 4x no se dibuja, porque taparía los píxeles.
 - Botón y atajo (`Ctrl+0`) para ajustar el lienzo a la ventana.
+- Exportación de PNG escalado (×1, ×2, ×4, ×8) sin suavizado y con transparencia.
 
 ### Cambiado
 
