@@ -26,6 +26,8 @@ const MIN_GRID_ZOOM = 4
 interface CanvasProps {
   handleRef?: React.Ref<CanvasHandle>
   showGrid: boolean
+  mirrorX: boolean
+  mirrorY: boolean
   pixelData: PixelData
   tool: Tool
   primaryColor: string
@@ -57,6 +59,8 @@ interface CanvasProps {
 export default function Canvas({
   handleRef,
   showGrid,
+  mirrorX,
+  mirrorY,
   pixelData,
   tool,
   primaryColor,
@@ -138,6 +142,25 @@ export default function Canvas({
       }
     }
 
+    // Symmetry axes, so it is clear where drawing is mirrored
+    if (mirrorX || mirrorY) {
+      ctx.save()
+      ctx.setLineDash([6, 4])
+      ctx.strokeStyle = '#4fc3f7'
+      ctx.lineWidth = 1.5
+      ctx.beginPath()
+      if (mirrorX) {
+        ctx.moveTo(cw / 2, 0)
+        ctx.lineTo(cw / 2, ch)
+      }
+      if (mirrorY) {
+        ctx.moveTo(0, ch / 2)
+        ctx.lineTo(cw, ch / 2)
+      }
+      ctx.stroke()
+      ctx.restore()
+    }
+
     const sx = selStartRef.current
     const ex = selEnd
     if (sx && ex) {
@@ -157,7 +180,7 @@ export default function Canvas({
       ctx.strokeRect(rx, ry, rw, rh)
       ctx.setLineDash([])
     }
-  }, [zoom, selEnd, width, height, showGrid])
+  }, [zoom, selEnd, width, height, showGrid, mirrorX, mirrorY])
 
   const drawRef = useRef(draw)
   drawRef.current = draw

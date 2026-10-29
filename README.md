@@ -162,6 +162,10 @@ Si prefieres compilarlo desde el código fuente, sigue estos pasos.
 
 Botones **+** / **−** en la barra lateral para ajustar el tamaño del pincel (1–16). Aplica a lápiz, borrador y al contorno de línea, rectángulo y elipse.
 
+### Dibujo simétrico
+
+Los botones `FlipHorizontal` y `FlipVertical` de la barra lateral activan el espejo horizontal y/o vertical (pueden combinarse). Mientras estén activos se dibuja la copia reflejada respecto al centro del lienzo, que se marca con una línea discontinua. Afecta a lápiz, borrador y formas, y no al relleno, al cuentagotas ni al sombreado. Cada trazo, con su reflejo, se deshace de una vez.
+
 ### Formas
 
 Las formas se previsualizan mientras arrastras y se deshacen con un solo `Ctrl+Z`. El clic izquierdo usa el color primario y el derecho el secundario. En rectángulo y elipse, la casilla **Filled** las rellena; en ese caso el tamaño de pincel no se aplica.
@@ -303,7 +307,7 @@ pixel-art-editor/
 - [x] Convertir imágenes a pixel art (tamaño, colores, dithering y vista previa)
 - [x] Herramientas de línea, rectángulo y elipse
 - [ ] Mover, copiar y pegar la selección
-- [ ] Dibujo simétrico (espejo horizontal/vertical)
+- [x] Dibujo simétrico (espejo horizontal/vertical)
 - [x] Mostrar u ocultar la cuadrícula y ajustar el lienzo a la ventana
 
 ### 0.3 — Paletas y exportación
