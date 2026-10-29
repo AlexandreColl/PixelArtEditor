@@ -280,17 +280,55 @@ pixel-art-editor/
 
 ## 🗺️ Roadmap
 
-- [x] Herramientas básicas de dibujo
+### ✅ 0.1 — Primera versión
+
+- [x] Herramientas básicas de dibujo: lápiz, borrador, relleno, cuentagotas, sombreado y selección
+- [x] Tamaño de pincel ajustable y colores primario/secundario
 - [x] Deshacer/rehacer con historial
 - [x] Abrir y guardar PNG
 - [x] Panel de IA multiproveedor (OpenAI, Anthropic, Gemini)
-- [x] Crear lienzo nuevo
-- [x] Herramienta de sombreado (difuminado)
-- [x] Tamaño de pincel ajustable
-- [ ] Exportar a formatos adicionales (GIF, sprite sheet)
-- [ ] Herramienta de línea y rectángulo
+
+### 0.2 — Herramientas
+
+- [x] Convertir imágenes a pixel art (tamaño, colores, dithering y vista previa)
+- [ ] Herramientas de línea, rectángulo y elipse
+- [ ] Mover, copiar y pegar la selección
+- [ ] Dibujo simétrico (espejo horizontal/vertical)
+- [ ] Mostrar u ocultar la cuadrícula y ajustar el lienzo a la ventana
+
+### 0.3 — Paletas y exportación
+
+- [ ] Importar y exportar paletas (`.gpl`, `.hex`)
+- [ ] Bloquear el dibujo a la paleta activa
+- [ ] Exportar PNG escalado (×2, ×4, ×8)
+- [ ] Exportar sprite sheet
+
+### 0.4 — Animación
+
+- [ ] Varios fotogramas por proyecto
+- [ ] Papel cebolla (fotograma anterior en transparencia)
+- [ ] Vista previa de la animación
+- [ ] Exportar a GIF
+
+### 0.5 — Capas y proyectos
+
+- [ ] Capas con visibilidad y opacidad
+- [ ] Formato de proyecto propio que conserve capas y fotogramas
+- [ ] Autoguardado
+
+### 1.0 — Estable
+
 - [ ] Atajos de teclado personalizables
+- [ ] Política de seguridad de contenido (CSP) activada
+- [ ] Instaladores firmados
+- [ ] Actualizaciones automáticas
+
+### Más adelante
+
 - [ ] Plugins / scripting
+- [ ] Edición con modelos de imagen generativa
+
+¿Tienes una idea? [Solicita una funcionalidad](https://github.com/AlexandreColl/PixelArtEditor/issues/new?labels=enhancement).
 
 <p align="right">(<a href="#readme-top">volver arriba</a>)</p>
 
