@@ -1,11 +1,14 @@
 import type { Tool } from '../types'
-import { Pencil, Eraser, PaintBucket, Pipette, Blend, MousePointer } from 'lucide-react'
+import { Pencil, Eraser, PaintBucket, Pipette, Blend, MousePointer, Grid3x3, Maximize } from 'lucide-react'
 
 interface ToolbarProps {
   activeTool: Tool
   onToolChange: (tool: Tool) => void
   zoom: number
   onZoomChange: (zoom: number) => void
+  onFit: () => void
+  showGrid: boolean
+  onToggleGrid: () => void
   brushSize: number
   onBrushSizeChange: (size: number) => void
   onClear: () => void
@@ -44,6 +47,9 @@ export default function Toolbar({
   onToolChange,
   zoom,
   onZoomChange,
+  onFit,
+  showGrid,
+  onToggleGrid,
   brushSize,
   onBrushSizeChange,
   onClear,
@@ -63,6 +69,7 @@ export default function Toolbar({
         padding: '8px 0',
         gap: 4,
         borderRight: '1px solid #444',
+        overflowY: 'auto',
       }}
     >
       {tools.map(t => {
@@ -119,6 +126,26 @@ export default function Toolbar({
           style={{ ...btnBase, height: 28, fontSize: 16, border: '1px solid #555' }}
         >
           −
+        </button>
+        <button
+          title="Fit to window (Ctrl+0)"
+          onClick={onFit}
+          style={{ ...btnBase, height: 28, border: '1px solid #555' }}
+        >
+          <Maximize size={16} />
+        </button>
+        <button
+          title="Toggle grid (G)"
+          onClick={onToggleGrid}
+          style={{
+            ...btnBase,
+            height: 28,
+            border: showGrid ? '1px solid #4fc3f7' : '1px solid #555',
+            background: showGrid ? '#3a3a3a' : 'transparent',
+            color: showGrid ? '#4fc3f7' : '#ccc',
+          }}
+        >
+          <Grid3x3 size={16} />
         </button>
       </div>
 

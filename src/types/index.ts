@@ -20,4 +20,5 @@ export interface EditorState {
   secondaryColor: string
   zoom: number
   brushSize: number
+  showGrid: boolean
 }

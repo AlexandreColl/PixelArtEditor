@@ -52,6 +52,7 @@ export function useEditor() {
     secondaryColor: '#ffffff',
     zoom: 16,
     brushSize: 1,
+    showGrid: true,
   }))
 
   // Pixel data is never mutated in place, so history can hold the same objects as state.
@@ -105,6 +106,10 @@ export function useEditor() {
 
   const setBrushSize = useCallback((size: number) => {
     setState(prev => ({ ...prev, brushSize: Math.max(1, Math.min(16, size)) }))
+  }, [])
+
+  const toggleGrid = useCallback(() => {
+    setState(prev => ({ ...prev, showGrid: !prev.showGrid }))
   }, [])
 
   /** Paints a brush line from (x0, y0) to (x1, y1). Part of a stroke: call commitHistory when it ends. */
@@ -299,6 +304,7 @@ export function useEditor() {
     swapColors,
     setZoom,
     setBrushSize,
+    toggleGrid,
     paintLine,
     fillRegion,
     shadePixel,
