@@ -7,6 +7,10 @@ y el proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-29
+
+Herramientas de dibujo y selección, importación de imágenes y exportación escalada.
+
 ### Añadido
 
 - Conversión de imágenes a pixel art al importarlas: tamaño de salida, número de colores (paleta por median cut), dithering Floyd–Steinberg, umbral de transparencia y vista previa en vivo.
@@ -46,5 +50,6 @@ Primera versión pública.
 - Barra de herramientas con iconos de lucide-react.
 - Scripts `dev.bat` / `build.bat` y helper `scripts/dev.ps1` para Windows.
 
-[Unreleased]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/AlexandreColl/PixelArtEditor/releases/tag/v0.1.0

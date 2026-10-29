@@ -322,7 +322,7 @@ pixel-art-editor/
 - [x] Abrir y guardar PNG
 - [x] Panel de IA multiproveedor (OpenAI, Anthropic, Gemini)
 
-### 0.2 — Herramientas
+### ✅ 0.2 — Herramientas
 
 - [x] Convertir imágenes a pixel art (tamaño, colores, dithering y vista previa)
 - [x] Herramientas de línea, rectángulo y elipse
