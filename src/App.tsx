@@ -6,10 +6,12 @@ import Canvas from './components/Canvas'
 import Toolbar from './components/Toolbar'
 import ColorPalette from './components/ColorPalette'
 import AIChat from './components/AIChat'
+import ConvertDialog, { MAX_ORIGINAL_SIZE } from './components/ConvertDialog'
 import { useEditor } from './hooks/useEditor'
 import type { PixelData, Selection } from './types'
 import { formatColor } from './utils/color'
-import { Save, FolderOpen, BotMessageSquare, FilePlus } from 'lucide-react'
+import { countColors } from './utils/pixelate'
+import { Save, FolderOpen, BotMessageSquare, FilePlus, Grid3x3 } from 'lucide-react'
 
 function pixelsToPngDataUrl(pixels: string[][], width: number, height: number): string {
   const canvas = document.createElement('canvas')
@@ -30,7 +32,7 @@ async function savePngFile(pixels: string[][], width: number, height: number, fi
   await invoke('save_png_file', { path: filePath, base64Data: dataUrl.split(',')[1] })
 }
 
-function loadImageFile(file: File): Promise<PixelData> {
+function loadImageFile(file: File): Promise<ImageData> {
   return new Promise((resolve, reject) => {
     const img = new Image()
     const url = URL.createObjectURL(file)
@@ -41,21 +43,7 @@ function loadImageFile(file: File): Promise<PixelData> {
       canvas.height = img.height
       const ctx = canvas.getContext('2d')!
       ctx.drawImage(img, 0, 0)
-      const imageData = ctx.getImageData(0, 0, img.width, img.height)
-      const pixels: string[][] = []
-      for (let y = 0; y < img.height; y++) {
-        const row: string[] = []
-        for (let x = 0; x < img.width; x++) {
-          const i = (y * img.width + x) * 4
-          const r = imageData.data[i]
-          const g = imageData.data[i + 1]
-          const b = imageData.data[i + 2]
-          const a = imageData.data[i + 3]
-          row.push(formatColor([r, g, b, a]))
-        }
-        pixels.push(row)
-      }
-      resolve({ width: img.width, height: img.height, pixels })
+      resolve(ctx.getImageData(0, 0, img.width, img.height))
     }
     img.onerror = () => {
       URL.revokeObjectURL(url)
@@ -63,6 +51,32 @@ function loadImageFile(file: File): Promise<PixelData> {
     }
     img.src = url
   })
+}
+
+function imageDataToPixels(imageData: ImageData): PixelData {
+  const { width, height, data } = imageData
+  const pixels: string[][] = []
+  for (let y = 0; y < height; y++) {
+    const row: string[] = []
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4
+      row.push(formatColor([data[i], data[i + 1], data[i + 2], data[i + 3]]))
+    }
+    pixels.push(row)
+  }
+  return { width, height, pixels }
+}
+
+/** Photos and large images get the conversion dialog; small sprites with few colors open as they are. */
+function needsConversion(imageData: ImageData): boolean {
+  return Math.max(imageData.width, imageData.height) > 128 || countColors(imageData, 256) > 256
+}
+
+interface PendingImage {
+  image: ImageData
+  name: string
+  /** Original file path, only kept when the file is a PNG that can be overwritten on save */
+  path: string | null
 }
 
 function Toast({ message, visible }: { message: string; visible: boolean }) {
@@ -133,6 +147,8 @@ export default function App() {
   } = useEditor()
 
   const [aiOpen, setAiOpen] = useState(false)
+  const [pendingImage, setPendingImage] = useState<PendingImage | null>(null)
+  const forceConvertRef = useRef(false)
   const [dragOver, setDragOver] = useState(false)
   const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: '', visible: false })
   const filePathRef = useRef<string | null>(null)
@@ -238,6 +254,47 @@ export default function App() {
     showToast('New canvas created')
   }, [importPixels, showToast])
 
+  const openImage = useCallback(
+    (image: ImageData, name: string, path: string | null, forceConvert = false) => {
+      if (forceConvert || needsConversion(image)) {
+        setPendingImage({ image, name, path })
+        return
+      }
+      const pd = imageDataToPixels(image)
+      importPixels(pd.pixels, pd.width, pd.height)
+      filePathRef.current = path
+      fileNameRef.current = name
+    },
+    [importPixels],
+  )
+
+  const handleConvert = useCallback(
+    (pd: PixelData) => {
+      if (!pendingImage) return
+      importPixels(pd.pixels, pd.width, pd.height)
+      // The result is a new image: never overwrite the source photo on save
+      filePathRef.current = null
+      fileNameRef.current = `${pendingImage.name}-pixel`
+      setPendingImage(null)
+      showToast(`Converted to ${pd.width}x${pd.height} pixel art`)
+    },
+    [pendingImage, importPixels, showToast],
+  )
+
+  const handleOpenOriginal = useCallback(() => {
+    if (!pendingImage || Math.max(pendingImage.image.width, pendingImage.image.height) > MAX_ORIGINAL_SIZE) return
+    const pd = imageDataToPixels(pendingImage.image)
+    importPixels(pd.pixels, pd.width, pd.height)
+    filePathRef.current = pendingImage.path
+    fileNameRef.current = pendingImage.name
+    setPendingImage(null)
+  }, [pendingImage, importPixels])
+
+  const handleImportAsPixelArt = useCallback(() => {
+    forceConvertRef.current = true
+    fileInputRef.current?.click()
+  }, [])
+
   const handleOpen = useCallback(async () => {
     try {
       const fp = await open({
@@ -250,34 +307,29 @@ export default function App() {
       const data = await readFile(fp)
       const blob = new Blob([data])
       const file = new File([blob], fp.split(/[\\/]/).pop() || 'image.png')
-      const pixelData = await loadImageFile(file)
-      importPixels(pixelData.pixels, pixelData.width, pixelData.height)
-      // Saving always writes PNG, so only overwrite the original when it is a PNG
-      filePathRef.current = /\.png$/i.test(fp) ? fp : null
+      const image = await loadImageFile(file)
       const name =
         fp
           .split(/[\\/]/)
           .pop()
           ?.replace(/\.[^/.]+$/, '') || 'untitled'
-      fileNameRef.current = name
+      // Saving always writes PNG, so only overwrite the original when it is a PNG
+      openImage(image, name, /\.png$/i.test(fp) ? fp : null)
     } catch {
       showToast('Could not open image')
     }
-  }, [importPixels, showToast])
+  }, [openImage, showToast])
 
   const handleOpenLegacy = useCallback(
-    async (file: File) => {
+    async (file: File, forceConvert = false) => {
       try {
-        const data = await loadImageFile(file)
-        importPixels(data.pixels, data.width, data.height)
-        const name = file.name.replace(/\.[^/.]+$/, '')
-        fileNameRef.current = name
-        filePathRef.current = null
+        const image = await loadImageFile(file)
+        openImage(image, file.name.replace(/\.[^/.]+$/, '') || 'untitled', null, forceConvert)
       } catch {
         showToast('Could not open image')
       }
     },
-    [importPixels, showToast],
+    [openImage, showToast],
   )
 
   const zoomRef = useRef(state.zoom)
@@ -390,6 +442,16 @@ export default function App() {
 
       <Toast message={toast.message} visible={toast.visible} />
 
+      {pendingImage && (
+        <ConvertDialog
+          image={pendingImage.image}
+          fileName={pendingImage.name}
+          onConvert={handleConvert}
+          onOpenOriginal={handleOpenOriginal}
+          onCancel={() => setPendingImage(null)}
+        />
+      )}
+
       <div
         style={{
           height: 40,
@@ -409,7 +471,8 @@ export default function App() {
           accept="image/png,image/gif,image/jpeg"
           onChange={e => {
             const f = e.target.files?.[0]
-            if (f) handleOpenLegacy(f)
+            if (f) handleOpenLegacy(f, forceConvertRef.current)
+            forceConvertRef.current = false
             e.target.value = ''
           }}
           style={{ display: 'none' }}
@@ -420,6 +483,9 @@ export default function App() {
         </button>
         <button title="Open (Ctrl+O)" onClick={handleOpen} style={btnStyle}>
           <FolderOpen size={16} />
+        </button>
+        <button title="Import image as pixel art" onClick={handleImportAsPixelArt} style={btnStyle}>
+          <Grid3x3 size={16} />
         </button>
         <button title="Save (Ctrl+S)" onClick={handleSave} style={btnAccent}>
           <Save size={16} />

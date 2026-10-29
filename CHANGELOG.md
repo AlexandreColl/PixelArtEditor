@@ -7,6 +7,15 @@ y el proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Añadido
+
+- Conversión de imágenes a pixel art al importarlas: tamaño de salida, número de colores (paleta por median cut), dithering Floyd–Steinberg, umbral de transparencia y vista previa en vivo.
+- Botón **Import image as pixel art** para convertir cualquier imagen, aunque sea pequeña.
+
+### Cambiado
+
+- Las imágenes de más de 128 px o con muchos colores ya no se importan a resolución completa: se abre el diálogo de conversión. Abrirlas sin convertir está limitado a 512 px.
+
 ## [0.1.0] - 2026-10-22
 
 Primera versión pública.

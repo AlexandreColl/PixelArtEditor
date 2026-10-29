@@ -76,6 +76,7 @@ Características principales:
 
 - :pencil2: Herramientas completas: lápiz, borrador, relleno, selector de color, selección, sombreado y pincel de tamaño ajustable
 - :floppy_disk: Abre y guarda PNG reales directamente en tu disco
+- :framed_picture: Convierte cualquier imagen o foto en pixel art: tamaño, número de colores, dithering y vista previa en vivo
 - :robot: Agente IA integrado que entiende tu arte y lo modifica con lenguaje natural
 - :arrows_counterclockwise: Historia ilimitada de deshacer/rehacer (Ctrl+Z / Ctrl+Shift+Z)
 - :mag: Zoom y paneo con rueda del ratón (clic central)
@@ -168,6 +169,19 @@ Usa el **botón central del ratón** (rueda) para arrastrar la vista.
 - **Guardar** — `Ctrl+S` abre el diálogo la primera vez y sobrescribe el archivo original en adelante
 - **Ctrl+Shift+S** — equivalente a Ctrl+S
 
+### Convertir una imagen en pixel art
+
+Al abrir o arrastrar una imagen grande (más de 128 px) o con muchos colores, como una foto, aparece el diálogo **Convert to pixel art**. Para convertir también imágenes pequeñas, usa el botón `Grid3x3` (**Import image as pixel art**).
+
+| Opción                 | Descripción                                                                                                              |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Size                   | Lado largo del resultado (16–256 px), manteniendo la proporción. Cada píxel es la media del bloque de la imagen original |
+| Colors                 | Tamaño máximo de la paleta (2–64), calculada a partir de la propia imagen                                                |
+| Dithering              | Difusión de error Floyd–Steinberg para simular degradados con pocos colores                                              |
+| Transparency threshold | Solo en imágenes con transparencia: los píxeles por debajo del umbral quedan transparentes y el resto opacos             |
+
+**Convert** importa el resultado, que se guarda como un archivo nuevo (`<nombre>-pixel.png`) sin sobrescribir el original. **Open original** abre la imagen sin convertir; solo está disponible hasta 512 px para no bloquear el editor.
+
 ### Agente IA
 
 1. Abre el panel IA con el botón `BotMessageSquare` en la esquina superior derecha
@@ -227,7 +241,7 @@ Puedes hacer doble clic en `build.bat` o `dev.bat` para compilar o ejecutar sin 
 ```
 pixel-art-editor/
 ├── src/                        # Frontend React
-│   ├── components/             # Canvas, Toolbar, ColorPalette, AIChat
+│   ├── components/             # Canvas, Toolbar, ColorPalette, AIChat, ConvertDialog
 │   │   ├── Canvas.tsx          # Lienzo con zoom, grid y dibujo
 │   │   ├── Toolbar.tsx         # Barra de herramientas
 │   │   ├── ColorPalette.tsx    # Selector de colores
@@ -266,17 +280,55 @@ pixel-art-editor/
 
 ## 🗺️ Roadmap
 
-- [x] Herramientas básicas de dibujo
+### ✅ 0.1 — Primera versión
+
+- [x] Herramientas básicas de dibujo: lápiz, borrador, relleno, cuentagotas, sombreado y selección
+- [x] Tamaño de pincel ajustable y colores primario/secundario
 - [x] Deshacer/rehacer con historial
 - [x] Abrir y guardar PNG
 - [x] Panel de IA multiproveedor (OpenAI, Anthropic, Gemini)
-- [x] Crear lienzo nuevo
-- [x] Herramienta de sombreado (difuminado)
-- [x] Tamaño de pincel ajustable
-- [ ] Exportar a formatos adicionales (GIF, sprite sheet)
-- [ ] Herramienta de línea y rectángulo
+
+### 0.2 — Herramientas
+
+- [x] Convertir imágenes a pixel art (tamaño, colores, dithering y vista previa)
+- [ ] Herramientas de línea, rectángulo y elipse
+- [ ] Mover, copiar y pegar la selección
+- [ ] Dibujo simétrico (espejo horizontal/vertical)
+- [ ] Mostrar u ocultar la cuadrícula y ajustar el lienzo a la ventana
+
+### 0.3 — Paletas y exportación
+
+- [ ] Importar y exportar paletas (`.gpl`, `.hex`)
+- [ ] Bloquear el dibujo a la paleta activa
+- [ ] Exportar PNG escalado (×2, ×4, ×8)
+- [ ] Exportar sprite sheet
+
+### 0.4 — Animación
+
+- [ ] Varios fotogramas por proyecto
+- [ ] Papel cebolla (fotograma anterior en transparencia)
+- [ ] Vista previa de la animación
+- [ ] Exportar a GIF
+
+### 0.5 — Capas y proyectos
+
+- [ ] Capas con visibilidad y opacidad
+- [ ] Formato de proyecto propio que conserve capas y fotogramas
+- [ ] Autoguardado
+
+### 1.0 — Estable
+
 - [ ] Atajos de teclado personalizables
+- [ ] Política de seguridad de contenido (CSP) activada
+- [ ] Instaladores firmados
+- [ ] Actualizaciones automáticas
+
+### Más adelante
+
 - [ ] Plugins / scripting
+- [ ] Edición con modelos de imagen generativa
+
+¿Tienes una idea? [Solicita una funcionalidad](https://github.com/AlexandreColl/PixelArtEditor/issues/new?labels=enhancement).
 
 <p align="right">(<a href="#readme-top">volver arriba</a>)</p>
 
