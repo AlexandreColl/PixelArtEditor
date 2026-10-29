@@ -6,31 +6,21 @@ import Canvas from './components/Canvas'
 import Toolbar from './components/Toolbar'
 import ColorPalette from './components/ColorPalette'
 import AIChat from './components/AIChat'
+import type { CanvasHandle } from './components/Canvas'
+import ConvertDialog, { MAX_ORIGINAL_SIZE } from './components/ConvertDialog'
 import { useEditor } from './hooks/useEditor'
 import type { PixelData, Selection } from './types'
 import { formatColor } from './utils/color'
-import { Save, FolderOpen, BotMessageSquare, FilePlus } from 'lucide-react'
+import { countColors } from './utils/pixelate'
+import { EXPORT_SCALES, pixelsToPngDataUrl } from './utils/png'
+import { Save, FolderOpen, BotMessageSquare, FilePlus, ImagePlus, ImageDown } from 'lucide-react'
 
-function pixelsToPngDataUrl(pixels: string[][], width: number, height: number): string {
-  const canvas = document.createElement('canvas')
-  canvas.width = width
-  canvas.height = height
-  const ctx = canvas.getContext('2d')!
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      ctx.fillStyle = pixels[y][x]
-      ctx.fillRect(x, y, 1, 1)
-    }
-  }
-  return canvas.toDataURL('image/png')
-}
-
-async function savePngFile(pixels: string[][], width: number, height: number, filePath: string) {
-  const dataUrl = pixelsToPngDataUrl(pixels, width, height)
+async function savePngFile(pixels: string[][], width: number, height: number, filePath: string, scale = 1) {
+  const dataUrl = pixelsToPngDataUrl(pixels, width, height, scale)
   await invoke('save_png_file', { path: filePath, base64Data: dataUrl.split(',')[1] })
 }
 
-function loadImageFile(file: File): Promise<PixelData> {
+function loadImageFile(file: File): Promise<ImageData> {
   return new Promise((resolve, reject) => {
     const img = new Image()
     const url = URL.createObjectURL(file)
@@ -41,21 +31,7 @@ function loadImageFile(file: File): Promise<PixelData> {
       canvas.height = img.height
       const ctx = canvas.getContext('2d')!
       ctx.drawImage(img, 0, 0)
-      const imageData = ctx.getImageData(0, 0, img.width, img.height)
-      const pixels: string[][] = []
-      for (let y = 0; y < img.height; y++) {
-        const row: string[] = []
-        for (let x = 0; x < img.width; x++) {
-          const i = (y * img.width + x) * 4
-          const r = imageData.data[i]
-          const g = imageData.data[i + 1]
-          const b = imageData.data[i + 2]
-          const a = imageData.data[i + 3]
-          row.push(formatColor([r, g, b, a]))
-        }
-        pixels.push(row)
-      }
-      resolve({ width: img.width, height: img.height, pixels })
+      resolve(ctx.getImageData(0, 0, img.width, img.height))
     }
     img.onerror = () => {
       URL.revokeObjectURL(url)
@@ -63,6 +39,39 @@ function loadImageFile(file: File): Promise<PixelData> {
     }
     img.src = url
   })
+}
+
+function imageDataToPixels(imageData: ImageData): PixelData {
+  const { width, height, data } = imageData
+  const pixels: string[][] = []
+  for (let y = 0; y < height; y++) {
+    const row: string[] = []
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4
+      row.push(formatColor([data[i], data[i + 1], data[i + 2], data[i + 3]]))
+    }
+    pixels.push(row)
+  }
+  return { width, height, pixels }
+}
+
+/** Photos and large images get the conversion dialog; small sprites with few colors open as they are. */
+function needsConversion(imageData: ImageData): boolean {
+  return Math.max(imageData.width, imageData.height) > 128 || countColors(imageData, 256) > 256
+}
+
+const ARROW_STEPS: Record<string, [number, number]> = {
+  ArrowLeft: [-1, 0],
+  ArrowRight: [1, 0],
+  ArrowUp: [0, -1],
+  ArrowDown: [0, 1],
+}
+
+interface PendingImage {
+  image: ImageData
+  name: string
+  /** Original file path, only kept when the file is a PNG that can be overwritten on save */
+  path: string | null
 }
 
 function Toast({ message, visible }: { message: string; visible: boolean }) {
@@ -119,7 +128,13 @@ export default function App() {
     swapColors,
     setZoom,
     setBrushSize,
+    toggleGrid,
+    toggleShapeFilled,
+    toggleMirrorX,
+    toggleMirrorY,
     paintLine,
+    beginShape,
+    drawShape,
     fillRegion,
     shadePixel,
     commitHistory,
@@ -127,12 +142,26 @@ export default function App() {
     resizeCanvas,
     clearCanvas,
     applyPixels,
+    hasClipboard,
+    getSelection,
+    setSelection,
+    selectAll,
+    copySelection,
+    cutSelection,
+    deleteSelection,
+    pasteClipboard,
+    beginMove,
+    moveSelectionTo,
+    nudgeSelection,
     importPixels,
     undo,
     redo,
   } = useEditor()
 
   const [aiOpen, setAiOpen] = useState(false)
+  const [pendingImage, setPendingImage] = useState<PendingImage | null>(null)
+  const [exportScale, setExportScale] = useState(4)
+  const forceConvertRef = useRef(false)
   const [dragOver, setDragOver] = useState(false)
   const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: '', visible: false })
   const filePathRef = useRef<string | null>(null)
@@ -142,7 +171,6 @@ export default function App() {
   const [sizeH, setSizeH] = useState(String(state.pixelData.height))
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pixelDataRef = useRef(state.pixelData)
-  const selectionRef = useRef<Selection | null>(null)
 
   pixelDataRef.current = state.pixelData
 
@@ -152,15 +180,11 @@ export default function App() {
     setSizeH(String(state.pixelData.height))
   }, [state.pixelData.width, state.pixelData.height])
 
-  const handleSelectionChange = useCallback((sel: Selection | null) => {
-    selectionRef.current = sel
-  }, [])
-
   /** The region the AI edits: the current selection, or the whole canvas. */
   const getAiRegion = useCallback((): Selection => {
     const pd = pixelDataRef.current
-    return selectionRef.current ?? { x: 0, y: 0, width: pd.width, height: pd.height }
-  }, [])
+    return getSelection() ?? { x: 0, y: 0, width: pd.width, height: pd.height }
+  }, [getSelection])
 
   const extractCanvasForAI = useCallback(() => {
     const pd = pixelDataRef.current
@@ -213,6 +237,23 @@ export default function App() {
     [state.pixelData, showToast],
   )
 
+  /** Saves a scaled copy as a new file; unlike Save it leaves the current file path and name alone. */
+  const handleExport = useCallback(async () => {
+    try {
+      const { pixels, width, height } = state.pixelData
+      const fp = await save({
+        filters: [{ name: 'PNG Image', extensions: ['png'] }],
+        defaultPath: `${fileNameRef.current}@${exportScale}x.png`,
+      })
+      if (!fp) return
+      await savePngFile(pixels, width, height, /\.png$/i.test(fp) ? fp : `${fp}.png`, exportScale)
+      showToast(`Exported ${width * exportScale}x${height * exportScale} PNG`)
+    } catch (err) {
+      showToast('Export failed')
+      console.error(err)
+    }
+  }, [state.pixelData, exportScale, showToast])
+
   const handleSave = useCallback(async () => {
     if (filePathRef.current) {
       await doSavePng(filePathRef.current)
@@ -238,6 +279,47 @@ export default function App() {
     showToast('New canvas created')
   }, [importPixels, showToast])
 
+  const openImage = useCallback(
+    (image: ImageData, name: string, path: string | null, forceConvert = false) => {
+      if (forceConvert || needsConversion(image)) {
+        setPendingImage({ image, name, path })
+        return
+      }
+      const pd = imageDataToPixels(image)
+      importPixels(pd.pixels, pd.width, pd.height)
+      filePathRef.current = path
+      fileNameRef.current = name
+    },
+    [importPixels],
+  )
+
+  const handleConvert = useCallback(
+    (pd: PixelData) => {
+      if (!pendingImage) return
+      importPixels(pd.pixels, pd.width, pd.height)
+      // The result is a new image: never overwrite the source photo on save
+      filePathRef.current = null
+      fileNameRef.current = `${pendingImage.name}-pixel`
+      setPendingImage(null)
+      showToast(`Converted to ${pd.width}x${pd.height} pixel art`)
+    },
+    [pendingImage, importPixels, showToast],
+  )
+
+  const handleOpenOriginal = useCallback(() => {
+    if (!pendingImage || Math.max(pendingImage.image.width, pendingImage.image.height) > MAX_ORIGINAL_SIZE) return
+    const pd = imageDataToPixels(pendingImage.image)
+    importPixels(pd.pixels, pd.width, pd.height)
+    filePathRef.current = pendingImage.path
+    fileNameRef.current = pendingImage.name
+    setPendingImage(null)
+  }, [pendingImage, importPixels])
+
+  const handleImportAsPixelArt = useCallback(() => {
+    forceConvertRef.current = true
+    fileInputRef.current?.click()
+  }, [])
+
   const handleOpen = useCallback(async () => {
     try {
       const fp = await open({
@@ -250,35 +332,74 @@ export default function App() {
       const data = await readFile(fp)
       const blob = new Blob([data])
       const file = new File([blob], fp.split(/[\\/]/).pop() || 'image.png')
-      const pixelData = await loadImageFile(file)
-      importPixels(pixelData.pixels, pixelData.width, pixelData.height)
-      // Saving always writes PNG, so only overwrite the original when it is a PNG
-      filePathRef.current = /\.png$/i.test(fp) ? fp : null
+      const image = await loadImageFile(file)
       const name =
         fp
           .split(/[\\/]/)
           .pop()
           ?.replace(/\.[^/.]+$/, '') || 'untitled'
-      fileNameRef.current = name
+      // Saving always writes PNG, so only overwrite the original when it is a PNG
+      openImage(image, name, /\.png$/i.test(fp) ? fp : null)
     } catch {
       showToast('Could not open image')
     }
-  }, [importPixels, showToast])
+  }, [openImage, showToast])
 
   const handleOpenLegacy = useCallback(
-    async (file: File) => {
+    async (file: File, forceConvert = false) => {
       try {
-        const data = await loadImageFile(file)
-        importPixels(data.pixels, data.width, data.height)
-        const name = file.name.replace(/\.[^/.]+$/, '')
-        fileNameRef.current = name
-        filePathRef.current = null
+        const image = await loadImageFile(file)
+        openImage(image, file.name.replace(/\.[^/.]+$/, '') || 'untitled', null, forceConvert)
       } catch {
         showToast('Could not open image')
       }
     },
-    [importPixels, showToast],
+    [openImage, showToast],
   )
+
+  const handleCopy = useCallback(() => {
+    showToast(copySelection() ? 'Copied selection' : 'Select an area first')
+  }, [copySelection, showToast])
+
+  const handleCut = useCallback(() => {
+    showToast(cutSelection() ? 'Cut selection' : 'Select an area first')
+  }, [cutSelection, showToast])
+
+  /** Pastes at the top-left of the selection, or of the canvas; the pasted area is left selected, ready to drag. */
+  const handlePaste = useCallback(() => {
+    const at = getSelection()
+    if (pasteClipboard(at?.x ?? 0, at?.y ?? 0)) setTool('selection')
+    else showToast('Clipboard is empty')
+  }, [getSelection, pasteClipboard, setTool, showToast])
+
+  const handleSelectAll = useCallback(() => {
+    selectAll()
+    setTool('selection')
+  }, [selectAll, setTool])
+
+  // Read by the keyboard handler, which is registered once
+  const selectionActions = {
+    copy: handleCopy,
+    cut: handleCut,
+    paste: handlePaste,
+    selectAll: handleSelectAll,
+    remove: deleteSelection,
+    deselect: () => setSelection(null),
+    nudge: nudgeSelection,
+  }
+  const selectionActionsRef = useRef(selectionActions)
+  selectionActionsRef.current = selectionActions
+
+  const canvasHandleRef = useRef<CanvasHandle>(null)
+
+  const handleFit = useCallback(() => {
+    const zoom = canvasHandleRef.current?.getFitZoom()
+    if (zoom == null) return
+    canvasHandleRef.current?.resetPan()
+    setZoom(zoom)
+  }, [setZoom])
+  const handleFitRef = useRef(handleFit)
+  handleFitRef.current = handleFit
 
   const zoomRef = useRef(state.zoom)
   zoomRef.current = state.zoom
@@ -307,13 +428,43 @@ export default function App() {
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey || e.metaKey)) return
       // Leave text editing shortcuts alone in inputs and textareas
       const target = e.target as HTMLElement | null
       if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return
       // With Shift or Caps Lock e.key is upper case
+      // A modal dialog (the image conversion) owns the keyboard while it is open
+      if (document.querySelector('[role="dialog"]')) return
       const key = e.key.toLowerCase()
-      if (key === 'z' && !e.shiftKey) {
+      const actions = selectionActionsRef.current
+      if (!(e.ctrlKey || e.metaKey)) {
+        if (key === 'g' && !e.altKey && !e.shiftKey) {
+          toggleGrid()
+        } else if (e.key === 'Delete') {
+          if (actions.remove()) e.preventDefault()
+        } else if (e.key === 'Escape') {
+          actions.deselect()
+        } else if (e.key in ARROW_STEPS) {
+          const [dx, dy] = ARROW_STEPS[e.key]
+          if (actions.nudge(dx, dy)) e.preventDefault()
+        }
+        return
+      }
+      if (key === 'c') {
+        e.preventDefault()
+        actions.copy()
+      } else if (key === 'x') {
+        e.preventDefault()
+        actions.cut()
+      } else if (key === 'v') {
+        e.preventDefault()
+        actions.paste()
+      } else if (key === 'a') {
+        e.preventDefault()
+        actions.selectAll()
+      } else if (key === '0') {
+        e.preventDefault()
+        handleFitRef.current()
+      } else if (key === 'z' && !e.shiftKey) {
         e.preventDefault()
         undo()
       } else if ((key === 'z' && e.shiftKey) || key === 'y') {
@@ -329,7 +480,7 @@ export default function App() {
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [undo, redo])
+  }, [undo, redo, toggleGrid])
 
   const handleResize = useCallback(() => {
     const clamp = (v: string, fallback: number) => {
@@ -390,6 +541,16 @@ export default function App() {
 
       <Toast message={toast.message} visible={toast.visible} />
 
+      {pendingImage && (
+        <ConvertDialog
+          image={pendingImage.image}
+          fileName={pendingImage.name}
+          onConvert={handleConvert}
+          onOpenOriginal={handleOpenOriginal}
+          onCancel={() => setPendingImage(null)}
+        />
+      )}
+
       <div
         style={{
           height: 40,
@@ -409,7 +570,8 @@ export default function App() {
           accept="image/png,image/gif,image/jpeg"
           onChange={e => {
             const f = e.target.files?.[0]
-            if (f) handleOpenLegacy(f)
+            if (f) handleOpenLegacy(f, forceConvertRef.current)
+            forceConvertRef.current = false
             e.target.value = ''
           }}
           style={{ display: 'none' }}
@@ -421,9 +583,34 @@ export default function App() {
         <button title="Open (Ctrl+O)" onClick={handleOpen} style={btnStyle}>
           <FolderOpen size={16} />
         </button>
+        <button title="Import image as pixel art" onClick={handleImportAsPixelArt} style={btnStyle}>
+          <ImagePlus size={16} />
+        </button>
         <button title="Save (Ctrl+S)" onClick={handleSave} style={btnAccent}>
           <Save size={16} />
         </button>
+        <button title="Export scaled PNG" onClick={handleExport} style={{ ...btnStyle, padding: '4px 6px 4px 10px' }}>
+          <ImageDown size={16} />
+        </button>
+        <select
+          title="Export scale"
+          value={exportScale}
+          onChange={e => setExportScale(Number(e.target.value))}
+          style={{
+            padding: '3px 4px',
+            borderRadius: 4,
+            border: '1px solid #555',
+            background: '#1e1e1e',
+            color: '#e0e0e0',
+            fontSize: 12,
+          }}
+        >
+          {EXPORT_SCALES.map(n => (
+            <option key={n} value={n}>
+              ×{n}
+            </option>
+          ))}
+        </select>
 
         <div style={{ width: 1, height: 24, background: '#444', margin: '0 8px' }} />
 
@@ -500,6 +687,21 @@ export default function App() {
           onToolChange={setTool}
           zoom={state.zoom}
           onZoomChange={setZoom}
+          onFit={handleFit}
+          showGrid={state.showGrid}
+          onToggleGrid={toggleGrid}
+          shapeFilled={state.shapeFilled}
+          onToggleShapeFilled={toggleShapeFilled}
+          mirrorX={state.mirrorX}
+          mirrorY={state.mirrorY}
+          onToggleMirrorX={toggleMirrorX}
+          onToggleMirrorY={toggleMirrorY}
+          hasSelection={state.selection !== null}
+          hasClipboard={hasClipboard}
+          onCopy={handleCopy}
+          onCut={handleCut}
+          onPaste={handlePaste}
+          onDelete={deleteSelection}
           brushSize={state.brushSize}
           onBrushSizeChange={setBrushSize}
           onClear={clearCanvas}
@@ -510,19 +712,29 @@ export default function App() {
         />
 
         <Canvas
+          handleRef={canvasHandleRef}
+          showGrid={state.showGrid}
+          mirrorX={state.mirrorX}
+          mirrorY={state.mirrorY}
           pixelData={state.pixelData}
           tool={state.activeTool}
           primaryColor={state.primaryColor}
           secondaryColor={state.secondaryColor}
           zoom={state.zoom}
           brushSize={state.brushSize}
+          shapeFilled={state.shapeFilled}
           onPaintLine={paintLine}
+          onShapeStart={beginShape}
+          onDrawShape={drawShape}
           onFillRegion={fillRegion}
           onShadePixel={shadePixel}
           onStrokeEnd={commitHistory}
           onPickColor={pickColor}
           onColorPicked={handleColorPicked}
-          onSelectionChange={handleSelectionChange}
+          selection={state.selection}
+          onSelectionChange={setSelection}
+          onMoveStart={beginMove}
+          onMoveTo={moveSelectionTo}
           onZoomStep={handleZoomStep}
         />
 

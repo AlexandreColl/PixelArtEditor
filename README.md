@@ -76,6 +76,7 @@ Características principales:
 
 - :pencil2: Herramientas completas: lápiz, borrador, relleno, selector de color, selección, sombreado y pincel de tamaño ajustable
 - :floppy_disk: Abre y guarda PNG reales directamente en tu disco
+- :framed_picture: Convierte cualquier imagen o foto en pixel art: tamaño, número de colores, dithering y vista previa en vivo
 - :robot: Agente IA integrado que entiende tu arte y lo modifica con lenguaje natural
 - :arrows_counterclockwise: Historia ilimitada de deshacer/rehacer (Ctrl+Z / Ctrl+Shift+Z)
 - :mag: Zoom y paneo con rueda del ratón (clic central)
@@ -151,12 +152,38 @@ Si prefieres compilarlo desde el código fuente, sigue estos pasos.
 | `Eraser`       | Borrador          | Elimina píxeles (los deja transparentes)         |
 | `PaintBucket`  | Bote de pintura   | Rellena una región conectada del mismo color     |
 | `Pipette`      | Selector de color | Captura el color de un píxel                     |
+| `Slash`        | Línea             | Arrastra para dibujar una línea recta            |
+| `Square`       | Rectángulo        | Arrastra para dibujar un rectángulo              |
+| `Circle`       | Elipse            | Arrastra para dibujar una elipse                 |
 | `Blend`        | Sombreado         | Difumina mezclando colores de píxeles adyacentes |
 | `MousePointer` | Selección         | Selecciona una región rectangular                |
 
 ### Tamaño de pincel
 
-Botones **+** / **−** en la barra lateral para ajustar el tamaño del pincel (1–16). Aplica a lápiz y borrador.
+Botones **+** / **−** en la barra lateral para ajustar el tamaño del pincel (1–16). Aplica a lápiz, borrador y al contorno de línea, rectángulo y elipse.
+
+### Selección: mover, copiar y pegar
+
+Con la herramienta `MousePointer`, arrastra para seleccionar una región rectangular. Un clic sin arrastrar, o `Esc`, la deselecciona.
+
+| Acción                  | Cómo                                                                                      |
+| ----------------------- | ----------------------------------------------------------------------------------------- |
+| Mover                   | Arrastra desde dentro de la selección. Se queda dentro del lienzo y se deshace de una vez |
+| Copiar al arrastrar     | Mantén `Alt` mientras arrastras                                                           |
+| Mover 1 píxel           | Flechas del teclado                                                                       |
+| Copiar / Cortar / Pegar | `Ctrl+C` / `Ctrl+X` / `Ctrl+V`, o los botones que aparecen con la herramienta activa      |
+| Borrar                  | `Supr`                                                                                    |
+| Seleccionar todo        | `Ctrl+A`                                                                                  |
+
+Los píxeles transparentes de lo que se mueve o pega no tapan lo que hay debajo. Al pegar, la copia aparece en la esquina superior izquierda de la selección (o del lienzo) y queda seleccionada, lista para arrastrarla. El portapapeles es interno del editor: no se comparte con otras aplicaciones.
+
+### Dibujo simétrico
+
+Los botones `FlipHorizontal` y `FlipVertical` de la barra lateral activan el espejo horizontal y/o vertical (pueden combinarse). Mientras estén activos se dibuja la copia reflejada respecto al centro del lienzo, que se marca con una línea discontinua. Afecta a lápiz, borrador y formas, y no al relleno, al cuentagotas ni al sombreado. Cada trazo, con su reflejo, se deshace de una vez.
+
+### Formas
+
+Las formas se previsualizan mientras arrastras y se deshacen con un solo `Ctrl+Z`. El clic izquierdo usa el color primario y el derecho el secundario. En rectángulo y elipse, la casilla **Filled** las rellena; en ese caso el tamaño de pincel no se aplica.
 
 ### Paneo
 
@@ -167,6 +194,20 @@ Usa el **botón central del ratón** (rueda) para arrastrar la vista.
 - **Abrir imagen** — `Ctrl+O` o arrastra un PNG directamente al editor
 - **Guardar** — `Ctrl+S` abre el diálogo la primera vez y sobrescribe el archivo original en adelante
 - **Ctrl+Shift+S** — equivalente a Ctrl+S
+- **Exportar PNG escalado** — botón `ImageDown` junto a Guardar, con escala ×1, ×2, ×4 u ×8. Cada píxel se amplía a un bloque exacto, sin suavizado, y la transparencia se conserva. Es una exportación: no cambia el archivo que tienes abierto
+
+### Convertir una imagen en pixel art
+
+Al abrir o arrastrar una imagen grande (más de 128 px) o con muchos colores, como una foto, aparece el diálogo **Convert to pixel art**. Para convertir también imágenes pequeñas, usa el botón `ImagePlus` (**Import image as pixel art**).
+
+| Opción                 | Descripción                                                                                                              |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Size                   | Lado largo del resultado (16–256 px), manteniendo la proporción. Cada píxel es la media del bloque de la imagen original |
+| Colors                 | Tamaño máximo de la paleta (2–64), calculada a partir de la propia imagen                                                |
+| Dithering              | Difusión de error Floyd–Steinberg para simular degradados con pocos colores                                              |
+| Transparency threshold | Solo en imágenes con transparencia: los píxeles por debajo del umbral quedan transparentes y el resto opacos             |
+
+**Convert** importa el resultado, que se guarda como un archivo nuevo (`<nombre>-pixel.png`) sin sobrescribir el original. **Open original** abre la imagen sin convertir; solo está disponible hasta 512 px para no bloquear el editor.
 
 ### Agente IA
 
@@ -182,12 +223,19 @@ Usa el **botón central del ratón** (rueda) para arrastrar la vista.
 
 ## ⌨️ Atajos de Teclado
 
-| Tecla                     | Acción       |
-| ------------------------- | ------------ |
-| `Ctrl+Z`                  | Deshacer     |
-| `Ctrl+Shift+Z` / `Ctrl+Y` | Rehacer      |
-| `Ctrl+S`                  | Guardar PNG  |
-| `Ctrl+O`                  | Abrir imagen |
+| Tecla                          | Acción                              |
+| ------------------------------ | ----------------------------------- |
+| `Ctrl+Z`                       | Deshacer                            |
+| `Ctrl+Shift+Z` / `Ctrl+Y`      | Rehacer                             |
+| `Ctrl+S`                       | Guardar PNG                         |
+| `Ctrl+O`                       | Abrir imagen                        |
+| `G`                            | Mostrar u ocultar la cuadrícula     |
+| `Ctrl+0`                       | Ajustar el lienzo a la ventana      |
+| `Ctrl+C` / `Ctrl+X` / `Ctrl+V` | Copiar, cortar y pegar la selección |
+| `Ctrl+A`                       | Seleccionar todo                    |
+| `Supr`                         | Borrar la selección                 |
+| `Esc`                          | Deseleccionar                       |
+| Flechas                        | Mover la selección 1 píxel          |
 
 <p align="right">(<a href="#readme-top">volver arriba</a>)</p>
 
@@ -227,7 +275,7 @@ Puedes hacer doble clic en `build.bat` o `dev.bat` para compilar o ejecutar sin 
 ```
 pixel-art-editor/
 ├── src/                        # Frontend React
-│   ├── components/             # Canvas, Toolbar, ColorPalette, AIChat
+│   ├── components/             # Canvas, Toolbar, ColorPalette, AIChat, ConvertDialog
 │   │   ├── Canvas.tsx          # Lienzo con zoom, grid y dibujo
 │   │   ├── Toolbar.tsx         # Barra de herramientas
 │   │   ├── ColorPalette.tsx    # Selector de colores
@@ -266,17 +314,55 @@ pixel-art-editor/
 
 ## 🗺️ Roadmap
 
-- [x] Herramientas básicas de dibujo
+### ✅ 0.1 — Primera versión
+
+- [x] Herramientas básicas de dibujo: lápiz, borrador, relleno, cuentagotas, sombreado y selección
+- [x] Tamaño de pincel ajustable y colores primario/secundario
 - [x] Deshacer/rehacer con historial
 - [x] Abrir y guardar PNG
 - [x] Panel de IA multiproveedor (OpenAI, Anthropic, Gemini)
-- [x] Crear lienzo nuevo
-- [x] Herramienta de sombreado (difuminado)
-- [x] Tamaño de pincel ajustable
-- [ ] Exportar a formatos adicionales (GIF, sprite sheet)
-- [ ] Herramienta de línea y rectángulo
+
+### ✅ 0.2 — Herramientas
+
+- [x] Convertir imágenes a pixel art (tamaño, colores, dithering y vista previa)
+- [x] Herramientas de línea, rectángulo y elipse
+- [x] Mover, copiar y pegar la selección
+- [x] Dibujo simétrico (espejo horizontal/vertical)
+- [x] Mostrar u ocultar la cuadrícula y ajustar el lienzo a la ventana
+
+### 0.3 — Paletas y exportación
+
+- [ ] Importar y exportar paletas (`.gpl`, `.hex`)
+- [ ] Bloquear el dibujo a la paleta activa
+- [x] Exportar PNG escalado (×2, ×4, ×8)
+- [ ] Exportar sprite sheet
+
+### 0.4 — Animación
+
+- [ ] Varios fotogramas por proyecto
+- [ ] Papel cebolla (fotograma anterior en transparencia)
+- [ ] Vista previa de la animación
+- [ ] Exportar a GIF
+
+### 0.5 — Capas y proyectos
+
+- [ ] Capas con visibilidad y opacidad
+- [ ] Formato de proyecto propio que conserve capas y fotogramas
+- [ ] Autoguardado
+
+### 1.0 — Estable
+
 - [ ] Atajos de teclado personalizables
+- [ ] Política de seguridad de contenido (CSP) activada
+- [ ] Instaladores firmados
+- [ ] Actualizaciones automáticas
+
+### Más adelante
+
 - [ ] Plugins / scripting
+- [ ] Edición con modelos de imagen generativa
+
+¿Tienes una idea? [Solicita una funcionalidad](https://github.com/AlexandreColl/PixelArtEditor/issues/new?labels=enhancement).
 
 <p align="right">(<a href="#readme-top">volver arriba</a>)</p>
 

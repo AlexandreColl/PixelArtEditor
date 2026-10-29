@@ -17,15 +17,36 @@ El proyecto sigue un modelo inspirado en Git Flow:
 
 ## Convención de commits
 
-Usamos [Conventional Commits](https://www.conventionalcommits.org/es/v1.0.0/):
+Usamos [Conventional Commits](https://www.conventionalcommits.org/es/v1.0.0/) precedidos de un emoji de [gitmoji](https://gitmoji.dev/):
+`<emoji> <tipo>(<ámbito>): <descripción>`. El emoji va como carácter Unicode, el ámbito es opcional y la
+descripción va en imperativo, en minúsculas y sin punto final.
 
 ```
-feat: añade herramienta de línea
-fix: corrige el relleno en bordes transparentes
-docs: actualiza el README
-refactor: simplifica useEditor
-chore: actualiza dependencias
+✨ feat(canvas): add line tool
+🐛 fix(fill): keep transparent edges when flooding
+📝 docs: update readme
+♻️ refactor(editor): simplify history handling
+⬆️ build(deps): bump vite to 8.1
+🔀 Merge branch 'feature/line-tool' into develop
 ```
+
+| Emoji | Tipo             | Cuándo                                |
+| ----- | ---------------- | ------------------------------------- |
+| ✨    | `feat`           | nueva funcionalidad                   |
+| 🐛    | `fix`            | corrección de error                   |
+| 🚑️    | `fix`            | hotfix crítico                        |
+| 🔒️    | `fix`            | corrección de seguridad               |
+| 📝    | `docs`           | documentación                         |
+| ♻️    | `refactor`       | refactor sin cambio de comportamiento |
+| 🎨    | `style`          | formato / estructura del código       |
+| ⚡️    | `perf`           | rendimiento                           |
+| ✅    | `test`           | tests                                 |
+| 👷    | `ci`             | CI/CD                                 |
+| ⬆️    | `build(deps)`    | actualizar dependencias               |
+| 🔧    | `chore`          | ficheros de configuración             |
+| 🔥    | `chore`          | eliminar código o ficheros            |
+| 🔖    | `chore(release)` | release / etiqueta de versión         |
+| ⏪️    | `revert`         | revertir cambios                      |
 
 ## Entorno de desarrollo
 

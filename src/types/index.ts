@@ -1,4 +1,5 @@
-export type Tool = 'pencil' | 'eraser' | 'fill' | 'picker' | 'selection' | 'shade'
+export type ShapeTool = 'line' | 'rect' | 'ellipse'
+export type Tool = 'pencil' | 'eraser' | 'fill' | 'picker' | 'selection' | 'shade' | ShapeTool
 
 export interface PixelData {
   width: number
@@ -20,4 +21,9 @@ export interface EditorState {
   secondaryColor: string
   zoom: number
   brushSize: number
+  showGrid: boolean
+  shapeFilled: boolean
+  mirrorX: boolean
+  mirrorY: boolean
+  selection: Selection | null
 }
