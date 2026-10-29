@@ -60,6 +60,13 @@ function needsConversion(imageData: ImageData): boolean {
   return Math.max(imageData.width, imageData.height) > 128 || countColors(imageData, 256) > 256
 }
 
+const ARROW_STEPS: Record<string, [number, number]> = {
+  ArrowLeft: [-1, 0],
+  ArrowRight: [1, 0],
+  ArrowUp: [0, -1],
+  ArrowDown: [0, 1],
+}
+
 interface PendingImage {
   image: ImageData
   name: string
@@ -135,6 +142,17 @@ export default function App() {
     resizeCanvas,
     clearCanvas,
     applyPixels,
+    hasClipboard,
+    getSelection,
+    setSelection,
+    selectAll,
+    copySelection,
+    cutSelection,
+    deleteSelection,
+    pasteClipboard,
+    beginMove,
+    moveSelectionTo,
+    nudgeSelection,
     importPixels,
     undo,
     redo,
@@ -153,7 +171,6 @@ export default function App() {
   const [sizeH, setSizeH] = useState(String(state.pixelData.height))
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pixelDataRef = useRef(state.pixelData)
-  const selectionRef = useRef<Selection | null>(null)
 
   pixelDataRef.current = state.pixelData
 
@@ -163,15 +180,11 @@ export default function App() {
     setSizeH(String(state.pixelData.height))
   }, [state.pixelData.width, state.pixelData.height])
 
-  const handleSelectionChange = useCallback((sel: Selection | null) => {
-    selectionRef.current = sel
-  }, [])
-
   /** The region the AI edits: the current selection, or the whole canvas. */
   const getAiRegion = useCallback((): Selection => {
     const pd = pixelDataRef.current
-    return selectionRef.current ?? { x: 0, y: 0, width: pd.width, height: pd.height }
-  }, [])
+    return getSelection() ?? { x: 0, y: 0, width: pd.width, height: pd.height }
+  }, [getSelection])
 
   const extractCanvasForAI = useCallback(() => {
     const pd = pixelDataRef.current
@@ -344,6 +357,39 @@ export default function App() {
     [openImage, showToast],
   )
 
+  const handleCopy = useCallback(() => {
+    showToast(copySelection() ? 'Copied selection' : 'Select an area first')
+  }, [copySelection, showToast])
+
+  const handleCut = useCallback(() => {
+    showToast(cutSelection() ? 'Cut selection' : 'Select an area first')
+  }, [cutSelection, showToast])
+
+  /** Pastes at the top-left of the selection, or of the canvas; the pasted area is left selected, ready to drag. */
+  const handlePaste = useCallback(() => {
+    const at = getSelection()
+    if (pasteClipboard(at?.x ?? 0, at?.y ?? 0)) setTool('selection')
+    else showToast('Clipboard is empty')
+  }, [getSelection, pasteClipboard, setTool, showToast])
+
+  const handleSelectAll = useCallback(() => {
+    selectAll()
+    setTool('selection')
+  }, [selectAll, setTool])
+
+  // Read by the keyboard handler, which is registered once
+  const selectionActions = {
+    copy: handleCopy,
+    cut: handleCut,
+    paste: handlePaste,
+    selectAll: handleSelectAll,
+    remove: deleteSelection,
+    deselect: () => setSelection(null),
+    nudge: nudgeSelection,
+  }
+  const selectionActionsRef = useRef(selectionActions)
+  selectionActionsRef.current = selectionActions
+
   const canvasHandleRef = useRef<CanvasHandle>(null)
 
   const handleFit = useCallback(() => {
@@ -386,12 +432,36 @@ export default function App() {
       const target = e.target as HTMLElement | null
       if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return
       // With Shift or Caps Lock e.key is upper case
+      // A modal dialog (the image conversion) owns the keyboard while it is open
+      if (document.querySelector('[role="dialog"]')) return
       const key = e.key.toLowerCase()
+      const actions = selectionActionsRef.current
       if (!(e.ctrlKey || e.metaKey)) {
-        if (key === 'g' && !e.altKey && !e.shiftKey) toggleGrid()
+        if (key === 'g' && !e.altKey && !e.shiftKey) {
+          toggleGrid()
+        } else if (e.key === 'Delete') {
+          if (actions.remove()) e.preventDefault()
+        } else if (e.key === 'Escape') {
+          actions.deselect()
+        } else if (e.key in ARROW_STEPS) {
+          const [dx, dy] = ARROW_STEPS[e.key]
+          if (actions.nudge(dx, dy)) e.preventDefault()
+        }
         return
       }
-      if (key === '0') {
+      if (key === 'c') {
+        e.preventDefault()
+        actions.copy()
+      } else if (key === 'x') {
+        e.preventDefault()
+        actions.cut()
+      } else if (key === 'v') {
+        e.preventDefault()
+        actions.paste()
+      } else if (key === 'a') {
+        e.preventDefault()
+        actions.selectAll()
+      } else if (key === '0') {
         e.preventDefault()
         handleFitRef.current()
       } else if (key === 'z' && !e.shiftKey) {
@@ -626,6 +696,12 @@ export default function App() {
           mirrorY={state.mirrorY}
           onToggleMirrorX={toggleMirrorX}
           onToggleMirrorY={toggleMirrorY}
+          hasSelection={state.selection !== null}
+          hasClipboard={hasClipboard}
+          onCopy={handleCopy}
+          onCut={handleCut}
+          onPaste={handlePaste}
+          onDelete={deleteSelection}
           brushSize={state.brushSize}
           onBrushSizeChange={setBrushSize}
           onClear={clearCanvas}
@@ -655,7 +731,10 @@ export default function App() {
           onStrokeEnd={commitHistory}
           onPickColor={pickColor}
           onColorPicked={handleColorPicked}
-          onSelectionChange={handleSelectionChange}
+          selection={state.selection}
+          onSelectionChange={setSelection}
+          onMoveStart={beginMove}
+          onMoveTo={moveSelectionTo}
           onZoomStep={handleZoomStep}
         />
 

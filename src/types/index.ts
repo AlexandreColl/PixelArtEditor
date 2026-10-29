@@ -25,4 +25,5 @@ export interface EditorState {
   shapeFilled: boolean
   mirrorX: boolean
   mirrorY: boolean
+  selection: Selection | null
 }

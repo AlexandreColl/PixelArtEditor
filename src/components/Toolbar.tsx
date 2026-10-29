@@ -13,6 +13,10 @@ import {
   Circle,
   FlipHorizontal,
   FlipVertical,
+  Copy,
+  Scissors,
+  ClipboardPaste,
+  Trash2,
 } from 'lucide-react'
 
 interface ToolbarProps {
@@ -29,6 +33,12 @@ interface ToolbarProps {
   mirrorY: boolean
   onToggleMirrorX: () => void
   onToggleMirrorY: () => void
+  hasSelection: boolean
+  hasClipboard: boolean
+  onCopy: () => void
+  onCut: () => void
+  onPaste: () => void
+  onDelete: () => void
   brushSize: number
   onBrushSizeChange: (size: number) => void
   onClear: () => void
@@ -87,6 +97,12 @@ export default function Toolbar({
   mirrorY,
   onToggleMirrorX,
   onToggleMirrorY,
+  hasSelection,
+  hasClipboard,
+  onCopy,
+  onCut,
+  onPaste,
+  onDelete,
   brushSize,
   onBrushSizeChange,
   onClear,
@@ -210,6 +226,27 @@ export default function Toolbar({
           <FlipVertical size={16} />
         </button>
       </div>
+
+      {activeTool === 'selection' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 36px)', gap: 4 }}>
+          {[
+            { title: 'Copy (Ctrl+C)', onClick: onCopy, enabled: hasSelection, icon: <Copy size={16} /> },
+            { title: 'Cut (Ctrl+X)', onClick: onCut, enabled: hasSelection, icon: <Scissors size={16} /> },
+            { title: 'Paste (Ctrl+V)', onClick: onPaste, enabled: hasClipboard, icon: <ClipboardPaste size={16} /> },
+            { title: 'Delete selection (Del)', onClick: onDelete, enabled: hasSelection, icon: <Trash2 size={16} /> },
+          ].map(b => (
+            <button
+              key={b.title}
+              title={b.title}
+              onClick={b.onClick}
+              disabled={!b.enabled}
+              style={{ ...toggleBtn(false), opacity: b.enabled ? 1 : 0.3 }}
+            >
+              {b.icon}
+            </button>
+          ))}
+        </div>
+      )}
 
       {(activeTool === 'rect' || activeTool === 'ellipse') && (
         <label

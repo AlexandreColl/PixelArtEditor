@@ -162,6 +162,21 @@ Si prefieres compilarlo desde el código fuente, sigue estos pasos.
 
 Botones **+** / **−** en la barra lateral para ajustar el tamaño del pincel (1–16). Aplica a lápiz, borrador y al contorno de línea, rectángulo y elipse.
 
+### Selección: mover, copiar y pegar
+
+Con la herramienta `MousePointer`, arrastra para seleccionar una región rectangular. Un clic sin arrastrar, o `Esc`, la deselecciona.
+
+| Acción                  | Cómo                                                                                      |
+| ----------------------- | ----------------------------------------------------------------------------------------- |
+| Mover                   | Arrastra desde dentro de la selección. Se queda dentro del lienzo y se deshace de una vez |
+| Copiar al arrastrar     | Mantén `Alt` mientras arrastras                                                           |
+| Mover 1 píxel           | Flechas del teclado                                                                       |
+| Copiar / Cortar / Pegar | `Ctrl+C` / `Ctrl+X` / `Ctrl+V`, o los botones que aparecen con la herramienta activa      |
+| Borrar                  | `Supr`                                                                                    |
+| Seleccionar todo        | `Ctrl+A`                                                                                  |
+
+Los píxeles transparentes de lo que se mueve o pega no tapan lo que hay debajo. Al pegar, la copia aparece en la esquina superior izquierda de la selección (o del lienzo) y queda seleccionada, lista para arrastrarla. El portapapeles es interno del editor: no se comparte con otras aplicaciones.
+
 ### Dibujo simétrico
 
 Los botones `FlipHorizontal` y `FlipVertical` de la barra lateral activan el espejo horizontal y/o vertical (pueden combinarse). Mientras estén activos se dibuja la copia reflejada respecto al centro del lienzo, que se marca con una línea discontinua. Afecta a lápiz, borrador y formas, y no al relleno, al cuentagotas ni al sombreado. Cada trazo, con su reflejo, se deshace de una vez.
@@ -208,14 +223,19 @@ Al abrir o arrastrar una imagen grande (más de 128 px) o con muchos colores, co
 
 ## ⌨️ Atajos de Teclado
 
-| Tecla                     | Acción                          |
-| ------------------------- | ------------------------------- |
-| `Ctrl+Z`                  | Deshacer                        |
-| `Ctrl+Shift+Z` / `Ctrl+Y` | Rehacer                         |
-| `Ctrl+S`                  | Guardar PNG                     |
-| `Ctrl+O`                  | Abrir imagen                    |
-| `G`                       | Mostrar u ocultar la cuadrícula |
-| `Ctrl+0`                  | Ajustar el lienzo a la ventana  |
+| Tecla                          | Acción                              |
+| ------------------------------ | ----------------------------------- |
+| `Ctrl+Z`                       | Deshacer                            |
+| `Ctrl+Shift+Z` / `Ctrl+Y`      | Rehacer                             |
+| `Ctrl+S`                       | Guardar PNG                         |
+| `Ctrl+O`                       | Abrir imagen                        |
+| `G`                            | Mostrar u ocultar la cuadrícula     |
+| `Ctrl+0`                       | Ajustar el lienzo a la ventana      |
+| `Ctrl+C` / `Ctrl+X` / `Ctrl+V` | Copiar, cortar y pegar la selección |
+| `Ctrl+A`                       | Seleccionar todo                    |
+| `Supr`                         | Borrar la selección                 |
+| `Esc`                          | Deseleccionar                       |
+| Flechas                        | Mover la selección 1 píxel          |
 
 <p align="right">(<a href="#readme-top">volver arriba</a>)</p>
 
@@ -306,7 +326,7 @@ pixel-art-editor/
 
 - [x] Convertir imágenes a pixel art (tamaño, colores, dithering y vista previa)
 - [x] Herramientas de línea, rectángulo y elipse
-- [ ] Mover, copiar y pegar la selección
+- [x] Mover, copiar y pegar la selección
 - [x] Dibujo simétrico (espejo horizontal/vertical)
 - [x] Mostrar u ocultar la cuadrícula y ajustar el lienzo a la ventana
 
