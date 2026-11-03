@@ -3,8 +3,8 @@
 [![Release](https://img.shields.io/github/v/release/AlexandreColl/PixelArtEditor?style=for-the-badge&color=e94560)](https://github.com/AlexandreColl/PixelArtEditor/releases)
 [![CI](https://img.shields.io/github/actions/workflow/status/AlexandreColl/PixelArtEditor/ci.yml?branch=main&style=for-the-badge&label=CI)](https://github.com/AlexandreColl/PixelArtEditor/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-e94560?style=for-the-badge)](LICENSE)
-[![Node](https://img.shields.io/badge/node-%3E%3D18-339933?style=for-the-badge)](https://nodejs.org/)
-[![pnpm](https://img.shields.io/badge/pnpm-F69220?style=for-the-badge&logo=pnpm&logoColor=white)](https://pnpm.io/)
+[![Node](https://img.shields.io/badge/node-%3E%3D24-339933?style=for-the-badge)](https://nodejs.org/)
+[![pnpm](https://img.shields.io/badge/pnpm-12-F69220?style=for-the-badge&logo=pnpm&logoColor=white)](https://pnpm.io/)
 [![Tauri](https://img.shields.io/badge/Tauri-2.x-FFC131?style=for-the-badge&logo=tauri&logoColor=white)](https://v2.tauri.app/)
 [![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=white)](https://react.dev/)
 [![PRs](https://img.shields.io/badge/PRs-welcome-3FC7EB?style=for-the-badge)](CONTRIBUTING.md)
@@ -88,7 +88,7 @@ Características principales:
 
 - [![Tauri](https://img.shields.io/badge/Tauri-2.x-FFC131?style=for-the-badge&logo=tauri&logoColor=white)](https://v2.tauri.app/)
 - [![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=white)](https://react.dev/)
-- [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+- [![TypeScript](https://img.shields.io/badge/TypeScript-7-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 - [![Vite](https://img.shields.io/badge/Vite-8.x-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
 - [![Rust](https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
 - [![pnpm](https://img.shields.io/badge/pnpm-F69220?style=for-the-badge&logo=pnpm&logoColor=white)](https://pnpm.io/)
@@ -111,12 +111,12 @@ Si prefieres compilarlo desde el código fuente, sigue estos pasos.
 
 ### Requisitos
 
-- **Node.js** v18 o superior
-- **pnpm**
+- **Node.js** v24 o superior (recomendado: la LTS actual, v26)
+- **pnpm** 12 (la versión exacta está fijada en `packageManager` de `package.json`)
   ```sh
-  npm install -g pnpm
+  npm install -g pnpm@12
   ```
-- **Rust** (instalar via [rustup.rs](https://rustup.rs/))
+- **Rust** 1.90 o superior (instalar via [rustup.rs](https://rustup.rs/))
 - **Visual Studio Build Tools 2022** con el workload "Desarrollo de escritorio con C++" (solo Windows)
 
 ### Instalación
@@ -301,7 +301,7 @@ pixel-art-editor/
 ├── .github/                    # CI, workflow de release y plantillas
 ├── scripts/
 │   └── dev.ps1                 # Helper que configura VS + Node + Cargo
-├── .npmrc                      # Configuración de pnpm (shamefully-hoist)
+├── pnpm-workspace.yaml         # Configuración de pnpm (hoisting y builds permitidos)
 ├── build.bat                   # Build con un clic
 ├── dev.bat                     # Dev con un clic
 ├── CHANGELOG.md                # Historial de versiones

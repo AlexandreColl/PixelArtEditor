@@ -8,7 +8,7 @@ fn save_png_file(path: String, base64_data: String) -> Result<(), String> {
     // The webview can only ask for PNG files to be written
     let is_png = p
         .extension()
-        .map_or(false, |ext| ext.eq_ignore_ascii_case("png"));
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("png"));
     if !is_png {
         return Err("only .png files can be saved".to_string());
     }
