@@ -11,6 +11,11 @@ y el proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
 - Tests automáticos con Vitest para las utilidades (color, formas, conversión a pixel art, PNG) y para el historial, el dibujo y la selección del editor; se ejecutan en el CI.
 
+### Cambiado
+
+- Toolchain y dependencias actualizadas a sus últimas versiones: Node 26 LTS, pnpm 12, TypeScript 7, Vite 8.3, React 19.3, Tauri 2.12, Rust edition 2024 y acciones de GitHub (checkout v7, setup-node v7, pnpm/action-setup v6, tauri-action v1).
+- La configuración de pnpm pasa de `.npmrc` a `pnpm-workspace.yaml`, y los tipos y el plugin de Vite pasan a `devDependencies`.
+
 ## [0.2.0] - 2026-10-29
 
 Herramientas de dibujo y selección, importación de imágenes y exportación escalada.
