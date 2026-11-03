@@ -261,6 +261,8 @@ El ejecutable se genera en `src-tauri/target/release/app.exe`. También se crean
 | `pnpm run tauri:build`  | Compila el binario de producción                       |
 | `pnpm run format`       | Formatea el código con Prettier                        |
 | `pnpm run format:check` | Comprueba el formato (usado en CI)                     |
+| `pnpm test`             | Ejecuta los tests una vez (usado en CI)                |
+| `pnpm run test:watch`   | Ejecuta los tests en modo watch                        |
 
 ### Windows
 

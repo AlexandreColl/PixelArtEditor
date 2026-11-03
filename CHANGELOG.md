@@ -7,6 +7,10 @@ y el proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Añadido
+
+- Tests automáticos con Vitest para las utilidades (color, formas, conversión a pixel art, PNG) y para el historial, el dibujo y la selección del editor; se ejecutan en el CI.
+
 ## [0.2.0] - 2026-10-29
 
 Herramientas de dibujo y selección, importación de imágenes y exportación escalada.
