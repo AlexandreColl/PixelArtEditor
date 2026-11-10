@@ -94,6 +94,15 @@ describe('usePalette', () => {
     expect(setup().result.current.palette.colors).toEqual(DEFAULT_PALETTE)
   })
 
+  it('remembers whether the palette is locked', () => {
+    const first = setup()
+    expect(first.result.current.locked).toBe(false)
+    first.run(p => p.toggleLocked())
+    expect(first.result.current.locked).toBe(true)
+    first.unmount()
+    expect(setup().result.current.locked).toBe(true)
+  })
+
   it('resets to the default palette', () => {
     const { result, run } = setup()
     run(p => p.replacePalette('Mine', ['#010203']))

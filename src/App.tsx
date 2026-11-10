@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { open, save } from '@tauri-apps/plugin-dialog'
 import { readFile } from '@tauri-apps/plugin-fs'
@@ -14,7 +14,7 @@ import type { PixelData, Selection } from './types'
 import { formatColor } from './utils/color'
 import { countColors } from './utils/pixelate'
 import { EXPORT_SCALES, pixelsToPngDataUrl } from './utils/png'
-import { PALETTE_EXTENSIONS, formatForPath, parsePalette, serializePalette } from './utils/palette'
+import { PALETTE_EXTENSIONS, formatForPath, paletteSnapper, parsePalette, serializePalette } from './utils/palette'
 import { Save, FolderOpen, BotMessageSquare, FilePlus, ImagePlus, ImageDown } from 'lucide-react'
 
 async function savePngFile(pixels: string[][], width: number, height: number, filePath: string, scale = 1) {
@@ -144,6 +144,7 @@ export default function App() {
     resizeCanvas,
     clearCanvas,
     applyPixels,
+    remapColors,
     hasClipboard,
     getSelection,
     setSelection,
@@ -159,7 +160,21 @@ export default function App() {
     undo,
     redo,
   } = useEditor()
-  const { palette, addColor, removeColor, moveColor, replacePalette, resetPalette } = usePalette()
+  const { palette, locked, toggleLocked, addColor, removeColor, moveColor, replacePalette, resetPalette } = usePalette()
+  // Maps colors to the palette while it is locked
+  const snap = useMemo(() => (locked ? paletteSnapper(palette.colors) : null), [locked, palette.colors])
+
+  // Whatever sets the drawing colors (swatches, color picker, eyedropper), locked colors stay in the palette
+  useEffect(() => {
+    if (!snap) return
+    if (snap(state.primaryColor) !== state.primaryColor) setPrimaryColor(snap(state.primaryColor))
+    if (snap(state.secondaryColor) !== state.secondaryColor) setSecondaryColor(snap(state.secondaryColor))
+  }, [snap, state.primaryColor, state.secondaryColor, setPrimaryColor, setSecondaryColor])
+
+  const handleShadePixel = useCallback(
+    (x: number, y: number) => shadePixel(x, y, snap ?? undefined),
+    [shadePixel, snap],
+  )
 
   const [aiOpen, setAiOpen] = useState(false)
   const [pendingImage, setPendingImage] = useState<PendingImage | null>(null)
@@ -208,10 +223,11 @@ export default function App() {
   const applyAiPixels = useCallback(
     (pixels: string[][]) => {
       const region = getAiRegion()
-      const applied = applyPixels(pixels, region.x, region.y, region.width, region.height)
+      const source = snap ? pixels.map(row => row.map(snap)) : pixels
+      const applied = applyPixels(source, region.x, region.y, region.width, region.height)
       if (applied === 0) throw new Error('The AI response did not contain any valid pixel colors')
     },
-    [applyPixels, getAiRegion],
+    [applyPixels, getAiRegion, snap],
   )
 
   const showToast = useCallback((message: string) => {
@@ -452,6 +468,11 @@ export default function App() {
       console.error(err)
     }
   }, [palette, showToast])
+
+  const handleReduceToPalette = useCallback(() => {
+    const changed = remapColors(paletteSnapper(palette.colors))
+    showToast(changed > 0 ? `Mapped ${changed} pixels to the palette` : 'Already uses only palette colors')
+  }, [remapColors, palette.colors, showToast])
 
   const handleColorPicked = useCallback(
     (color: string, secondary: boolean) => {
@@ -764,7 +785,7 @@ export default function App() {
           onShapeStart={beginShape}
           onDrawShape={drawShape}
           onFillRegion={fillRegion}
-          onShadePixel={shadePixel}
+          onShadePixel={handleShadePixel}
           onStrokeEnd={commitHistory}
           onPickColor={pickColor}
           onColorPicked={handleColorPicked}
@@ -789,6 +810,9 @@ export default function App() {
           onResetPalette={resetPalette}
           onImportFile={handleImportPalette}
           onExport={handleExportPalette}
+          locked={locked}
+          onToggleLock={toggleLocked}
+          onReduce={handleReduceToPalette}
         />
 
         <AIChat

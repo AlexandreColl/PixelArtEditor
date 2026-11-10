@@ -1,7 +1,7 @@
 import type { PixelData } from '../types'
 import { TRANSPARENT, formatColor } from './color'
 
-type RGB = [number, number, number]
+export type RGB = [number, number, number]
 
 /** An image reduced to the target size: straight (not premultiplied) RGBA, channels 0–255. */
 export interface Downscaled {
@@ -105,7 +105,7 @@ export function buildPalette(colors: RGB[], size: number): RGB[] {
 }
 
 /** Weighted RGB distance, a cheap approximation of how different colors look. */
-function nearest(palette: RGB[], r: number, g: number, b: number): RGB {
+export function nearest(palette: RGB[], r: number, g: number, b: number): RGB {
   let best = palette[0]
   let bestDist = Infinity
   for (const c of palette) {

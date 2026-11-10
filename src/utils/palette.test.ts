@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { formatForPath, parsePalette, serializePalette } from './palette'
+import { formatForPath, paletteSnapper, parsePalette, serializePalette } from './palette'
+import { TRANSPARENT } from './color'
 
 const GPL = `GIMP Palette
 Name: Sunset
@@ -73,5 +74,29 @@ describe('formatForPath', () => {
     expect(formatForPath('C:\\x\\pal.HEX')).toBe('hex')
     expect(formatForPath('/x/pal.gpl')).toBe('gpl')
     expect(formatForPath('/x/pal')).toBe('gpl')
+  })
+})
+
+describe('paletteSnapper', () => {
+  const snap = paletteSnapper(['#000000', '#ffffff', '#ff0000'])
+
+  it('keeps palette colors as they are', () => {
+    expect(snap('#ff0000')).toBe('#ff0000')
+  })
+
+  it('maps other colors to the nearest palette color', () => {
+    expect(snap('#e01010')).toBe('#ff0000')
+    expect(snap('#202020')).toBe('#000000')
+    expect(snap('#f0f0f0')).toBe('#ffffff')
+  })
+
+  it('makes partly transparent pixels opaque or fully transparent', () => {
+    expect(snap('rgba(250,250,250,0.8)')).toBe('#ffffff')
+    expect(snap('rgba(250,250,250,0.2)')).toBe(TRANSPARENT)
+    expect(snap(TRANSPARENT)).toBe(TRANSPARENT)
+  })
+
+  it('leaves unreadable colors alone so callers can skip them', () => {
+    expect(snap('not a color')).toBe('not a color')
   })
 })
