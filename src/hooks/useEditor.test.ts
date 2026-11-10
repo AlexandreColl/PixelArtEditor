@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
 import { useEditor } from './useEditor'
 import { TRANSPARENT } from '../utils/color'
+import { paletteSnapper } from '../utils/palette'
 
 const RED = '#ff0000'
 const BLUE = '#0000ff'
@@ -162,6 +163,23 @@ describe('useEditor drawing', () => {
     expect(pixel(1, 1)).toBe('#e3001c')
   })
 
+  it('maps the shading blend to a palette color when given a snapper', () => {
+    const { run, pixel } = setup()
+    run(e =>
+      e.importPixels(
+        [
+          [RED, RED, RED],
+          [RED, BLUE, RED],
+          [RED, RED, RED],
+        ],
+        3,
+        3,
+      ),
+    )
+    run(e => e.shadePixel(1, 1, paletteSnapper([RED, BLUE])))
+    expect(pixel(1, 1)).toBe(RED)
+  })
+
   it('picks opaque colors as hex and transparent ones as null', () => {
     const { result, dot } = setup()
     dot(1, 1, 'rgba(255,0,0,0.5)')
@@ -201,6 +219,45 @@ describe('useEditor canvas', () => {
     expect(pixel(31, 30)).toBe(RED)
     expect(pixel(31, 31)).toBe(BLUE)
     expect(result.current.canUndo).toBe(true)
+  })
+})
+
+describe('useEditor remapColors', () => {
+  it('maps the whole canvas as one undo step', () => {
+    const { result, run, pixel, dot } = setup()
+    dot(0, 0, '#e01010')
+    dot(1, 0, '#1010e0')
+    let changed = 0
+    run(e => {
+      changed = e.remapColors(paletteSnapper([RED, BLUE]))
+    })
+    expect(changed).toBe(2)
+    expect([pixel(0, 0), pixel(1, 0)]).toEqual([RED, BLUE])
+    run(e => e.undo())
+    expect(pixel(0, 0)).toBe('#e01010')
+    expect(result.current.canRedo).toBe(true)
+  })
+
+  it('only maps the selection when there is one', () => {
+    const { run, pixel, dot } = setup()
+    dot(0, 0, '#e01010')
+    dot(5, 5, '#e01010')
+    run(e => e.setSelection({ x: 0, y: 0, width: 2, height: 2 }))
+    run(e => e.remapColors(paletteSnapper([RED])))
+    expect(pixel(0, 0)).toBe(RED)
+    expect(pixel(5, 5)).toBe('#e01010')
+  })
+
+  it('records nothing when no pixel changes', () => {
+    const { result, run, dot } = setup()
+    dot(0, 0, RED)
+    let changed = -1
+    run(e => {
+      changed = e.remapColors(paletteSnapper([RED]))
+    })
+    expect(changed).toBe(0)
+    run(e => e.undo())
+    expect(result.current.canUndo).toBe(false)
   })
 })
 
