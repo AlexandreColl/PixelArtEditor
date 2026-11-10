@@ -14,6 +14,7 @@ import type { PixelData, Selection } from './types'
 import { formatColor } from './utils/color'
 import { countColors } from './utils/pixelate'
 import { EXPORT_SCALES, pixelsToPngDataUrl } from './utils/png'
+import { PALETTE_EXTENSIONS, formatForPath, parsePalette, serializePalette } from './utils/palette'
 import { Save, FolderOpen, BotMessageSquare, FilePlus, ImagePlus, ImageDown } from 'lucide-react'
 
 async function savePngFile(pixels: string[][], width: number, height: number, filePath: string, scale = 1) {
@@ -158,7 +159,7 @@ export default function App() {
     undo,
     redo,
   } = useEditor()
-  const { palette, addColor, removeColor, moveColor, resetPalette } = usePalette()
+  const { palette, addColor, removeColor, moveColor, replacePalette, resetPalette } = usePalette()
 
   const [aiOpen, setAiOpen] = useState(false)
   const [pendingImage, setPendingImage] = useState<PendingImage | null>(null)
@@ -419,6 +420,38 @@ export default function App() {
     },
     [setZoom],
   )
+
+  const handleImportPalette = useCallback(
+    async (file: File) => {
+      try {
+        const imported = parsePalette(await file.text(), file.name)
+        replacePalette(imported.name, imported.colors)
+        showToast(`Imported ${imported.colors.length} colors from ${file.name}`)
+      } catch (err) {
+        showToast(err instanceof Error ? err.message : 'Could not import the palette')
+      }
+    },
+    [replacePalette, showToast],
+  )
+
+  const handleExportPalette = useCallback(async () => {
+    try {
+      const fp = await save({
+        filters: [
+          { name: 'GIMP / Aseprite palette', extensions: ['gpl'] },
+          { name: 'Lospec hex palette', extensions: ['hex'] },
+        ],
+        defaultPath: `${palette.name}.gpl`,
+      })
+      if (!fp) return
+      const path = PALETTE_EXTENSIONS.some(ext => fp.toLowerCase().endsWith('.' + ext)) ? fp : `${fp}.gpl`
+      await invoke('save_palette_file', { path, contents: serializePalette(palette, formatForPath(path)) })
+      showToast(`Exported ${palette.colors.length} colors`)
+    } catch (err) {
+      showToast('Palette export failed')
+      console.error(err)
+    }
+  }, [palette, showToast])
 
   const handleColorPicked = useCallback(
     (color: string, secondary: boolean) => {
@@ -754,6 +787,8 @@ export default function App() {
           onRemoveColor={removeColor}
           onMoveColor={moveColor}
           onResetPalette={resetPalette}
+          onImportFile={handleImportPalette}
+          onExport={handleExportPalette}
         />
 
         <AIChat

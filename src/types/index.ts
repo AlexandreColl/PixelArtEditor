@@ -14,6 +14,12 @@ export interface Selection {
   height: number
 }
 
+/** The swatches in the color panel */
+export interface Palette {
+  name: string
+  colors: string[]
+}
+
 export interface EditorState {
   pixelData: PixelData
   activeTool: Tool

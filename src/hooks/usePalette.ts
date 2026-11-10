@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { normalizeColor } from '../utils/color'
-
-/** Large enough for any real pixel art palette, small enough to keep the panel usable. */
-export const MAX_PALETTE_COLORS = 256
+import type { Palette } from '../types'
+import { MAX_PALETTE_COLORS, cleanColors } from '../utils/palette'
 
 export const DEFAULT_PALETTE_NAME = 'Default'
 
@@ -30,22 +28,6 @@ export const DEFAULT_PALETTE = [
 ]
 
 const STORAGE_KEY = 'palette'
-
-export interface Palette {
-  name: string
-  colors: string[]
-}
-
-/** Opaque, canonical and without duplicates, so colors compare by string and palettes stay valid. */
-export function cleanColors(colors: unknown[]): string[] {
-  const seen = new Set<string>()
-  for (const c of colors) {
-    const color = normalizeColor(c)
-    if (color && color.startsWith('#')) seen.add(color)
-    if (seen.size === MAX_PALETTE_COLORS) break
-  }
-  return [...seen]
-}
 
 function loadPalette(): Palette {
   try {
