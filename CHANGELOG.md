@@ -9,10 +9,16 @@ y el proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
 ### Añadido
 
+- Paleta editable que se recuerda entre sesiones: añadir el color primario, quitar con `Ctrl+clic`, reordenar arrastrando y restaurar la predefinida.
+- Importación y exportación de paletas `.gpl` (GIMP, Aseprite, Krita) y `.hex` (Lospec).
+- Bloqueo del dibujo a la paleta: los colores elegidos, el sombreado y los resultados de la IA se ajustan al color más cercano.
+- Reducir el lienzo o la selección a los colores de la paleta, en un solo paso deshacible.
 - Tests automáticos con Vitest para las utilidades (color, formas, conversión a pixel art, PNG) y para el historial, el dibujo y la selección del editor; se ejecutan en el CI.
 
 ### Cambiado
 
+- El CI ejecuta los tests de Rust (`cargo test`) en lugar de `cargo check`.
+- La exportación a sprite sheet pasa al roadmap de la 0.4, porque necesita fotogramas.
 - Toolchain y dependencias actualizadas a sus últimas versiones: Node 26 LTS, pnpm 12, TypeScript 7, Vite 8.3, React 19.3, Tauri 2.12, Rust edition 2024 y acciones de GitHub (checkout v7, setup-node v7, pnpm/action-setup v6, tauri-action v1).
 - La configuración de pnpm pasa de `.npmrc` a `pnpm-workspace.yaml`, y los tipos y el plugin de Vite pasan a `devDependencies`.
 
