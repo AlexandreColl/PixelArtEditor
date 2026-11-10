@@ -1,5 +1,6 @@
-import { useState } from 'react'
-import { Plus, RotateCcw } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { FileDown, FileUp, Plus, RotateCcw } from 'lucide-react'
+import { PALETTE_EXTENSIONS } from '../utils/palette'
 
 interface ColorPaletteProps {
   primaryColor: string
@@ -14,6 +15,8 @@ interface ColorPaletteProps {
   onRemoveColor: (color: string) => void
   onMoveColor: (from: number, to: number) => void
   onResetPalette: () => void
+  onImportFile: (file: File) => void
+  onExport: () => void
 }
 
 const iconBtn: React.CSSProperties = {
@@ -42,8 +45,11 @@ export default function ColorPalette({
   onRemoveColor,
   onMoveColor,
   onResetPalette,
+  onImportFile,
+  onExport,
 }: ColorPaletteProps) {
   const [showPicker, setShowPicker] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   // Swatch being dragged to reorder, and the one under the pointer
   const [dragFrom, setDragFrom] = useState<number | null>(null)
   const [dragOver, setDragOver] = useState<number | null>(null)
@@ -123,6 +129,27 @@ export default function ColorPalette({
           style={{ ...iconBtn, opacity: inPalette ? 0.3 : 1 }}
         >
           <Plus size={14} />
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={PALETTE_EXTENSIONS.map(ext => '.' + ext).join(',')}
+          onChange={e => {
+            const file = e.target.files?.[0]
+            if (file) onImportFile(file)
+            e.target.value = ''
+          }}
+          style={{ display: 'none' }}
+        />
+        <button
+          title="Import palette (.gpl GIMP / Aseprite, .hex Lospec)"
+          onClick={() => fileInputRef.current?.click()}
+          style={iconBtn}
+        >
+          <FileUp size={14} />
+        </button>
+        <button title="Export palette (.gpl or .hex)" onClick={onExport} style={iconBtn}>
+          <FileDown size={14} />
         </button>
         <button
           title="Reset to the default palette"

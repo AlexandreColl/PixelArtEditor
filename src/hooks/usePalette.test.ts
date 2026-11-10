@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
-import { DEFAULT_PALETTE, MAX_PALETTE_COLORS, cleanColors, usePalette } from './usePalette'
+import { DEFAULT_PALETTE, usePalette } from './usePalette'
+import { MAX_PALETTE_COLORS, cleanColors } from '../utils/palette'
 
 beforeEach(() => {
   localStorage.clear()

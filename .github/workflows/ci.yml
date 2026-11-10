@@ -27,7 +27,7 @@ jobs:
       - run: pnpm run build
 
   tauri:
-    name: Tauri (cargo check)
+    name: Tauri (cargo test)
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
@@ -37,5 +37,5 @@ jobs:
           workspaces: src-tauri -> target
       - name: Create placeholder frontend dist
         run: mkdir dist
-      - run: cargo check --locked
+      - run: cargo test --locked
         working-directory: src-tauri
