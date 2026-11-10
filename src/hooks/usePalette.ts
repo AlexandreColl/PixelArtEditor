@@ -28,6 +28,7 @@ export const DEFAULT_PALETTE = [
 ]
 
 const STORAGE_KEY = 'palette'
+const LOCK_KEY = 'palette_locked'
 
 function loadPalette(): Palette {
   try {
@@ -45,6 +46,14 @@ function loadPalette(): Palette {
 /** The swatches in the color panel, kept between sessions. */
 export function usePalette() {
   const [palette, setPalette] = useState<Palette>(loadPalette)
+  // While locked, everything drawn is mapped to the nearest palette color
+  const [locked, setLocked] = useState(() => {
+    try {
+      return localStorage.getItem(LOCK_KEY) === 'true'
+    } catch {
+      return false
+    }
+  })
 
   useEffect(() => {
     try {
@@ -53,6 +62,16 @@ export function usePalette() {
       // The palette still works for this session
     }
   }, [palette])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LOCK_KEY, String(locked))
+    } catch {
+      // The lock still works for this session
+    }
+  }, [locked])
+
+  const toggleLocked = useCallback(() => setLocked(prev => !prev), [])
 
   /** Adds a color at the end. Returns false if it is already there, invalid, or the palette is full. */
   const addColor = useCallback(
@@ -94,5 +113,5 @@ export function usePalette() {
     setPalette({ name: DEFAULT_PALETTE_NAME, colors: DEFAULT_PALETTE })
   }, [])
 
-  return { palette, addColor, removeColor, moveColor, replacePalette, resetPalette }
+  return { palette, locked, toggleLocked, addColor, removeColor, moveColor, replacePalette, resetPalette }
 }

@@ -1,5 +1,6 @@
 import type { Palette } from '../types'
-import { normalizeColor, parseColor } from './color'
+import { TRANSPARENT, normalizeColor, parseColor } from './color'
+import { nearest, type RGB } from './pixelate'
 
 /** Large enough for any real pixel art palette, small enough to keep the panel usable. */
 export const MAX_PALETTE_COLORS = 256
@@ -78,4 +79,31 @@ export function serializePalette(palette: Palette, format: PaletteFormat): strin
 /** Format for a path chosen in the save dialog, from its extension (GIMP palette when it has none). */
 export function formatForPath(path: string): PaletteFormat {
   return /\.hex$/i.test(path) ? 'hex' : 'gpl'
+}
+
+/**
+ * Returns a function that maps any color to the nearest palette color, so what is drawn stays in the palette.
+ * Mostly transparent pixels become fully transparent; colors it cannot read are returned unchanged.
+ */
+export function paletteSnapper(colors: string[]): (color: string) => string {
+  // nearest() returns one of these arrays, so it can be looked up by reference
+  const toColor = new Map<RGB, string>()
+  for (const color of colors) {
+    const c = parseColor(color)
+    if (c) toColor.set([c[0], c[1], c[2]], color)
+  }
+  const palette = [...toColor.keys()]
+  // Drawing and remapping a canvas ask for the same few colors over and over
+  const cache = new Map<string, string>()
+  return color => {
+    const cached = cache.get(color)
+    if (cached !== undefined) return cached
+    const c = parseColor(color)
+    let result = color
+    if (c && palette.length > 0) {
+      result = c[3] < 128 ? TRANSPARENT : toColor.get(nearest(palette, c[0], c[1], c[2]))!
+    }
+    cache.set(color, result)
+    return result
+  }
 }

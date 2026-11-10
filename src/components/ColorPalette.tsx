@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { FileDown, FileUp, Plus, RotateCcw } from 'lucide-react'
+import { FileDown, FileUp, Lock, LockOpen, Plus, RotateCcw, WandSparkles } from 'lucide-react'
 import { PALETTE_EXTENSIONS } from '../utils/palette'
 
 interface ColorPaletteProps {
@@ -17,6 +17,10 @@ interface ColorPaletteProps {
   onResetPalette: () => void
   onImportFile: (file: File) => void
   onExport: () => void
+  locked: boolean
+  onToggleLock: () => void
+  /** Maps the canvas, or the selection, to the palette colors */
+  onReduce: () => void
 }
 
 const iconBtn: React.CSSProperties = {
@@ -47,6 +51,9 @@ export default function ColorPalette({
   onResetPalette,
   onImportFile,
   onExport,
+  locked,
+  onToggleLock,
+  onReduce,
 }: ColorPaletteProps) {
   const [showPicker, setShowPicker] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -108,20 +115,21 @@ export default function ColorPalette({
         />
       )}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        <span
-          title={paletteName}
-          style={{
-            flex: 1,
-            color: '#aaa',
-            fontSize: 11,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {paletteName} <span style={{ color: '#666' }}>({paletteColors.length})</span>
-        </span>
+      <span
+        title={paletteName}
+        style={{
+          color: '#aaa',
+          fontSize: 11,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          marginBottom: -6,
+        }}
+      >
+        {paletteName} <span style={{ color: '#666' }}>({paletteColors.length})</span>
+      </span>
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <button
           title={inPalette ? 'The primary color is already in the palette' : 'Add the primary color to the palette'}
           onClick={onAddColor}
@@ -159,6 +167,25 @@ export default function ColorPalette({
           style={iconBtn}
         >
           <RotateCcw size={14} />
+        </button>
+        <button
+          title={
+            locked
+              ? 'Unlock: draw with any color'
+              : 'Lock to the palette: everything drawn uses the nearest palette color'
+          }
+          onClick={onToggleLock}
+          style={{
+            ...iconBtn,
+            border: locked ? '1px solid #4fc3f7' : iconBtn.border,
+            background: locked ? '#1a3a4a' : iconBtn.background,
+            color: locked ? '#4fc3f7' : iconBtn.color,
+          }}
+        >
+          {locked ? <Lock size={14} /> : <LockOpen size={14} />}
+        </button>
+        <button title="Reduce the canvas (or the selection) to the palette colors" onClick={onReduce} style={iconBtn}>
+          <WandSparkles size={14} />
         </button>
       </div>
 
