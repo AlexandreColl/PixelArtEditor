@@ -9,6 +9,7 @@ import AIChat from './components/AIChat'
 import type { CanvasHandle } from './components/Canvas'
 import ConvertDialog, { MAX_ORIGINAL_SIZE } from './components/ConvertDialog'
 import { useEditor } from './hooks/useEditor'
+import { usePalette } from './hooks/usePalette'
 import type { PixelData, Selection } from './types'
 import { formatColor } from './utils/color'
 import { countColors } from './utils/pixelate'
@@ -157,6 +158,7 @@ export default function App() {
     undo,
     redo,
   } = useEditor()
+  const { palette, addColor, removeColor, moveColor, resetPalette } = usePalette()
 
   const [aiOpen, setAiOpen] = useState(false)
   const [pendingImage, setPendingImage] = useState<PendingImage | null>(null)
@@ -507,6 +509,8 @@ export default function App() {
         overflow: 'hidden',
       }}
       onDragOver={e => {
+        // Only files: dragging a palette swatch to reorder it must not show the drop overlay
+        if (!e.dataTransfer.types.includes('Files')) return
         e.preventDefault()
         setDragOver(true)
       }}
@@ -744,6 +748,12 @@ export default function App() {
           onPrimaryChange={setPrimaryColor}
           onSecondaryChange={setSecondaryColor}
           onSwap={swapColors}
+          paletteName={palette.name}
+          paletteColors={palette.colors}
+          onAddColor={() => addColor(state.primaryColor)}
+          onRemoveColor={removeColor}
+          onMoveColor={moveColor}
+          onResetPalette={resetPalette}
         />
 
         <AIChat
