@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Plus, RotateCcw } from 'lucide-react'
 
 interface ColorPaletteProps {
   primaryColor: string
@@ -6,30 +7,28 @@ interface ColorPaletteProps {
   onPrimaryChange: (color: string) => void
   onSecondaryChange: (color: string) => void
   onSwap: () => void
+  paletteName: string
+  paletteColors: string[]
+  /** Adds the primary color to the palette */
+  onAddColor: () => void
+  onRemoveColor: (color: string) => void
+  onMoveColor: (from: number, to: number) => void
+  onResetPalette: () => void
 }
 
-const PRESET_COLORS = [
-  '#000000',
-  '#ffffff',
-  '#ff0000',
-  '#00ff00',
-  '#0000ff',
-  '#ffff00',
-  '#ff00ff',
-  '#00ffff',
-  '#808080',
-  '#800000',
-  '#008000',
-  '#000080',
-  '#808000',
-  '#800080',
-  '#008080',
-  '#c0c0c0',
-  '#ff8800',
-  '#88ff00',
-  '#0088ff',
-  '#ff0088',
-]
+const iconBtn: React.CSSProperties = {
+  width: 26,
+  height: 26,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  borderRadius: 4,
+  border: '1px solid #555',
+  background: 'transparent',
+  color: '#ccc',
+  cursor: 'pointer',
+  padding: 0,
+}
 
 export default function ColorPalette({
   primaryColor,
@@ -37,16 +36,19 @@ export default function ColorPalette({
   onPrimaryChange,
   onSecondaryChange,
   onSwap,
+  paletteName,
+  paletteColors,
+  onAddColor,
+  onRemoveColor,
+  onMoveColor,
+  onResetPalette,
 }: ColorPaletteProps) {
   const [showPicker, setShowPicker] = useState(false)
+  // Swatch being dragged to reorder, and the one under the pointer
+  const [dragFrom, setDragFrom] = useState<number | null>(null)
+  const [dragOver, setDragOver] = useState<number | null>(null)
 
-  const handleColorClick = (color: string, button: number) => {
-    if (button === 2) {
-      onSecondaryChange(color)
-    } else {
-      onPrimaryChange(color)
-    }
-  }
+  const inPalette = paletteColors.includes(primaryColor)
 
   return (
     <div
@@ -58,6 +60,7 @@ export default function ColorPalette({
         flexDirection: 'column',
         gap: 12,
         borderLeft: '1px solid #444',
+        minHeight: 0,
       }}
     >
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -99,34 +102,97 @@ export default function ColorPalette({
         />
       )}
 
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <span
+          title={paletteName}
+          style={{
+            flex: 1,
+            color: '#aaa',
+            fontSize: 11,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {paletteName} <span style={{ color: '#666' }}>({paletteColors.length})</span>
+        </span>
+        <button
+          title={inPalette ? 'The primary color is already in the palette' : 'Add the primary color to the palette'}
+          onClick={onAddColor}
+          disabled={inPalette}
+          style={{ ...iconBtn, opacity: inPalette ? 0.3 : 1 }}
+        >
+          <Plus size={14} />
+        </button>
+        <button
+          title="Reset to the default palette"
+          onClick={() => {
+            if (window.confirm('Replace the current palette with the default one?')) onResetPalette()
+          }}
+          style={iconBtn}
+        >
+          <RotateCcw size={14} />
+        </button>
+      </div>
+
       <div
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(5, 1fr)',
           gap: 4,
+          overflowY: 'auto',
+          alignContent: 'start',
+          minHeight: 0,
         }}
       >
-        {PRESET_COLORS.map(color => (
+        {paletteColors.map((color, i) => (
           <div
             key={color}
-            title={`${color} (left: primary, right: secondary)`}
+            title={`${color}\nLeft: primary · Right: secondary\nCtrl+click: remove · Drag: reorder`}
+            draggable
+            onDragStart={e => {
+              e.dataTransfer.effectAllowed = 'move'
+              setDragFrom(i)
+            }}
+            onDragOver={e => {
+              if (dragFrom === null) return
+              e.preventDefault()
+              setDragOver(i)
+            }}
+            onDragLeave={() => setDragOver(prev => (prev === i ? null : prev))}
+            onDrop={e => {
+              e.preventDefault()
+              if (dragFrom !== null) onMoveColor(dragFrom, i)
+              setDragFrom(null)
+              setDragOver(null)
+            }}
+            onDragEnd={() => {
+              setDragFrom(null)
+              setDragOver(null)
+            }}
             style={{
               width: '100%',
               aspectRatio: '1',
               background: color,
               border:
-                primaryColor === color
-                  ? '2px solid #4fc3f7'
-                  : secondaryColor === color
-                    ? '2px solid #999'
-                    : '2px solid transparent',
+                dragOver === i && dragFrom !== i
+                  ? '2px dashed #fff'
+                  : primaryColor === color
+                    ? '2px solid #4fc3f7'
+                    : secondaryColor === color
+                      ? '2px solid #999'
+                      : '2px solid transparent',
               borderRadius: 3,
               cursor: 'pointer',
+              opacity: dragFrom === i ? 0.4 : 1,
             }}
-            onClick={() => handleColorClick(color, 0)}
+            onClick={e => {
+              if (e.ctrlKey || e.metaKey) onRemoveColor(color)
+              else onPrimaryChange(color)
+            }}
             onContextMenu={e => {
               e.preventDefault()
-              handleColorClick(color, 2)
+              onSecondaryChange(color)
             }}
           />
         ))}
