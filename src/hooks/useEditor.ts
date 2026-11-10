@@ -292,9 +292,12 @@ export function useEditor() {
     return toHex(c)
   }, [])
 
-  /** Blends a pixel with its neighbours. Part of a stroke: call commitHistory when it ends. */
+  /**
+   * Blends a pixel with its neighbours; with snap the blend is mapped to a palette color.
+   * Part of a stroke: call commitHistory when it ends.
+   */
   const shadePixel = useCallback(
-    (x: number, y: number) => {
+    (x: number, y: number, snap?: (color: string) => string) => {
       const { pixels, width, height } = pixelDataRef.current
       if (x < 0 || x >= width || y < 0 || y >= height) return
 
@@ -317,10 +320,11 @@ export function useEditor() {
           count++
         }
       }
-      const blended =
+      const mixed =
         a === 0
           ? TRANSPARENT
           : formatColor([Math.round(r / a), Math.round(g / a), Math.round(b / a), Math.round(a / count)])
+      const blended = snap ? snap(mixed) : mixed
       if (blended === pixels[y][x]) return
 
       const newPixels = clonePixels(pixels)
@@ -378,6 +382,38 @@ export function useEditor() {
         commitHistory()
       }
       return applied
+    },
+    [setPixelData, commitHistory],
+  )
+
+  /**
+   * Replaces every pixel of the selection, or of the whole canvas, with map(color), as one undo step.
+   * Returns how many pixels changed.
+   */
+  const remapColors = useCallback(
+    (map: (color: string) => string): number => {
+      const current = pixelDataRef.current
+      const region = (selectionRef.current && clampRegion(selectionRef.current, current.width, current.height)) ?? {
+        x: 0,
+        y: 0,
+        width: current.width,
+        height: current.height,
+      }
+      const pixels = clonePixels(current.pixels)
+      let changed = 0
+      for (let y = region.y; y < region.y + region.height; y++) {
+        for (let x = region.x; x < region.x + region.width; x++) {
+          const color = map(pixels[y][x])
+          if (color === pixels[y][x]) continue
+          pixels[y][x] = color
+          changed++
+        }
+      }
+      if (changed > 0) {
+        setPixelData({ ...current, pixels })
+        commitHistory()
+      }
+      return changed
     },
     [setPixelData, commitHistory],
   )
@@ -546,6 +582,7 @@ export function useEditor() {
     resizeCanvas,
     clearCanvas,
     applyPixels,
+    remapColors,
     importPixels,
     hasClipboard,
     getSelection,

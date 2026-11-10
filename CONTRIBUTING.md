@@ -55,8 +55,11 @@ Consulta la sección **Primeros Pasos** del [README](README.md). Antes de abrir 
 ```sh
 pnpm install
 pnpm run format:check
+pnpm test
 pnpm run build
 ```
+
+Los tests usan [Vitest](https://vitest.dev) y viven junto al código que prueban (`foo.ts` → `foo.test.ts`). Las utilidades puras se prueban en Node; los archivos que necesitan el DOM (como los del hook `useEditor`) empiezan con `// @vitest-environment jsdom`. Si arreglas un bug, añade un test que lo reproduzca.
 
 ## Pull Requests
 

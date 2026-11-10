@@ -3,8 +3,8 @@
 [![Release](https://img.shields.io/github/v/release/AlexandreColl/PixelArtEditor?style=for-the-badge&color=e94560)](https://github.com/AlexandreColl/PixelArtEditor/releases)
 [![CI](https://img.shields.io/github/actions/workflow/status/AlexandreColl/PixelArtEditor/ci.yml?branch=main&style=for-the-badge&label=CI)](https://github.com/AlexandreColl/PixelArtEditor/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-e94560?style=for-the-badge)](LICENSE)
-[![Node](https://img.shields.io/badge/node-%3E%3D18-339933?style=for-the-badge)](https://nodejs.org/)
-[![pnpm](https://img.shields.io/badge/pnpm-F69220?style=for-the-badge&logo=pnpm&logoColor=white)](https://pnpm.io/)
+[![Node](https://img.shields.io/badge/node-%3E%3D24-339933?style=for-the-badge)](https://nodejs.org/)
+[![pnpm](https://img.shields.io/badge/pnpm-12-F69220?style=for-the-badge&logo=pnpm&logoColor=white)](https://pnpm.io/)
 [![Tauri](https://img.shields.io/badge/Tauri-2.x-FFC131?style=for-the-badge&logo=tauri&logoColor=white)](https://v2.tauri.app/)
 [![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=white)](https://react.dev/)
 [![PRs](https://img.shields.io/badge/PRs-welcome-3FC7EB?style=for-the-badge)](CONTRIBUTING.md)
@@ -80,7 +80,8 @@ Características principales:
 - :robot: Agente IA integrado que entiende tu arte y lo modifica con lenguaje natural
 - :arrows_counterclockwise: Historia ilimitada de deshacer/rehacer (Ctrl+Z / Ctrl+Shift+Z)
 - :mag: Zoom y paneo con rueda del ratón (clic central)
-- :rainbow: Paleta de colores con colores primario/secundario (clic izquierdo / derecho) y muestras predefinidas
+- :rainbow: Paleta editable con colores primario/secundario (clic izquierdo / derecho), que se recuerda entre sesiones
+- :art: Importación y exportación de paletas `.gpl` (GIMP, Aseprite, Krita) y `.hex` (Lospec), y bloqueo del dibujo a la paleta
 
 <p align="right">(<a href="#readme-top">volver arriba</a>)</p>
 
@@ -88,7 +89,7 @@ Características principales:
 
 - [![Tauri](https://img.shields.io/badge/Tauri-2.x-FFC131?style=for-the-badge&logo=tauri&logoColor=white)](https://v2.tauri.app/)
 - [![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=white)](https://react.dev/)
-- [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+- [![TypeScript](https://img.shields.io/badge/TypeScript-7-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 - [![Vite](https://img.shields.io/badge/Vite-8.x-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
 - [![Rust](https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
 - [![pnpm](https://img.shields.io/badge/pnpm-F69220?style=for-the-badge&logo=pnpm&logoColor=white)](https://pnpm.io/)
@@ -111,12 +112,12 @@ Si prefieres compilarlo desde el código fuente, sigue estos pasos.
 
 ### Requisitos
 
-- **Node.js** v18 o superior
-- **pnpm**
+- **Node.js** v24 o superior (recomendado: la LTS actual, v26)
+- **pnpm** 12 (la versión exacta está fijada en `packageManager` de `package.json`)
   ```sh
-  npm install -g pnpm
+  npm install -g pnpm@12
   ```
-- **Rust** (instalar via [rustup.rs](https://rustup.rs/))
+- **Rust** 1.90 o superior (instalar via [rustup.rs](https://rustup.rs/))
 - **Visual Studio Build Tools 2022** con el workload "Desarrollo de escritorio con C++" (solo Windows)
 
 ### Instalación
@@ -180,6 +181,25 @@ Los píxeles transparentes de lo que se mueve o pega no tapan lo que hay debajo.
 ### Dibujo simétrico
 
 Los botones `FlipHorizontal` y `FlipVertical` de la barra lateral activan el espejo horizontal y/o vertical (pueden combinarse). Mientras estén activos se dibuja la copia reflejada respecto al centro del lienzo, que se marca con una línea discontinua. Afecta a lápiz, borrador y formas, y no al relleno, al cuentagotas ni al sombreado. Cada trazo, con su reflejo, se deshace de una vez.
+
+### Paleta
+
+El panel derecho muestra la paleta activa, con su nombre y número de colores. Se guarda entre sesiones.
+
+| Acción                   | Cómo                                                                                                    |
+| ------------------------ | ------------------------------------------------------------------------------------------------------- |
+| Elegir color             | Clic izquierdo (primario) o derecho (secundario) en una muestra                                         |
+| Añadir color             | Botón `+`: añade el color primario                                                                      |
+| Quitar color             | `Ctrl+clic` en la muestra                                                                               |
+| Reordenar                | Arrastra una muestra sobre otra                                                                         |
+| Importar / exportar      | Botones de archivo: `.gpl` (GIMP, Aseprite, Krita) y `.hex` ([Lospec](https://lospec.com/palette-list)) |
+| Restaurar la predefinida | Botón de deshacer circular                                                                              |
+| Bloquear a la paleta     | Botón del candado                                                                                       |
+| Reducir a la paleta      | Botón de la varita                                                                                      |
+
+Con la paleta **bloqueada**, todo lo que se dibuja usa el color de la paleta más cercano: el selector de color y el cuentagotas se ajustan a ella, y lo mismo ocurre con el sombreado y con los resultados del agente IA.
+
+**Reducir a la paleta** cambia cada píxel de la selección (o de todo el lienzo si no hay selección) por el color de la paleta más cercano, en un solo paso que se deshace con `Ctrl+Z`.
 
 ### Formas
 
@@ -261,6 +281,8 @@ El ejecutable se genera en `src-tauri/target/release/app.exe`. También se crean
 | `pnpm run tauri:build`  | Compila el binario de producción                       |
 | `pnpm run format`       | Formatea el código con Prettier                        |
 | `pnpm run format:check` | Comprueba el formato (usado en CI)                     |
+| `pnpm test`             | Ejecuta los tests una vez (usado en CI)                |
+| `pnpm run test:watch`   | Ejecuta los tests en modo watch                        |
 
 ### Windows
 
@@ -278,10 +300,11 @@ pixel-art-editor/
 │   ├── components/             # Canvas, Toolbar, ColorPalette, AIChat, ConvertDialog
 │   │   ├── Canvas.tsx          # Lienzo con zoom, grid y dibujo
 │   │   ├── Toolbar.tsx         # Barra de herramientas
-│   │   ├── ColorPalette.tsx    # Selector de colores
+│   │   ├── ColorPalette.tsx    # Colores actuales y paleta editable
 │   │   └── AIChat.tsx          # Panel de chat con IA
 │   ├── hooks/
-│   │   └── useEditor.ts        # Estado global, herramientas e historial
+│   │   ├── useEditor.ts        # Estado global, herramientas e historial
+│   │   └── usePalette.ts       # Paleta activa y bloqueo, guardados entre sesiones
 │   ├── ai/
 │   │   ├── openai.ts           # Cliente OpenAI (visión + JSON)
 │   │   ├── anthropic.ts        # Cliente Anthropic
@@ -291,7 +314,7 @@ pixel-art-editor/
 │   └── App.tsx                 # Layout principal y lógica de guardado
 ├── src-tauri/                  # Backend Rust (Tauri)
 │   ├── src/
-│   │   └── lib.rs              # Comandos Tauri (save_png_file)
+│   │   └── lib.rs              # Comandos Tauri (save_png_file, save_palette_file)
 │   ├── capabilities/
 │   │   └── default.json        # Permisos de plugins
 │   ├── icons/                  # Iconos de la aplicación
@@ -299,7 +322,7 @@ pixel-art-editor/
 ├── .github/                    # CI, workflow de release y plantillas
 ├── scripts/
 │   └── dev.ps1                 # Helper que configura VS + Node + Cargo
-├── .npmrc                      # Configuración de pnpm (shamefully-hoist)
+├── pnpm-workspace.yaml         # Configuración de pnpm (hoisting y builds permitidos)
 ├── build.bat                   # Build con un clic
 ├── dev.bat                     # Dev con un clic
 ├── CHANGELOG.md                # Historial de versiones
@@ -330,12 +353,12 @@ pixel-art-editor/
 - [x] Dibujo simétrico (espejo horizontal/vertical)
 - [x] Mostrar u ocultar la cuadrícula y ajustar el lienzo a la ventana
 
-### 0.3 — Paletas y exportación
+### ✅ 0.3 — Paletas y exportación
 
-- [ ] Importar y exportar paletas (`.gpl`, `.hex`)
-- [ ] Bloquear el dibujo a la paleta activa
+- [x] Paleta editable que se recuerda entre sesiones
+- [x] Importar y exportar paletas (`.gpl`, `.hex`)
+- [x] Bloquear el dibujo a la paleta activa y reducir el lienzo a ella
 - [x] Exportar PNG escalado (×2, ×4, ×8)
-- [ ] Exportar sprite sheet
 
 ### 0.4 — Animación
 
@@ -343,6 +366,7 @@ pixel-art-editor/
 - [ ] Papel cebolla (fotograma anterior en transparencia)
 - [ ] Vista previa de la animación
 - [ ] Exportar a GIF
+- [ ] Exportar sprite sheet (los fotogramas en una sola imagen)
 
 ### 0.5 — Capas y proyectos
 

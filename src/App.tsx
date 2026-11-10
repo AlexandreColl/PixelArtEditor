@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { open, save } from '@tauri-apps/plugin-dialog'
 import { readFile } from '@tauri-apps/plugin-fs'
@@ -9,10 +9,12 @@ import AIChat from './components/AIChat'
 import type { CanvasHandle } from './components/Canvas'
 import ConvertDialog, { MAX_ORIGINAL_SIZE } from './components/ConvertDialog'
 import { useEditor } from './hooks/useEditor'
+import { usePalette } from './hooks/usePalette'
 import type { PixelData, Selection } from './types'
 import { formatColor } from './utils/color'
 import { countColors } from './utils/pixelate'
 import { EXPORT_SCALES, pixelsToPngDataUrl } from './utils/png'
+import { PALETTE_EXTENSIONS, formatForPath, paletteSnapper, parsePalette, serializePalette } from './utils/palette'
 import { Save, FolderOpen, BotMessageSquare, FilePlus, ImagePlus, ImageDown } from 'lucide-react'
 
 async function savePngFile(pixels: string[][], width: number, height: number, filePath: string, scale = 1) {
@@ -142,6 +144,7 @@ export default function App() {
     resizeCanvas,
     clearCanvas,
     applyPixels,
+    remapColors,
     hasClipboard,
     getSelection,
     setSelection,
@@ -157,6 +160,21 @@ export default function App() {
     undo,
     redo,
   } = useEditor()
+  const { palette, locked, toggleLocked, addColor, removeColor, moveColor, replacePalette, resetPalette } = usePalette()
+  // Maps colors to the palette while it is locked
+  const snap = useMemo(() => (locked ? paletteSnapper(palette.colors) : null), [locked, palette.colors])
+
+  // Whatever sets the drawing colors (swatches, color picker, eyedropper), locked colors stay in the palette
+  useEffect(() => {
+    if (!snap) return
+    if (snap(state.primaryColor) !== state.primaryColor) setPrimaryColor(snap(state.primaryColor))
+    if (snap(state.secondaryColor) !== state.secondaryColor) setSecondaryColor(snap(state.secondaryColor))
+  }, [snap, state.primaryColor, state.secondaryColor, setPrimaryColor, setSecondaryColor])
+
+  const handleShadePixel = useCallback(
+    (x: number, y: number) => shadePixel(x, y, snap ?? undefined),
+    [shadePixel, snap],
+  )
 
   const [aiOpen, setAiOpen] = useState(false)
   const [pendingImage, setPendingImage] = useState<PendingImage | null>(null)
@@ -205,10 +223,11 @@ export default function App() {
   const applyAiPixels = useCallback(
     (pixels: string[][]) => {
       const region = getAiRegion()
-      const applied = applyPixels(pixels, region.x, region.y, region.width, region.height)
+      const source = snap ? pixels.map(row => row.map(snap)) : pixels
+      const applied = applyPixels(source, region.x, region.y, region.width, region.height)
       if (applied === 0) throw new Error('The AI response did not contain any valid pixel colors')
     },
-    [applyPixels, getAiRegion],
+    [applyPixels, getAiRegion, snap],
   )
 
   const showToast = useCallback((message: string) => {
@@ -418,6 +437,43 @@ export default function App() {
     [setZoom],
   )
 
+  const handleImportPalette = useCallback(
+    async (file: File) => {
+      try {
+        const imported = parsePalette(await file.text(), file.name)
+        replacePalette(imported.name, imported.colors)
+        showToast(`Imported ${imported.colors.length} colors from ${file.name}`)
+      } catch (err) {
+        showToast(err instanceof Error ? err.message : 'Could not import the palette')
+      }
+    },
+    [replacePalette, showToast],
+  )
+
+  const handleExportPalette = useCallback(async () => {
+    try {
+      const fp = await save({
+        filters: [
+          { name: 'GIMP / Aseprite palette', extensions: ['gpl'] },
+          { name: 'Lospec hex palette', extensions: ['hex'] },
+        ],
+        defaultPath: `${palette.name}.gpl`,
+      })
+      if (!fp) return
+      const path = PALETTE_EXTENSIONS.some(ext => fp.toLowerCase().endsWith('.' + ext)) ? fp : `${fp}.gpl`
+      await invoke('save_palette_file', { path, contents: serializePalette(palette, formatForPath(path)) })
+      showToast(`Exported ${palette.colors.length} colors`)
+    } catch (err) {
+      showToast('Palette export failed')
+      console.error(err)
+    }
+  }, [palette, showToast])
+
+  const handleReduceToPalette = useCallback(() => {
+    const changed = remapColors(paletteSnapper(palette.colors))
+    showToast(changed > 0 ? `Mapped ${changed} pixels to the palette` : 'Already uses only palette colors')
+  }, [remapColors, palette.colors, showToast])
+
   const handleColorPicked = useCallback(
     (color: string, secondary: boolean) => {
       if (secondary) setSecondaryColor(color)
@@ -507,6 +563,8 @@ export default function App() {
         overflow: 'hidden',
       }}
       onDragOver={e => {
+        // Only files: dragging a palette swatch to reorder it must not show the drop overlay
+        if (!e.dataTransfer.types.includes('Files')) return
         e.preventDefault()
         setDragOver(true)
       }}
@@ -727,7 +785,7 @@ export default function App() {
           onShapeStart={beginShape}
           onDrawShape={drawShape}
           onFillRegion={fillRegion}
-          onShadePixel={shadePixel}
+          onShadePixel={handleShadePixel}
           onStrokeEnd={commitHistory}
           onPickColor={pickColor}
           onColorPicked={handleColorPicked}
@@ -744,6 +802,17 @@ export default function App() {
           onPrimaryChange={setPrimaryColor}
           onSecondaryChange={setSecondaryColor}
           onSwap={swapColors}
+          paletteName={palette.name}
+          paletteColors={palette.colors}
+          onAddColor={() => addColor(state.primaryColor)}
+          onRemoveColor={removeColor}
+          onMoveColor={moveColor}
+          onResetPalette={resetPalette}
+          onImportFile={handleImportPalette}
+          onExport={handleExportPalette}
+          locked={locked}
+          onToggleLock={toggleLocked}
+          onReduce={handleReduceToPalette}
         />
 
         <AIChat
