@@ -211,14 +211,17 @@ Usa el **botón central del ratón** (rueda) para arrastrar la vista.
 
 ### Carga y guardado
 
-- **Abrir imagen** — `Ctrl+O` o arrastra un PNG directamente al editor
-- **Guardar** — `Ctrl+S` abre el diálogo la primera vez y sobrescribe el archivo original en adelante
+Las acciones de archivo están en el menú **File** de la cabecera; junto a él queda el botón de guardar.
+
+- **Nuevo lienzo** — **File → New canvas**, de 32×32
+- **Abrir imagen** — `Ctrl+O`, **File → Open…** o arrastra un PNG directamente al editor
+- **Guardar** — `Ctrl+S` o el botón de guardar: abre el diálogo la primera vez y sobrescribe el archivo original en adelante
 - **Ctrl+Shift+S** — equivalente a Ctrl+S
-- **Exportar PNG escalado** — botón `ImageDown` junto a Guardar, con escala ×1, ×2, ×4 u ×8. Cada píxel se amplía a un bloque exacto, sin suavizado, y la transparencia se conserva. Es una exportación: no cambia el archivo que tienes abierto
+- **Exportar PNG escalado** — **File → Export PNG ×1 / ×2 / ×4 / ×8**. Cada píxel se amplía a un bloque exacto, sin suavizado, y la transparencia se conserva. Es una exportación: no cambia el archivo que tienes abierto
 
 ### Convertir una imagen en pixel art
 
-Al abrir o arrastrar una imagen grande (más de 128 px) o con muchos colores, como una foto, aparece el diálogo **Convert to pixel art**. Para convertir también imágenes pequeñas, usa el botón `ImagePlus` (**Import image as pixel art**).
+Al abrir o arrastrar una imagen grande (más de 128 px) o con muchos colores, como una foto, aparece el diálogo **Convert to pixel art**. Para convertir también imágenes pequeñas, usa **File → Import image as pixel art…**.
 
 | Opción                 | Descripción                                                                                                              |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------ |
@@ -297,13 +300,16 @@ Puedes hacer doble clic en `build.bat` o `dev.bat` para compilar o ejecutar sin 
 ```
 pixel-art-editor/
 ├── src/                        # Frontend React
-│   ├── components/             # Canvas, Toolbar, ColorPalette, AIChat, ConvertDialog
+│   ├── components/             # Canvas, Toolbar, ColorPalette, AIChat, ConvertDialog, FileMenu…
 │   │   ├── Canvas.tsx          # Lienzo con zoom, grid y dibujo
 │   │   ├── Toolbar.tsx         # Barra de herramientas
 │   │   ├── ColorPalette.tsx    # Colores actuales y paleta editable
+│   │   ├── FileMenu.tsx        # Menú File: nuevo, abrir, importar, guardar y exportar
 │   │   └── AIChat.tsx          # Panel de chat con IA
 │   ├── hooks/
 │   │   ├── useEditor.ts        # Estado global, herramientas e historial
+│   │   ├── useFileActions.ts   # Abrir, guardar y exportar imágenes y paletas
+│   │   ├── useKeyboardShortcuts.ts # Atajos de teclado globales
 │   │   └── usePalette.ts       # Paleta activa y bloqueo, guardados entre sesiones
 │   ├── ai/
 │   │   ├── openai.ts           # Cliente OpenAI (visión + JSON)
@@ -311,7 +317,7 @@ pixel-art-editor/
 │   │   └── gemini.ts           # Cliente Google Gemini
 │   ├── types/
 │   │   └── index.ts            # Tipos compartidos
-│   └── App.tsx                 # Layout principal y lógica de guardado
+│   └── App.tsx                 # Layout principal: une el editor, la paleta y los paneles
 ├── src-tauri/                  # Backend Rust (Tauri)
 │   ├── src/
 │   │   └── lib.rs              # Comandos Tauri (save_png_file, save_palette_file)
