@@ -22,6 +22,28 @@ export interface CanvasHandle {
 
 type Point = { x: number; y: number }
 
+/** Side, in screen pixels, of each square of the transparency checkerboard; it does not change with zoom */
+const CHECKER_SIZE = 8
+const CHECKER_LIGHT = '#f0f0f0'
+const CHECKER_DARK = '#cfcfcf'
+
+let checkerTile: HTMLCanvasElement | null = null
+
+/** A 2x2 checker tile, created once and repeated as a pattern behind the pixels. */
+function getCheckerTile(): HTMLCanvasElement {
+  if (checkerTile) return checkerTile
+  const tile = document.createElement('canvas')
+  tile.width = tile.height = CHECKER_SIZE * 2
+  const ctx = tile.getContext('2d')!
+  ctx.fillStyle = CHECKER_LIGHT
+  ctx.fillRect(0, 0, CHECKER_SIZE * 2, CHECKER_SIZE * 2)
+  ctx.fillStyle = CHECKER_DARK
+  ctx.fillRect(CHECKER_SIZE, 0, CHECKER_SIZE, CHECKER_SIZE)
+  ctx.fillRect(0, CHECKER_SIZE, CHECKER_SIZE, CHECKER_SIZE)
+  checkerTile = tile
+  return tile
+}
+
 /** Below this zoom the grid lines would hide the pixels, so they are not drawn */
 const MIN_GRID_ZOOM = 4
 
@@ -136,6 +158,9 @@ export default function Canvas({
     canvas.width = cw
     canvas.height = ch
     ctx.imageSmoothingEnabled = false
+    // Transparent and partly transparent pixels show the checkerboard through, as they will look when exported
+    ctx.fillStyle = ctx.createPattern(getCheckerTile(), 'repeat')!
+    ctx.fillRect(0, 0, cw, ch)
     ctx.drawImage(tc, 0, 0, cw, ch)
 
     if (showGrid && pixelSize >= MIN_GRID_ZOOM) {
@@ -216,17 +241,10 @@ export default function Canvas({
         const color = pixels[y]?.[x] ?? TRANSPARENT
         const i = (y * width + x) * 4
         const [r, g, b, a] = parseColor(color) ?? [0, 0, 0, 0]
-        if (a === 0) {
-          data[i] = 224
-          data[i + 1] = 224
-          data[i + 2] = 224
-          data[i + 3] = 255
-        } else {
-          data[i] = r
-          data[i + 1] = g
-          data[i + 2] = b
-          data[i + 3] = a
-        }
+        data[i] = r
+        data[i + 1] = g
+        data[i + 2] = b
+        data[i + 3] = a
       }
     }
     tctx.putImageData(imageData, 0, 0)
