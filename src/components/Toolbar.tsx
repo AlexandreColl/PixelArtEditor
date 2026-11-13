@@ -1,4 +1,6 @@
 import type { Tool } from '../types'
+import { TOOL_KEYS } from '../hooks/useKeyboardShortcuts'
+import { tip } from './Tooltip'
 import {
   Pencil,
   Eraser,
@@ -131,7 +133,7 @@ export default function Toolbar({
           return (
             <button
               key={t.id}
-              title={t.label}
+              {...tip(t.label, TOOL_KEYS[t.id])}
               onClick={() => onToolChange(t.id)}
               style={{
                 ...btnBase,
@@ -149,7 +151,7 @@ export default function Toolbar({
 
       <div style={{ display: 'flex', gap: 4 }}>
         <button
-          title="Undo (Ctrl+Z)"
+          {...tip('Undo', 'Ctrl+Z')}
           onClick={onUndo}
           disabled={!canUndo}
           style={{ ...btnBase, opacity: canUndo ? 1 : 0.3 }}
@@ -157,7 +159,7 @@ export default function Toolbar({
           ↶
         </button>
         <button
-          title="Redo (Ctrl+Shift+Z)"
+          {...tip('Redo', 'Ctrl+Shift+Z')}
           onClick={onRedo}
           disabled={!canRedo}
           style={{ ...btnBase, opacity: canRedo ? 1 : 0.3 }}
@@ -171,14 +173,14 @@ export default function Toolbar({
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
         <div style={{ display: 'flex', gap: 4 }}>
           <button
-            title="Zoom out"
+            {...tip('Zoom out')}
             onClick={() => onZoomChange(zoom - 4)}
             style={{ ...btnBase, height: 28, fontSize: 16, border: '1px solid #555' }}
           >
             −
           </button>
           <button
-            title="Zoom in"
+            {...tip('Zoom in')}
             onClick={() => onZoomChange(zoom + 4)}
             style={{ ...btnBase, height: 28, fontSize: 16, border: '1px solid #555' }}
           >
@@ -188,14 +190,14 @@ export default function Toolbar({
         <span style={{ color: '#aaa', fontSize: 11, textAlign: 'center' }}>{zoom}x</span>
         <div style={{ display: 'flex', gap: 4 }}>
           <button
-            title="Fit to window (Ctrl+0)"
+            {...tip('Fit to window', 'Ctrl+0')}
             onClick={onFit}
             style={{ ...btnBase, height: 28, border: '1px solid #555' }}
           >
             <Maximize size={16} />
           </button>
           <button
-            title="Toggle grid (G)"
+            {...tip('Toggle grid', 'G')}
             onClick={onToggleGrid}
             style={{
               ...btnBase,
@@ -212,14 +214,14 @@ export default function Toolbar({
 
       <div style={{ display: 'flex', gap: 4 }}>
         <button
-          title="Mirror horizontally: draw symmetric left and right (pencil, eraser, shapes)"
+          {...tip('Mirror horizontally: draw symmetric left and right (pencil, eraser, shapes)')}
           onClick={onToggleMirrorX}
           style={toggleBtn(mirrorX)}
         >
           <FlipHorizontal size={16} />
         </button>
         <button
-          title="Mirror vertically: draw symmetric top and bottom (pencil, eraser, shapes)"
+          {...tip('Mirror vertically: draw symmetric top and bottom (pencil, eraser, shapes)')}
           onClick={onToggleMirrorY}
           style={toggleBtn(mirrorY)}
         >
@@ -230,14 +232,26 @@ export default function Toolbar({
       {activeTool === 'selection' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 36px)', gap: 4 }}>
           {[
-            { title: 'Copy (Ctrl+C)', onClick: onCopy, enabled: hasSelection, icon: <Copy size={16} /> },
-            { title: 'Cut (Ctrl+X)', onClick: onCut, enabled: hasSelection, icon: <Scissors size={16} /> },
-            { title: 'Paste (Ctrl+V)', onClick: onPaste, enabled: hasClipboard, icon: <ClipboardPaste size={16} /> },
-            { title: 'Delete selection (Del)', onClick: onDelete, enabled: hasSelection, icon: <Trash2 size={16} /> },
+            { label: 'Copy', key: 'Ctrl+C', onClick: onCopy, enabled: hasSelection, icon: <Copy size={16} /> },
+            { label: 'Cut', key: 'Ctrl+X', onClick: onCut, enabled: hasSelection, icon: <Scissors size={16} /> },
+            {
+              label: 'Paste',
+              key: 'Ctrl+V',
+              onClick: onPaste,
+              enabled: hasClipboard,
+              icon: <ClipboardPaste size={16} />,
+            },
+            {
+              label: 'Delete selection',
+              key: 'Del',
+              onClick: onDelete,
+              enabled: hasSelection,
+              icon: <Trash2 size={16} />,
+            },
           ].map(b => (
             <button
-              key={b.title}
-              title={b.title}
+              key={b.label}
+              {...tip(b.label, b.key)}
               onClick={b.onClick}
               disabled={!b.enabled}
               style={{ ...toggleBtn(false), opacity: b.enabled ? 1 : 0.3 }}
@@ -250,7 +264,7 @@ export default function Toolbar({
 
       {(activeTool === 'rect' || activeTool === 'ellipse') && (
         <label
-          title="Fill the shape instead of drawing only its outline"
+          {...tip('Fill the shape instead of drawing only its outline')}
           style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#aaa', fontSize: 11, cursor: 'pointer' }}
         >
           <input type="checkbox" checked={shapeFilled} onChange={onToggleShapeFilled} />
@@ -280,7 +294,7 @@ export default function Toolbar({
 
       <div style={{ marginTop: 'auto' }}>
         <button
-          title="Clear canvas"
+          {...tip('Clear canvas')}
           onClick={onClear}
           style={{ ...btnBase, border: '1px solid #d32f2f', color: '#d32f2f', fontSize: 20 }}
         >

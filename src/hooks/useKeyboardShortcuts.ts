@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import type { Tool } from '../types'
 
 export interface ShortcutActions {
   undo: () => void
@@ -16,6 +17,8 @@ export interface ShortcutActions {
   deselect: () => void
   /** Returns false when there is nothing selected, so the arrows can still scroll. */
   nudge: (dx: number, dy: number) => boolean
+  setTool: (tool: Tool) => void
+  swapColors: () => void
 }
 
 const ARROW_STEPS: Record<string, [number, number]> = {
@@ -24,6 +27,23 @@ const ARROW_STEPS: Record<string, [number, number]> = {
   ArrowUp: [0, -1],
   ArrowDown: [0, 1],
 }
+
+/** Single-key tool shortcuts, the usual ones in pixel art editors. Shown in the toolbar tooltips. */
+export const TOOL_KEYS: Record<Tool, string> = {
+  pencil: 'B',
+  eraser: 'E',
+  fill: 'F',
+  picker: 'I',
+  line: 'L',
+  rect: 'R',
+  ellipse: 'O',
+  shade: 'S',
+  selection: 'M',
+}
+
+const TOOL_BY_KEY = Object.fromEntries(
+  Object.entries(TOOL_KEYS).map(([tool, key]) => [key.toLowerCase(), tool as Tool]),
+)
 
 /** Ctrl (or Cmd) shortcuts; keys are lower case because Shift and Caps Lock change e.key. */
 const CTRL_SHORTCUTS: Record<string, (a: ShortcutActions, shift: boolean) => void> = {
@@ -64,7 +84,12 @@ export function useKeyboardShortcuts(actions: ShortcutActions) {
         return
       }
 
-      if (key === 'g' && !e.altKey && !e.shiftKey) {
+      const plain = !e.altKey && !e.shiftKey
+      if (plain && key in TOOL_BY_KEY) {
+        a.setTool(TOOL_BY_KEY[key])
+      } else if (plain && key === 'x') {
+        a.swapColors()
+      } else if (plain && key === 'g') {
         a.toggleGrid()
       } else if (e.key === 'Delete') {
         if (a.remove()) e.preventDefault()
