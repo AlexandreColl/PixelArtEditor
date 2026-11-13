@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { BotMessageSquare, Save } from 'lucide-react'
 import Canvas from './components/Canvas'
-import type { CanvasHandle } from './components/Canvas'
+import type { CanvasHandle, Point } from './components/Canvas'
 import CanvasSizeControl from './components/CanvasSizeControl'
 import ColorPalette from './components/ColorPalette'
 import AIChat from './components/AIChat'
@@ -14,6 +14,7 @@ import { useFileActions } from './hooks/useFileActions'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { usePalette } from './hooks/usePalette'
 import type { Selection } from './types'
+import { TRANSPARENT, parseColor, toHex } from './utils/color'
 import { paletteSnapper } from './utils/palette'
 
 const btnAccent: React.CSSProperties = {
@@ -25,6 +26,34 @@ const btnAccent: React.CSSProperties = {
   cursor: 'pointer',
   fontSize: 13,
   fontWeight: 600,
+}
+
+/** Position and color of the pixel under the pointer, at the right of the status bar. */
+function PixelInfo({ pixel, color }: { pixel: Point | null; color: string | undefined }) {
+  if (!pixel || color === undefined) return null
+  const rgba = parseColor(color)
+  const transparent = color === TRANSPARENT || !rgba
+  const label = transparent
+    ? 'transparent'
+    : rgba[3] === 255
+      ? toHex(rgba)
+      : `${toHex(rgba)} ${Math.round((rgba[3] / 255) * 100)}%`
+  return (
+    <span
+      style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, fontVariantNumeric: 'tabular-nums' }}
+    >
+      {pixel.x}, {pixel.y}
+      <span
+        style={{
+          width: 10,
+          height: 10,
+          border: '1px solid #666',
+          background: transparent ? 'repeating-conic-gradient(#f0f0f0 0% 25%, #cfcfcf 0% 50%) 50% / 6px 6px' : color,
+        }}
+      />
+      {label}
+    </span>
+  )
 }
 
 export default function App() {
@@ -74,6 +103,7 @@ export default function App() {
 
   const [aiOpen, setAiOpen] = useState(false)
   const [dragOver, setDragOver] = useState(false)
+  const [hoverPixel, setHoverPixel] = useState<Point | null>(null)
   const canvasHandleRef = useRef<CanvasHandle>(null)
   const pixelDataRef = useRef(state.pixelData)
   pixelDataRef.current = state.pixelData
@@ -354,6 +384,7 @@ export default function App() {
           onMoveStart={beginMove}
           onMoveTo={moveSelectionTo}
           onZoomStep={handleZoomStep}
+          onHoverPixel={setHoverPixel}
         />
 
         <ColorPalette
@@ -402,6 +433,15 @@ export default function App() {
           Size: {state.pixelData.width}x{state.pixelData.height}
         </span>
         <span>Zoom: {state.zoom}x</span>
+        {state.selection && (
+          <span>
+            Selection: {state.selection.width}x{state.selection.height} at {state.selection.x}, {state.selection.y}
+          </span>
+        )}
+        <PixelInfo
+          pixel={hoverPixel}
+          color={hoverPixel ? state.pixelData.pixels[hoverPixel.y]?.[hoverPixel.x] : undefined}
+        />
       </div>
     </div>
   )
