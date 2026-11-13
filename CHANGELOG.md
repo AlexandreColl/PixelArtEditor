@@ -7,6 +7,12 @@ y el proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Cambiado
+
+- Las acciones de archivo (nuevo, abrir, importar como pixel art, guardar y exportar PNG) pasan a un menú **File** en la cabecera, junto al botón de guardar.
+- El tamaño del lienzo también se aplica pulsando Enter en los campos W/H.
+- `App.tsx` se divide: los atajos de teclado, las acciones de archivo, los avisos y el tamaño del lienzo tienen ahora su propio hook o componente.
+
 ## [0.3.0] - 2026-11-10
 
 Paletas editables con importación y exportación, bloqueo del dibujo a la paleta, tests automáticos y toolchain actualizado.
