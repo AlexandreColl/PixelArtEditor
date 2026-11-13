@@ -9,6 +9,7 @@ import ConvertDialog from './components/ConvertDialog'
 import FileMenu from './components/FileMenu'
 import Toast, { useToast } from './components/Toast'
 import Toolbar from './components/Toolbar'
+import TooltipLayer, { tip } from './components/Tooltip'
 import { useEditor } from './hooks/useEditor'
 import { useFileActions } from './hooks/useFileActions'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
@@ -222,6 +223,8 @@ export default function App() {
     remove: deleteSelection,
     deselect: () => setSelection(null),
     nudge: nudgeSelection,
+    setTool,
+    swapColors,
   })
 
   return (
@@ -272,6 +275,7 @@ export default function App() {
       )}
 
       <Toast message={toast} />
+      <TooltipLayer />
 
       {files.pendingImage && (
         <ConvertDialog
@@ -303,7 +307,7 @@ export default function App() {
           onSave={files.saveImage}
           onExportPng={files.exportPng}
         />
-        <button title="Save (Ctrl+S)" onClick={files.saveImage} style={btnAccent}>
+        <button {...tip('Save', 'Ctrl+S')} onClick={files.saveImage} style={btnAccent}>
           <Save size={16} />
         </button>
 
@@ -314,6 +318,7 @@ export default function App() {
         <div style={{ flex: 1 }} />
 
         <button
+          {...tip('AI assistant: edit the canvas or the selection from a description')}
           onClick={() => setAiOpen(!aiOpen)}
           style={{
             padding: '4px 12px',
