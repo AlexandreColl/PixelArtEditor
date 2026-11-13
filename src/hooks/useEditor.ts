@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react'
 import type { Tool, ShapeTool, PixelData, EditorState, Selection } from '../types'
+import { brushFootprints } from '../utils/brush'
 import { linePoints, shapePoints } from '../utils/shapes'
 import { TRANSPARENT, formatColor, normalizeColor, parseColor, toHex } from '../utils/color'
 
@@ -62,10 +63,7 @@ interface FloatingSelection {
   buffer: string[][]
 }
 
-/**
- * Paints a size x size square brush centred on (cx, cy). With mirrorX / mirrorY the square is also painted
- * reflected across the canvas centre; the reflected square is computed from its edges so even sizes stay symmetric.
- */
+/** Paints the brush squares (see brushFootprints), mirrored when asked. */
 function stampBrush(
   pixels: string[][],
   width: number,
@@ -77,20 +75,9 @@ function stampBrush(
   mirrorX = false,
   mirrorY = false,
 ) {
-  const off = Math.floor((size - 1) / 2)
-  const x0 = cx - off
-  const y0 = cy - off
-  const xs: [number, number][] = [[x0, x0 + size - 1]]
-  const ys: [number, number][] = [[y0, y0 + size - 1]]
-  if (mirrorX) xs.push([width - 1 - (x0 + size - 1), width - 1 - x0])
-  if (mirrorY) ys.push([height - 1 - (y0 + size - 1), height - 1 - y0])
-  for (const [ax, bx] of xs) {
-    for (const [ay, by] of ys) {
-      for (let y = Math.max(0, ay); y <= Math.min(height - 1, by); y++) {
-        for (let x = Math.max(0, ax); x <= Math.min(width - 1, bx); x++) {
-          pixels[y][x] = color
-        }
-      }
+  for (const sq of brushFootprints(cx, cy, size, width, height, mirrorX, mirrorY)) {
+    for (let y = sq.y; y < sq.y + sq.height; y++) {
+      for (let x = sq.x; x < sq.x + sq.width; x++) pixels[y][x] = color
     }
   }
 }
