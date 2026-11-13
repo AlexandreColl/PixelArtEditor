@@ -164,20 +164,20 @@ export default function Canvas({
     ctx.drawImage(tc, 0, 0, cw, ch)
 
     if (showGrid && pixelSize >= MIN_GRID_ZOOM) {
-      ctx.strokeStyle = '#c0c0c0'
-      ctx.lineWidth = 0.5
-      for (let x = 0; x <= width; x++) {
-        ctx.beginPath()
-        ctx.moveTo(x * pixelSize, 0)
-        ctx.lineTo(x * pixelSize, ch)
-        ctx.stroke()
+      // Mid gray, half transparent: visible on the checkerboard, on light and on dark pixels
+      ctx.strokeStyle = 'rgba(128, 128, 128, 0.55)'
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      // +0.5 keeps the 1px lines crisp instead of blurred across two device pixels
+      for (let x = 1; x < width; x++) {
+        ctx.moveTo(x * pixelSize + 0.5, 0)
+        ctx.lineTo(x * pixelSize + 0.5, ch)
       }
-      for (let y = 0; y <= height; y++) {
-        ctx.beginPath()
-        ctx.moveTo(0, y * pixelSize)
-        ctx.lineTo(cw, y * pixelSize)
-        ctx.stroke()
+      for (let y = 1; y < height; y++) {
+        ctx.moveTo(0, y * pixelSize + 0.5)
+        ctx.lineTo(cw, y * pixelSize + 0.5)
       }
+      ctx.stroke()
     }
 
     // Symmetry axes, so it is clear where drawing is mirrored
