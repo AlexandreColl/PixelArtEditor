@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { TRANSPARENT, formatColor, normalizeColor, parseColor, toHex } from './color'
+import { TRANSPARENT, formatColor, hsvToRgb, normalizeColor, parseColor, parseHexInput, rgbToHsv, toHex } from './color'
 
 describe('parseColor', () => {
   it('parses every hex length', () => {
@@ -63,5 +63,40 @@ describe('normalizeColor', () => {
 describe('toHex', () => {
   it('pads every channel to two digits and drops alpha', () => {
     expect(toHex([0, 10, 255, 7])).toBe('#000aff')
+  })
+})
+
+describe('rgbToHsv / hsvToRgb', () => {
+  it('converts the primary colors, grays and black', () => {
+    expect(rgbToHsv(255, 0, 0)).toEqual([0, 1, 1])
+    expect(rgbToHsv(0, 255, 0)).toEqual([120, 1, 1])
+    expect(rgbToHsv(0, 0, 255)).toEqual([240, 1, 1])
+    expect(rgbToHsv(128, 128, 128)).toEqual([0, 0, 128 / 255])
+    expect(rgbToHsv(0, 0, 0)).toEqual([0, 0, 0])
+  })
+
+  it('round-trips any color', () => {
+    for (const rgb of [
+      [255, 0, 0],
+      [26, 28, 44],
+      [177, 62, 83],
+      [255, 205, 117],
+      [1, 2, 3],
+      [255, 255, 255],
+    ] as [number, number, number][]) {
+      expect(hsvToRgb(...rgbToHsv(...rgb))).toEqual(rgb)
+    }
+  })
+})
+
+describe('parseHexInput', () => {
+  it('accepts short and long hex, with or without #, in any case', () => {
+    expect(parseHexInput('#FFF')).toBe('#ffffff')
+    expect(parseHexInput(' 1a1c2c ')).toBe('#1a1c2c')
+    expect(parseHexInput('#B13E53')).toBe('#b13e53')
+  })
+
+  it('rejects anything else, including colors with alpha', () => {
+    for (const bad of ['', '#12', '12345', 'red', '#ff000080', 'gggggg']) expect(parseHexInput(bad)).toBeNull()
   })
 })
