@@ -18,6 +18,8 @@ function setup(overrides: Partial<ShortcutActions> = {}) {
     remove: vi.fn(() => true),
     deselect: vi.fn(),
     nudge: vi.fn(() => true),
+    setTool: vi.fn(),
+    swapColors: vi.fn(),
     ...overrides,
   }
   const hook = renderHook(props => useKeyboardShortcuts(props), { initialProps: actions })
@@ -62,6 +64,32 @@ describe('useKeyboardShortcuts', () => {
   it('leaves unknown Ctrl shortcuts to the browser', () => {
     setup()
     expect(press('p', { ctrlKey: true })).toBe(false)
+  })
+
+  it('picks tools with single keys, whatever the case', () => {
+    const { actions } = setup()
+    press('b')
+    press('E')
+    press('m')
+    expect(actions.setTool).toHaveBeenNthCalledWith(1, 'pencil')
+    expect(actions.setTool).toHaveBeenNthCalledWith(2, 'eraser')
+    expect(actions.setTool).toHaveBeenNthCalledWith(3, 'selection')
+  })
+
+  it('does not change tool with Ctrl, Shift or Alt held', () => {
+    const { actions } = setup()
+    press('b', { shiftKey: true })
+    press('e', { altKey: true })
+    press('s', { ctrlKey: true })
+    expect(actions.setTool).not.toHaveBeenCalled()
+    expect(actions.save).toHaveBeenCalledOnce()
+  })
+
+  it('swaps the colors with X', () => {
+    const { actions } = setup()
+    press('x')
+    expect(actions.swapColors).toHaveBeenCalledOnce()
+    expect(actions.cut).not.toHaveBeenCalled()
   })
 
   it('toggles the grid with G, but not with Shift+G', () => {
