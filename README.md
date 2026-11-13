@@ -147,17 +147,19 @@ Si prefieres compilarlo desde el código fuente, sigue estos pasos.
 
 ### Herramientas
 
-| Icono          | Herramienta       | Descripción                                      |
-| -------------- | ----------------- | ------------------------------------------------ |
-| `Pencil`       | Lápiz             | Dibuja píxel a píxel con el color primario       |
-| `Eraser`       | Borrador          | Elimina píxeles (los deja transparentes)         |
-| `PaintBucket`  | Bote de pintura   | Rellena una región conectada del mismo color     |
-| `Pipette`      | Selector de color | Captura el color de un píxel                     |
-| `Slash`        | Línea             | Arrastra para dibujar una línea recta            |
-| `Square`       | Rectángulo        | Arrastra para dibujar un rectángulo              |
-| `Circle`       | Elipse            | Arrastra para dibujar una elipse                 |
-| `Blend`        | Sombreado         | Difumina mezclando colores de píxeles adyacentes |
-| `MousePointer` | Selección         | Selecciona una región rectangular                |
+| Tecla | Herramienta       | Descripción                                      |
+| ----- | ----------------- | ------------------------------------------------ |
+| `B`   | Lápiz             | Dibuja píxel a píxel con el color primario       |
+| `E`   | Borrador          | Elimina píxeles (los deja transparentes)         |
+| `F`   | Bote de pintura   | Rellena una región conectada del mismo color     |
+| `I`   | Selector de color | Captura el color de un píxel                     |
+| `L`   | Línea             | Arrastra para dibujar una línea recta            |
+| `R`   | Rectángulo        | Arrastra para dibujar un rectángulo              |
+| `O`   | Elipse            | Arrastra para dibujar una elipse                 |
+| `S`   | Sombreado         | Difumina mezclando colores de píxeles adyacentes |
+| `M`   | Selección         | Selecciona una región rectangular                |
+
+Al pasar el ratón por un botón aparece su nombre y su atajo. Sobre el lienzo, un contorno marca los píxeles que pintará la herramienta (con el tamaño de pincel y el espejo aplicados), y la barra de estado muestra las coordenadas y el color del píxel bajo el cursor y el tamaño de la selección. Las zonas transparentes se ven como un fondo de cuadros.
 
 ### Tamaño de pincel
 
@@ -184,7 +186,9 @@ Los botones `FlipHorizontal` y `FlipVertical` de la barra lateral activan el esp
 
 ### Paleta
 
-El panel derecho muestra la paleta activa, con su nombre y número de colores. Se guarda entre sesiones.
+Arriba del panel derecho están los colores primario (delante) y secundario (detrás); el botón de flechas o `X` los intercambia. Debajo, el selector de color edita el primario: el cuadro elige saturación y brillo, la barra el tono, y el campo **Hex** acepta `#rgb` o `#rrggbb`, con o sin `#` (Enter aplica, Esc descarta).
+
+Más abajo está la paleta activa, con su nombre y número de colores. Se guarda entre sesiones.
 
 | Acción                   | Cómo                                                                                                    |
 | ------------------------ | ------------------------------------------------------------------------------------------------------- |
@@ -246,19 +250,21 @@ Al abrir o arrastrar una imagen grande (más de 128 px) o con muchos colores, co
 
 ## ⌨️ Atajos de Teclado
 
-| Tecla                          | Acción                              |
-| ------------------------------ | ----------------------------------- |
-| `Ctrl+Z`                       | Deshacer                            |
-| `Ctrl+Shift+Z` / `Ctrl+Y`      | Rehacer                             |
-| `Ctrl+S`                       | Guardar PNG                         |
-| `Ctrl+O`                       | Abrir imagen                        |
-| `G`                            | Mostrar u ocultar la cuadrícula     |
-| `Ctrl+0`                       | Ajustar el lienzo a la ventana      |
-| `Ctrl+C` / `Ctrl+X` / `Ctrl+V` | Copiar, cortar y pegar la selección |
-| `Ctrl+A`                       | Seleccionar todo                    |
-| `Supr`                         | Borrar la selección                 |
-| `Esc`                          | Deseleccionar                       |
-| Flechas                        | Mover la selección 1 píxel          |
+| Tecla                               | Acción                                            |
+| ----------------------------------- | ------------------------------------------------- |
+| `B` `E` `F` `I` `L` `R` `O` `S` `M` | Elegir herramienta (ver la tabla de herramientas) |
+| `X`                                 | Intercambiar colores primario y secundario        |
+| `Ctrl+Z`                            | Deshacer                                          |
+| `Ctrl+Shift+Z` / `Ctrl+Y`           | Rehacer                                           |
+| `Ctrl+S`                            | Guardar PNG                                       |
+| `Ctrl+O`                            | Abrir imagen                                      |
+| `G`                                 | Mostrar u ocultar la cuadrícula                   |
+| `Ctrl+0`                            | Ajustar el lienzo a la ventana                    |
+| `Ctrl+C` / `Ctrl+X` / `Ctrl+V`      | Copiar, cortar y pegar la selección               |
+| `Ctrl+A`                            | Seleccionar todo                                  |
+| `Supr`                              | Borrar la selección                               |
+| `Esc`                               | Deseleccionar                                     |
+| Flechas                             | Mover la selección 1 píxel                        |
 
 <p align="right">(<a href="#readme-top">volver arriba</a>)</p>
 

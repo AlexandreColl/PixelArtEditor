@@ -7,6 +7,18 @@ y el proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Añadido
+
+- Atajos de una tecla para las herramientas (`B` `E` `F` `I` `L` `R` `O` `S` `M`) y `X` para intercambiar colores.
+- Tooltips propios que muestran el nombre y el atajo de cada botón; los botones de solo icono tienen ahora nombre accesible.
+- Contorno sobre el lienzo de los píxeles que pintará la herramienta, con el tamaño de pincel y el espejo.
+- Coordenadas y color del píxel bajo el cursor, y tamaño de la selección, en la barra de estado.
+- Selector de color integrado (saturación/brillo, tono y campo hexadecimal) siempre visible, y colores primario y secundario superpuestos con botón de intercambio.
+
+### Corregido
+
+- Los píxeles transparentes se pintaban de gris `#e0e0e0` y no se distinguían de ese color; ahora se ven sobre un fondo de cuadros, y los semitransparentes se ven como al exportar.
+
 ### Cambiado
 
 - Las acciones de archivo (nuevo, abrir, importar como pixel art, guardar y exportar PNG) pasan a un menú **File** en la cabecera, junto al botón de guardar.

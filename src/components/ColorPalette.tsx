@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
-import { FileDown, FileUp, Lock, LockOpen, Plus, RotateCcw, WandSparkles } from 'lucide-react'
+import { ArrowLeftRight, FileDown, FileUp, Lock, LockOpen, Plus, RotateCcw, WandSparkles } from 'lucide-react'
+import ColorPicker from './ColorPicker'
 import { PALETTE_EXTENSIONS } from '../utils/palette'
 import { tip } from './Tooltip'
 
@@ -38,6 +39,17 @@ const iconBtn: React.CSSProperties = {
   padding: 0,
 }
 
+const swatchBox: React.CSSProperties = {
+  position: 'absolute',
+  width: 30,
+  height: 30,
+  padding: 0,
+  borderRadius: 4,
+  border: '2px solid #999',
+  boxShadow: '0 0 0 1px #000',
+  cursor: 'pointer',
+}
+
 export default function ColorPalette({
   primaryColor,
   secondaryColor,
@@ -56,7 +68,6 @@ export default function ColorPalette({
   onToggleLock,
   onReduce,
 }: ColorPaletteProps) {
-  const [showPicker, setShowPicker] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   // Swatch being dragged to reorder, and the one under the pointer
   const [dragFrom, setDragFrom] = useState<number | null>(null)
@@ -77,44 +88,25 @@ export default function ColorPalette({
         minHeight: 0,
       }}
     >
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <div
-          {...tip('Primary color (click to edit)')}
-          style={{
-            width: 32,
-            height: 32,
-            background: primaryColor,
-            border: '2px solid #fff',
-            borderRadius: 4,
-            cursor: 'pointer',
-          }}
-          onClick={() => setShowPicker(!showPicker)}
-        />
-        <div
-          {...tip('Secondary color (click to swap)')}
-          style={{
-            width: 20,
-            height: 20,
-            background: secondaryColor,
-            border: '2px solid #999',
-            borderRadius: 4,
-            cursor: 'pointer',
-          }}
-          onClick={onSwap}
-        />
-        <span style={{ color: '#aaa', fontSize: 11, cursor: 'pointer' }} onClick={onSwap}>
-          Swap
-        </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {/* Primary in front, secondary behind it, as in most editors */}
+        <div style={{ position: 'relative', width: 46, height: 46, flexShrink: 0 }}>
+          <button
+            {...tip('Secondary color: right click draws with it. Click to swap', 'X')}
+            onClick={onSwap}
+            style={{ ...swatchBox, right: 0, bottom: 0, background: secondaryColor }}
+          />
+          <div
+            {...tip('Primary color: left click draws with it')}
+            style={{ ...swatchBox, left: 0, top: 0, background: primaryColor, borderColor: '#fff' }}
+          />
+        </div>
+        <button {...tip('Swap colors', 'X')} onClick={onSwap} style={iconBtn}>
+          <ArrowLeftRight size={14} />
+        </button>
       </div>
 
-      {showPicker && (
-        <input
-          type="color"
-          value={primaryColor}
-          onChange={e => onPrimaryChange(e.target.value)}
-          style={{ width: '100%', height: 40, border: 'none', padding: 0, cursor: 'pointer' }}
-        />
-      )}
+      <ColorPicker color={primaryColor} onChange={onPrimaryChange} />
 
       <span
         {...tip(paletteName)}
