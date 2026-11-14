@@ -8,6 +8,7 @@ import AIChat from './components/AIChat'
 import ConvertDialog from './components/ConvertDialog'
 import FileMenu from './components/FileMenu'
 import Toast, { useToast } from './components/Toast'
+import Timeline from './components/Timeline'
 import Toolbar from './components/Toolbar'
 import TooltipLayer, { tip } from './components/Tooltip'
 import { useEditor } from './hooks/useEditor'
@@ -94,13 +95,26 @@ export default function App() {
     beginMove,
     moveSelectionTo,
     nudgeSelection,
-    importPixels,
+    importFrames,
+    selectFrame,
+    addFrame,
+    duplicateFrame,
+    deleteFrame,
+    moveFrame,
     undo,
     redo,
   } = useEditor()
   const { palette, locked, toggleLocked, addColor, removeColor, moveColor, replacePalette, resetPalette } = usePalette()
   const { toast, showToast } = useToast()
-  const files = useFileActions({ pixelData: state.pixelData, importPixels, palette, replacePalette, showToast })
+  const files = useFileActions({
+    pixelData: state.pixelData,
+    frames: state.frames,
+    fps: state.fps,
+    importFrames,
+    palette,
+    replacePalette,
+    showToast,
+  })
 
   const [aiOpen, setAiOpen] = useState(false)
   const [dragOver, setDragOver] = useState(false)
@@ -209,6 +223,18 @@ export default function App() {
     [setPrimaryColor, setSecondaryColor],
   )
 
+  const frameRef = useRef({ current: state.currentFrame, count: state.frames.length })
+  frameRef.current = { current: state.currentFrame, count: state.frames.length }
+
+  /** Previous or next frame, wrapping around like the animation does. */
+  const stepFrame = useCallback(
+    (direction: 1 | -1) => {
+      const { current, count } = frameRef.current
+      selectFrame((current + direction + count) % count)
+    },
+    [selectFrame],
+  )
+
   useKeyboardShortcuts({
     undo,
     redo,
@@ -225,6 +251,7 @@ export default function App() {
     nudge: nudgeSelection,
     setTool,
     swapColors,
+    stepFrame,
   })
 
   return (
@@ -418,6 +445,16 @@ export default function App() {
           applyPixels={applyAiPixels}
         />
       </div>
+
+      <Timeline
+        frames={state.frames}
+        currentFrame={state.currentFrame}
+        onSelectFrame={selectFrame}
+        onAddFrame={addFrame}
+        onDuplicateFrame={duplicateFrame}
+        onDeleteFrame={deleteFrame}
+        onMoveFrame={moveFrame}
+      />
 
       <div
         style={{

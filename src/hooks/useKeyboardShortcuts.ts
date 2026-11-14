@@ -19,6 +19,8 @@ export interface ShortcutActions {
   nudge: (dx: number, dy: number) => boolean
   setTool: (tool: Tool) => void
   swapColors: () => void
+  /** Goes to the previous (-1) or next (1) frame */
+  stepFrame: (direction: 1 | -1) => void
 }
 
 const ARROW_STEPS: Record<string, [number, number]> = {
@@ -91,6 +93,8 @@ export function useKeyboardShortcuts(actions: ShortcutActions) {
         a.swapColors()
       } else if (plain && key === 'g') {
         a.toggleGrid()
+      } else if (plain && (e.key === ',' || e.key === '.')) {
+        a.stepFrame(e.key === ',' ? -1 : 1)
       } else if (e.key === 'Delete') {
         if (a.remove()) e.preventDefault()
       } else if (e.key === 'Escape') {

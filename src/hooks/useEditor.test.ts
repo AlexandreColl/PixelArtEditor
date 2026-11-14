@@ -364,3 +364,123 @@ describe('useEditor selection', () => {
     expect(pixel(1, 1)).toBe(RED)
   })
 })
+
+describe('useEditor frames', () => {
+  const frameCount = (r: ReturnType<typeof setup>['result']) => r.current.state.frames.length
+
+  it('adds an empty frame after the current one and edits it', () => {
+    const { result, run, pixel, dot } = setup()
+    dot(0, 0, RED)
+    run(e => e.addFrame())
+    expect(frameCount(result)).toBe(2)
+    expect(result.current.state.currentFrame).toBe(1)
+    expect(pixel(0, 0)).toBe(TRANSPARENT)
+    dot(1, 1, BLUE)
+    run(e => e.selectFrame(0))
+    expect(pixel(0, 0)).toBe(RED)
+    expect(pixel(1, 1)).toBe(TRANSPARENT)
+  })
+
+  it('duplicates a frame, and painting the copy leaves the original alone', () => {
+    const { result, run, pixel, dot } = setup()
+    dot(0, 0, RED)
+    run(e => e.duplicateFrame())
+    expect(pixel(0, 0)).toBe(RED)
+    dot(0, 0, BLUE)
+    expect(result.current.state.frames[0].pixels[0][0]).toBe(RED)
+    expect(result.current.state.frames[1].pixels[0][0]).toBe(BLUE)
+  })
+
+  it('keeps at least one frame', () => {
+    const { result, run } = setup()
+    let removed = true
+    run(e => {
+      removed = e.deleteFrame()
+    })
+    expect(removed).toBe(false)
+    expect(frameCount(result)).toBe(1)
+  })
+
+  it('deletes the current frame and undo brings it back', () => {
+    const { result, run, pixel, dot } = setup()
+    run(e => e.addFrame())
+    dot(2, 2, RED)
+    run(e => e.deleteFrame())
+    expect(frameCount(result)).toBe(1)
+    expect(pixel(2, 2)).toBe(TRANSPARENT)
+    run(e => e.undo())
+    expect(frameCount(result)).toBe(2)
+    expect(result.current.state.currentFrame).toBe(1)
+    expect(pixel(2, 2)).toBe(RED)
+  })
+
+  it('moves a frame and keeps it selected', () => {
+    const { result, run, dot } = setup()
+    dot(0, 0, RED)
+    run(e => e.addFrame())
+    dot(0, 0, BLUE)
+    run(e => e.moveFrame(1, 0))
+    expect(result.current.state.frames.map(f => f.pixels[0][0])).toEqual([BLUE, RED])
+    expect(result.current.state.currentFrame).toBe(0)
+  })
+
+  it('does not record switching frames as an undo step', () => {
+    const { result, run } = setup()
+    run(e => e.addFrame())
+    run(e => e.selectFrame(0))
+    run(e => e.undo())
+    expect(frameCount(result)).toBe(1)
+  })
+
+  it('shows the frame that an undo changes', () => {
+    const { result, run, dot } = setup()
+    run(e => e.addFrame())
+    dot(3, 3, RED)
+    run(e => e.selectFrame(0))
+    run(e => e.undo())
+    expect(result.current.state.currentFrame).toBe(1)
+    expect(result.current.state.frames[1].pixels[3][3]).toBe(TRANSPARENT)
+  })
+
+  it('resizes every frame', () => {
+    const { result, run, dot } = setup()
+    run(e => e.addFrame())
+    dot(1, 1, RED)
+    run(e => e.resizeCanvas(4, 2))
+    expect(result.current.state.frames.map(f => [f.width, f.height, f.pixels.length])).toEqual([
+      [4, 2, 2],
+      [4, 2, 2],
+    ])
+    expect(result.current.state.frames[1].pixels[1][1]).toBe(RED)
+  })
+
+  it('maps every frame to the palette when nothing is selected', () => {
+    const { result, run, dot } = setup()
+    dot(0, 0, '#fe0000')
+    run(e => e.addFrame())
+    dot(0, 0, '#0000fe')
+    let changed = 0
+    run(e => {
+      changed = e.remapColors(paletteSnapper([RED, BLUE]))
+    })
+    expect(changed).toBe(2)
+    expect(result.current.state.frames.map(f => f.pixels[0][0])).toEqual([RED, BLUE])
+  })
+
+  it('imports several frames and their speed with a fresh history', () => {
+    const { result, run } = setup()
+    run(e => e.importFrames([[[RED]], [[BLUE]]], 1, 1, 12))
+    expect(result.current.state.frames.map(f => f.pixels)).toEqual([[[RED]], [[BLUE]]])
+    expect(result.current.state.currentFrame).toBe(0)
+    expect(result.current.state.fps).toBe(12)
+    expect(result.current.canUndo).toBe(false)
+  })
+
+  it('keeps the speed between 1 and 60 frames per second', () => {
+    const { result, run } = setup()
+    run(e => e.setFps(0))
+    expect(result.current.state.fps).toBe(1)
+    run(e => e.setFps(500))
+    expect(result.current.state.fps).toBe(60)
+  })
+})

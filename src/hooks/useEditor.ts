@@ -84,31 +84,50 @@ function stampBrush(
 
 const DEFAULT_WIDTH = 32
 const DEFAULT_HEIGHT = 32
+export const DEFAULT_FPS = 8
+export const MAX_FPS = 60
+
+/** One undo step: every frame as it was, and the frame that was being edited. */
+interface Snapshot {
+  frames: PixelData[]
+  index: number
+}
 
 export function useEditor() {
-  const [state, setState] = useState<EditorState>(() => ({
-    pixelData: createEmptyPixelData(DEFAULT_WIDTH, DEFAULT_HEIGHT),
-    activeTool: 'pencil',
-    primaryColor: '#000000',
-    secondaryColor: '#ffffff',
-    zoom: 16,
-    brushSize: 1,
-    showGrid: true,
-    shapeFilled: false,
-    mirrorX: false,
-    mirrorY: false,
-    selection: null,
-  }))
+  const [state, setState] = useState<EditorState>(() => {
+    const first = createEmptyPixelData(DEFAULT_WIDTH, DEFAULT_HEIGHT)
+    return {
+      pixelData: first,
+      frames: [first],
+      currentFrame: 0,
+      fps: DEFAULT_FPS,
+      onionSkin: false,
+      activeTool: 'pencil',
+      primaryColor: '#000000',
+      secondaryColor: '#ffffff',
+      zoom: 16,
+      brushSize: 1,
+      showGrid: true,
+      shapeFilled: false,
+      mirrorX: false,
+      mirrorY: false,
+      selection: null,
+    }
+  })
 
-  // Pixel data is never mutated in place, so history can hold the same objects as state.
-  // The ref is updated synchronously so several events between renders see the latest pixels.
+  // Pixel data is never mutated in place, so history can hold the same objects as state,
+  // and frames that did not change are shared between snapshots.
+  // The refs are updated synchronously so several events between renders see the latest pixels.
+  const framesRef = useRef(state.frames)
+  const frameIndexRef = useRef(0)
+  /** The frame being edited, framesRef.current[frameIndexRef.current] */
   const pixelDataRef = useRef(state.pixelData)
   // Read at call time so strokes already in progress follow the latest toggle
   const mirrorRef = useRef({ x: state.mirrorX, y: state.mirrorY })
   mirrorRef.current = { x: state.mirrorX, y: state.mirrorY }
   // Canvas as it was when the current shape drag started; the shape preview is redrawn on top of it
   const shapeBaseRef = useRef<PixelData | null>(null)
-  const historyRef = useRef<PixelData[]>([state.pixelData])
+  const historyRef = useRef<Snapshot[]>([{ frames: state.frames, index: 0 }])
   const historyIndexRef = useRef(0)
   // Selection that goes with each history entry, so undo and redo bring back the right one
   const selHistoryRef = useRef<(Selection | null)[]>([null])
@@ -119,14 +138,34 @@ export function useEditor() {
   const clipboardRef = useRef<string[][] | null>(null)
   const [hasClipboard, setHasClipboard] = useState(false)
 
-  const setPixelData = useCallback((pixelData: PixelData) => {
+  /** Replaces every frame and picks the one to edit. Not an undo step by itself: follow with commitHistory. */
+  const setFrames = useCallback((frames: PixelData[], index: number) => {
     const previous = pixelDataRef.current
+    const pixelData = frames[index]
+    framesRef.current = frames
+    frameIndexRef.current = index
     pixelDataRef.current = pixelData
     // A selection made on a canvas of another size would point outside the new one
     const sizeChanged = previous.width !== pixelData.width || previous.height !== pixelData.height
     if (sizeChanged) selectionRef.current = null
-    setState(prev => ({ ...prev, pixelData, ...(sizeChanged ? { selection: null } : {}) }))
+    setState(prev => ({
+      ...prev,
+      pixelData,
+      frames,
+      currentFrame: index,
+      ...(sizeChanged ? { selection: null } : {}),
+    }))
   }, [])
+
+  /** Replaces the frame being edited. */
+  const setPixelData = useCallback(
+    (pixelData: PixelData) => {
+      const frames = [...framesRef.current]
+      frames[frameIndexRef.current] = pixelData
+      setFrames(frames, frameIndexRef.current)
+    },
+    [setFrames],
+  )
 
   /** Changes the selection without touching history: used while an operation is moving it. */
   const showSelection = useCallback((selection: Selection | null) => {
@@ -143,15 +182,18 @@ export function useEditor() {
     [showSelection],
   )
 
-  /** Records the current pixels as one undo step (no-op if nothing changed). */
-  const commitHistory = useCallback(() => {
+  /**
+   * Records the current frames as one undo step (no-op if nothing changed).
+   * `changedFrame` is the frame that undo and redo show, by default the one being edited.
+   */
+  const commitHistory = useCallback((changedFrame?: number) => {
     shapeBaseRef.current = null
     floatRef.current = null
-    const current = pixelDataRef.current
+    const frames = framesRef.current
     const idx = historyIndexRef.current
-    if (historyRef.current[idx] === current) return
+    if (historyRef.current[idx].frames === frames) return
     historyRef.current = historyRef.current.slice(0, idx + 1)
-    historyRef.current.push(current)
+    historyRef.current.push({ frames, index: changedFrame ?? frameIndexRef.current })
     selHistoryRef.current = selHistoryRef.current.slice(0, idx + 1)
     selHistoryRef.current.push(selectionRef.current)
     if (historyRef.current.length > MAX_HISTORY) {
@@ -321,22 +363,22 @@ export function useEditor() {
     [setPixelData],
   )
 
+  /** Resizes every frame, keeping the pixels from the top-left corner. */
   const resizeCanvas = useCallback(
     (newWidth: number, newHeight: number) => {
-      const old = pixelDataRef.current
-      if (newWidth === old.width && newHeight === old.height) return
-      const pixels: string[][] = []
-      for (let y = 0; y < newHeight; y++) {
-        const row: string[] = []
-        for (let x = 0; x < newWidth; x++) {
-          row.push(old.pixels[y]?.[x] ?? TRANSPARENT)
-        }
-        pixels.push(row)
-      }
-      setPixelData({ width: newWidth, height: newHeight, pixels })
+      const { width, height } = pixelDataRef.current
+      if (newWidth === width && newHeight === height) return
+      const resize = (old: PixelData): PixelData => ({
+        width: newWidth,
+        height: newHeight,
+        pixels: Array.from({ length: newHeight }, (_, y) =>
+          Array.from({ length: newWidth }, (_, x) => old.pixels[y]?.[x] ?? TRANSPARENT),
+        ),
+      })
+      setFrames(framesRef.current.map(resize), frameIndexRef.current)
       commitHistory()
     },
-    [setPixelData, commitHistory],
+    [setFrames, commitHistory],
   )
 
   const clearCanvas = useCallback(() => {
@@ -374,35 +416,38 @@ export function useEditor() {
   )
 
   /**
-   * Replaces every pixel of the selection, or of the whole canvas, with map(color), as one undo step.
-   * Returns how many pixels changed.
+   * Replaces every pixel with map(color), as one undo step: in the selection of the current frame,
+   * or with nothing selected in every frame. Returns how many pixels changed.
    */
   const remapColors = useCallback(
     (map: (color: string) => string): number => {
-      const current = pixelDataRef.current
-      const region = (selectionRef.current && clampRegion(selectionRef.current, current.width, current.height)) ?? {
-        x: 0,
-        y: 0,
-        width: current.width,
-        height: current.height,
-      }
-      const pixels = clonePixels(current.pixels)
+      const { width, height } = pixelDataRef.current
+      const selected = selectionRef.current && clampRegion(selectionRef.current, width, height)
+      const region = selected ?? { x: 0, y: 0, width, height }
       let changed = 0
-      for (let y = region.y; y < region.y + region.height; y++) {
-        for (let x = region.x; x < region.x + region.width; x++) {
-          const color = map(pixels[y][x])
-          if (color === pixels[y][x]) continue
-          pixels[y][x] = color
-          changed++
+      const remap = (frame: PixelData): PixelData => {
+        const before = changed
+        const pixels = clonePixels(frame.pixels)
+        for (let y = region.y; y < region.y + region.height; y++) {
+          for (let x = region.x; x < region.x + region.width; x++) {
+            const color = map(pixels[y][x])
+            if (color === pixels[y][x]) continue
+            pixels[y][x] = color
+            changed++
+          }
         }
+        // Unchanged frames stay the same object, so history keeps sharing them
+        return changed > before ? { ...frame, pixels } : frame
       }
+      const index = frameIndexRef.current
+      const frames = framesRef.current.map((frame, i) => (selected && i !== index ? frame : remap(frame)))
       if (changed > 0) {
-        setPixelData({ ...current, pixels })
+        setFrames(frames, index)
         commitHistory()
       }
       return changed
     },
-    [setPixelData, commitHistory],
+    [setFrames, commitHistory],
   )
 
   const getSelection = useCallback(() => selectionRef.current, [])
@@ -507,40 +552,126 @@ export function useEditor() {
     [beginMove, moveSelectionTo, commitHistory],
   )
 
+  /**
+   * Goes to history entry `to`, showing the frame that the step between them changed,
+   * so undoing a change in another frame brings that frame into view.
+   */
+  const restoreHistory = useCallback(
+    (to: number, changedEntry: number) => {
+      historyIndexRef.current = to
+      floatRef.current = null
+      shapeBaseRef.current = null
+      const { frames } = historyRef.current[to]
+      setFrames(frames, clamp(historyRef.current[changedEntry].index, 0, frames.length - 1))
+      showSelection(selHistoryRef.current[to] ?? null)
+      setHistoryVersion(v => v + 1)
+    },
+    [setFrames, showSelection],
+  )
+
   const undo = useCallback(() => {
-    if (historyIndexRef.current <= 0) return
-    historyIndexRef.current--
-    floatRef.current = null
-    setPixelData(historyRef.current[historyIndexRef.current])
-    showSelection(selHistoryRef.current[historyIndexRef.current] ?? null)
-    setHistoryVersion(v => v + 1)
-  }, [setPixelData, showSelection])
+    const idx = historyIndexRef.current
+    if (idx > 0) restoreHistory(idx - 1, idx)
+  }, [restoreHistory])
 
   const redo = useCallback(() => {
-    if (historyIndexRef.current >= historyRef.current.length - 1) return
-    historyIndexRef.current++
-    floatRef.current = null
-    setPixelData(historyRef.current[historyIndexRef.current])
-    showSelection(selHistoryRef.current[historyIndexRef.current] ?? null)
-    setHistoryVersion(v => v + 1)
-  }, [setPixelData, showSelection])
+    const idx = historyIndexRef.current
+    if (idx < historyRef.current.length - 1) restoreHistory(idx + 1, idx + 1)
+  }, [restoreHistory])
 
-  const importPixels = useCallback((pixels: string[][], width: number, height: number) => {
-    const pixelData = { width, height, pixels }
-    pixelDataRef.current = pixelData
-    historyRef.current = [pixelData]
-    selHistoryRef.current = [null]
-    historyIndexRef.current = 0
-    floatRef.current = null
-    selectionRef.current = null
-    setHistoryVersion(v => v + 1)
-    setState(prev => ({
-      ...prev,
-      pixelData,
-      selection: null,
-      zoom: Math.max(1, Math.floor(1024 / Math.max(width, height))),
-    }))
+  /** Switches the frame being edited. Not an undo step. */
+  const selectFrame = useCallback(
+    (index: number) => {
+      if (index < 0 || index >= framesRef.current.length || index === frameIndexRef.current) return
+      // A selection lifted for dragging belongs to the frame it was lifted from
+      if (floatRef.current) return
+      shapeBaseRef.current = null
+      setFrames(framesRef.current, index)
+    },
+    [setFrames],
+  )
+
+  /** Inserts a frame after the current one and selects it, as one undo step. Without one, it is empty. */
+  const insertFrame = useCallback(
+    (frame?: PixelData) => {
+      const { width, height } = pixelDataRef.current
+      const at = frameIndexRef.current + 1
+      const frames = [...framesRef.current]
+      frames.splice(at, 0, frame ?? createEmptyPixelData(width, height))
+      setFrames(frames, at)
+      commitHistory()
+    },
+    [setFrames, commitHistory],
+  )
+
+  const addFrame = useCallback(() => insertFrame(), [insertFrame])
+
+  // Frames are never mutated, so the copy can be the same object until either is painted
+  const duplicateFrame = useCallback(() => insertFrame(pixelDataRef.current), [insertFrame])
+
+  /** Removes the current frame, as one undo step. Returns false when it is the only one. */
+  const deleteFrame = useCallback((): boolean => {
+    const frames = framesRef.current
+    if (frames.length <= 1) return false
+    const index = frameIndexRef.current
+    setFrames(
+      frames.filter((_, i) => i !== index),
+      Math.min(index, frames.length - 2),
+    )
+    // Undoing the deletion shows the frame that comes back
+    commitHistory(index)
+    return true
+  }, [setFrames, commitHistory])
+
+  /** Moves a frame to another position and selects it, as one undo step. */
+  const moveFrame = useCallback(
+    (from: number, to: number) => {
+      const frames = [...framesRef.current]
+      if (from === to || from < 0 || to < 0 || from >= frames.length || to >= frames.length) return
+      const [moved] = frames.splice(from, 1)
+      frames.splice(to, 0, moved)
+      setFrames(frames, to)
+      commitHistory()
+    },
+    [setFrames, commitHistory],
+  )
+
+  const setFps = useCallback((fps: number) => {
+    setState(prev => ({ ...prev, fps: clamp(Math.round(fps) || 1, 1, MAX_FPS) }))
   }, [])
+
+  const toggleOnionSkin = useCallback(() => {
+    setState(prev => ({ ...prev, onionSkin: !prev.onionSkin }))
+  }, [])
+
+  /** Replaces the whole animation, for example with an opened file, and starts a fresh history. */
+  const importFrames = useCallback(
+    (framePixels: string[][][], width: number, height: number, fps?: number) => {
+      const frames = framePixels.map(pixels => ({ width, height, pixels }))
+      if (frames.length === 0) return
+      historyRef.current = [{ frames, index: 0 }]
+      selHistoryRef.current = [null]
+      historyIndexRef.current = 0
+      floatRef.current = null
+      shapeBaseRef.current = null
+      selectionRef.current = null
+      setFrames(frames, 0)
+      setHistoryVersion(v => v + 1)
+      setState(prev => ({
+        ...prev,
+        selection: null,
+        fps: fps ? clamp(Math.round(fps), 1, MAX_FPS) : prev.fps,
+        zoom: Math.max(1, Math.floor(1024 / Math.max(width, height))),
+      }))
+    },
+    [setFrames],
+  )
+
+  /** Replaces the animation with a single image. */
+  const importPixels = useCallback(
+    (pixels: string[][], width: number, height: number) => importFrames([pixels], width, height),
+    [importFrames],
+  )
 
   const canUndo = historyIndexRef.current > 0
   const canRedo = historyIndexRef.current < historyRef.current.length - 1
@@ -571,6 +702,14 @@ export function useEditor() {
     applyPixels,
     remapColors,
     importPixels,
+    importFrames,
+    selectFrame,
+    addFrame,
+    duplicateFrame,
+    deleteFrame,
+    moveFrame,
+    setFps,
+    toggleOnionSkin,
     hasClipboard,
     getSelection,
     setSelection,
