@@ -8,6 +8,15 @@ import { TRANSPARENT } from '../utils/color'
 import { fileBaseName, imageDataToPixels, loadImageFile, needsConversion, withExtension } from '../utils/image'
 import { PALETTE_EXTENSIONS, formatForPath, parsePalette, serializePalette } from '../utils/palette'
 import { pixelsToPngDataUrl } from '../utils/png'
+import { addPngText, base64ToBytes, bytesToBase64, readPngText } from '../utils/pngText'
+import {
+  ANIMATION_KEY,
+  type AnimationInfo,
+  framesToSheet,
+  parseAnimationInfo,
+  serializeAnimationInfo,
+  sheetToFrames,
+} from '../utils/spriteSheet'
 
 const NEW_CANVAS_SIZE = 32
 
@@ -20,23 +29,48 @@ export interface PendingImage {
 }
 
 interface FileActionsOptions {
+  /** The frame being edited, which Export PNG writes */
   pixelData: PixelData
-  importPixels: (pixels: string[][], width: number, height: number) => void
+  frames: PixelData[]
+  fps: number
+  importFrames: (frames: string[][][], width: number, height: number, fps?: number) => void
   palette: Palette
   replacePalette: (name: string, colors: unknown[]) => boolean
   showToast: (message: string) => void
 }
 
-async function savePngFile(pixelData: PixelData, filePath: string, scale = 1) {
-  const dataUrl = pixelsToPngDataUrl(pixelData.pixels, pixelData.width, pixelData.height, scale)
-  await invoke('save_png_file', { path: filePath, base64Data: dataUrl.split(',')[1] })
+async function savePngFile(pixelData: PixelData, filePath: string, scale = 1, animation?: AnimationInfo) {
+  let base64 = pixelsToPngDataUrl(pixelData.pixels, pixelData.width, pixelData.height, scale).split(',')[1]
+  if (animation) {
+    base64 = bytesToBase64(addPngText(base64ToBytes(base64), ANIMATION_KEY, serializeAnimationInfo(animation)))
+  }
+  await invoke('save_png_file', { path: filePath, base64Data: base64 })
+}
+
+/** The frames recorded in a PNG saved by the editor, or null for any other image. */
+function savedAnimation(image: ImageData, bytes: Uint8Array | undefined) {
+  const info = bytes && parseAnimationInfo(readPngText(bytes, ANIMATION_KEY), image.width, image.height)
+  if (!info) return null
+  const sheet = imageDataToPixels(image)
+  return {
+    info,
+    frames: sheetToFrames(sheet.pixels, sheet.width, sheet.height, info.frameWidth, info.frameHeight, info.frames),
+  }
 }
 
 /**
  * Opening, saving and exporting images and palettes, and the image waiting for conversion.
  * Desktop dialogs go through Tauri; dropped and picked File objects work in any webview.
  */
-export function useFileActions({ pixelData, importPixels, palette, replacePalette, showToast }: FileActionsOptions) {
+export function useFileActions({
+  pixelData,
+  frames,
+  fps,
+  importFrames,
+  palette,
+  replacePalette,
+  showToast,
+}: FileActionsOptions) {
   // Where Save writes without asking; null until the image is saved or opened from a PNG
   const filePathRef = useRef<string | null>(null)
   const [fileName, setFileName] = useState('untitled')
@@ -49,33 +83,39 @@ export function useFileActions({ pixelData, importPixels, palette, replacePalett
 
   const newCanvas = useCallback(() => {
     const row = Array<string>(NEW_CANVAS_SIZE).fill(TRANSPARENT)
-    importPixels(
-      Array.from({ length: NEW_CANVAS_SIZE }, () => [...row]),
-      NEW_CANVAS_SIZE,
-      NEW_CANVAS_SIZE,
-    )
+    importFrames([Array.from({ length: NEW_CANVAS_SIZE }, () => [...row])], NEW_CANVAS_SIZE, NEW_CANVAS_SIZE)
     setFile(null, 'untitled')
     showToast('New canvas created')
-  }, [importPixels, setFile, showToast])
+  }, [importFrames, setFile, showToast])
 
+  /** Opens an image; `bytes` is the file, to find the frames of an animation saved by the editor. */
   const openImage = useCallback(
-    (image: ImageData, name: string, path: string | null, forceConvert = false) => {
+    (image: ImageData, name: string, path: string | null, forceConvert = false, bytes?: Uint8Array) => {
+      // Checked first: a long strip of frames would otherwise look like an image too big to open as is
+      const animation = forceConvert ? null : savedAnimation(image, bytes)
+      if (animation) {
+        const { info } = animation
+        importFrames(animation.frames, info.frameWidth, info.frameHeight, info.fps)
+        setFile(path, name)
+        return
+      }
       if (forceConvert || needsConversion(image)) {
         setPendingImage({ image, name, path })
         return
       }
       const pd = imageDataToPixels(image)
-      importPixels(pd.pixels, pd.width, pd.height)
+      importFrames([pd.pixels], pd.width, pd.height)
       setFile(path, name)
     },
-    [importPixels, setFile],
+    [importFrames, setFile],
   )
 
   /** Opens a dropped or picked file; it has no path, so the first save asks where to write. */
   const openFile = useCallback(
     async (file: File, forceConvert = false) => {
       try {
-        openImage(await loadImageFile(file), fileBaseName(file.name), null, forceConvert)
+        const bytes = new Uint8Array(await file.arrayBuffer())
+        openImage(await loadImageFile(file), fileBaseName(file.name), null, forceConvert, bytes)
       } catch {
         showToast('Could not open image')
       }
@@ -94,7 +134,7 @@ export function useFileActions({ pixelData, importPixels, palette, replacePalett
       const data = await readFile(fp)
       const image = await loadImageFile(new File([new Blob([data])], fp.split(/[\\/]/).pop() || 'image.png'))
       // Saving always writes PNG, so only overwrite the original when it is a PNG
-      openImage(image, fileBaseName(fp), /\.png$/i.test(fp) ? fp : null)
+      openImage(image, fileBaseName(fp), /\.png$/i.test(fp) ? fp : null, false, data)
     } catch {
       showToast('Could not open image')
     }
@@ -103,16 +143,33 @@ export function useFileActions({ pixelData, importPixels, palette, replacePalett
   const saveTo = useCallback(
     async (filePath: string) => {
       try {
-        await savePngFile(pixelData, filePath)
+        const { width, height } = frames[0]
+        if (frames.length > 1) {
+          // A strip of all the frames, which also opens as a sprite sheet in any other program
+          const sheet = framesToSheet(
+            frames.map(f => f.pixels),
+            width,
+            height,
+          )
+          await savePngFile(sheet, filePath, 1, {
+            frames: frames.length,
+            frameWidth: width,
+            frameHeight: height,
+            columns: frames.length,
+            fps,
+          })
+        } else {
+          await savePngFile(frames[0], filePath)
+        }
         const name = fileBaseName(filePath)
         setFile(filePath, name)
-        showToast(`Saved as ${name}.png`)
+        showToast(frames.length > 1 ? `Saved ${frames.length} frames as ${name}.png` : `Saved as ${name}.png`)
       } catch (err) {
         showToast('Save failed')
         console.error(err)
       }
     },
-    [pixelData, setFile, showToast],
+    [frames, fps, setFile, showToast],
   )
 
   const saveImage = useCallback(async () => {
@@ -146,22 +203,22 @@ export function useFileActions({ pixelData, importPixels, palette, replacePalett
   const acceptConversion = useCallback(
     (pd: PixelData) => {
       if (!pendingImage) return
-      importPixels(pd.pixels, pd.width, pd.height)
+      importFrames([pd.pixels], pd.width, pd.height)
       // The result is a new image: never overwrite the source photo on save
       setFile(null, `${pendingImage.name}-pixel`)
       setPendingImage(null)
       showToast(`Converted to ${pd.width}x${pd.height} pixel art`)
     },
-    [pendingImage, importPixels, setFile, showToast],
+    [pendingImage, importFrames, setFile, showToast],
   )
 
   const openOriginal = useCallback(() => {
     if (!pendingImage || Math.max(pendingImage.image.width, pendingImage.image.height) > MAX_ORIGINAL_SIZE) return
     const pd = imageDataToPixels(pendingImage.image)
-    importPixels(pd.pixels, pd.width, pd.height)
+    importFrames([pd.pixels], pd.width, pd.height)
     setFile(pendingImage.path, pendingImage.name)
     setPendingImage(null)
-  }, [pendingImage, importPixels, setFile])
+  }, [pendingImage, importFrames, setFile])
 
   const cancelConversion = useCallback(() => setPendingImage(null), [])
 
