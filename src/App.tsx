@@ -101,6 +101,7 @@ export default function App() {
     duplicateFrame,
     deleteFrame,
     moveFrame,
+    toggleOnionSkin,
     undo,
     redo,
   } = useEditor()
@@ -397,6 +398,7 @@ export default function App() {
           mirrorX={state.mirrorX}
           mirrorY={state.mirrorY}
           pixelData={state.pixelData}
+          onionFrame={state.onionSkin && state.currentFrame > 0 ? state.frames[state.currentFrame - 1] : null}
           tool={state.activeTool}
           primaryColor={state.primaryColor}
           secondaryColor={state.secondaryColor}
@@ -454,6 +456,8 @@ export default function App() {
         onDuplicateFrame={duplicateFrame}
         onDeleteFrame={deleteFrame}
         onMoveFrame={moveFrame}
+        onionSkin={state.onionSkin}
+        onToggleOnionSkin={toggleOnionSkin}
       />
 
       <div

@@ -57,6 +57,10 @@ function getCheckerTile(): HTMLCanvasElement {
   return tile
 }
 
+/** How the previous frame shows under the current one with onion skin: faint and tinted red */
+const ONION_ALPHA = 0.35
+const ONION_TINT = 'rgba(255, 70, 70, 0.55)'
+
 /** Below this zoom the grid lines would hide the pixels, so they are not drawn */
 const MIN_GRID_ZOOM = 4
 
@@ -66,6 +70,8 @@ interface CanvasProps {
   mirrorX: boolean
   mirrorY: boolean
   pixelData: PixelData
+  /** Frame shown faintly under the canvas (onion skin), or null */
+  onionFrame?: PixelData | null
   tool: Tool
   primaryColor: string
   secondaryColor: string
@@ -105,6 +111,7 @@ export default function Canvas({
   mirrorX,
   mirrorY,
   pixelData,
+  onionFrame = null,
   tool,
   primaryColor,
   secondaryColor,
@@ -129,6 +136,7 @@ export default function Canvas({
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const textureRef = useRef<HTMLCanvasElement | null>(null)
+  const onionTextureRef = useRef<HTMLCanvasElement | null>(null)
   // Refs rather than state so pointer events that arrive before the next render see the stroke
   const isDrawingRef = useRef(false)
   const strokeColorRef = useRef(primaryColor)
@@ -180,6 +188,12 @@ export default function Canvas({
     // Transparent and partly transparent pixels show the checkerboard through, as they will look when exported
     ctx.fillStyle = ctx.createPattern(getCheckerTile(), 'repeat')!
     ctx.fillRect(0, 0, cw, ch)
+    const onion = onionTextureRef.current
+    if (onion && onion.width === width && onion.height === height) {
+      ctx.globalAlpha = ONION_ALPHA
+      ctx.drawImage(onion, 0, 0, cw, ch)
+      ctx.globalAlpha = 1
+    }
     ctx.drawImage(tc, 0, 0, cw, ch)
 
     if (showGrid && pixelSize >= MIN_GRID_ZOOM) {
@@ -297,6 +311,24 @@ export default function Canvas({
     textureRef.current = tc
     drawRef.current()
   }, [pixels, width, height])
+
+  useEffect(() => {
+    if (!onionFrame) {
+      onionTextureRef.current = null
+    } else {
+      const tc = document.createElement('canvas')
+      drawPixels(tc, onionFrame.pixels, onionFrame.width, onionFrame.height)
+      // Tint only where the frame has pixels, so it can't be mistaken for the real ones
+      const tctx = tc.getContext('2d')
+      if (tctx) {
+        tctx.globalCompositeOperation = 'source-atop'
+        tctx.fillStyle = ONION_TINT
+        tctx.fillRect(0, 0, tc.width, tc.height)
+      }
+      onionTextureRef.current = tc
+    }
+    drawRef.current()
+  }, [onionFrame])
 
   useEffect(() => {
     draw()
