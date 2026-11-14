@@ -21,7 +21,15 @@ export interface Palette {
 }
 
 export interface EditorState {
+  /** The frame being edited; always frames[currentFrame] */
   pixelData: PixelData
+  /** Every frame of the animation, all the same size */
+  frames: PixelData[]
+  currentFrame: number
+  /** Animation speed, in frames per second */
+  fps: number
+  /** Shows the previous frame faintly under the current one */
+  onionSkin: boolean
   activeTool: Tool
   primaryColor: string
   secondaryColor: string
