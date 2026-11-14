@@ -5,6 +5,7 @@ import type { CanvasHandle, Point } from './components/Canvas'
 import CanvasSizeControl from './components/CanvasSizeControl'
 import ColorPalette from './components/ColorPalette'
 import AIChat from './components/AIChat'
+import AnimationPreview from './components/AnimationPreview'
 import ConvertDialog from './components/ConvertDialog'
 import FileMenu from './components/FileMenu'
 import Toast, { useToast } from './components/Toast'
@@ -102,6 +103,7 @@ export default function App() {
     deleteFrame,
     moveFrame,
     toggleOnionSkin,
+    setFps,
     undo,
     redo,
   } = useEditor()
@@ -120,6 +122,8 @@ export default function App() {
   const [aiOpen, setAiOpen] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const [hoverPixel, setHoverPixel] = useState<Point | null>(null)
+  const [playing, setPlaying] = useState(false)
+  const togglePlay = useCallback(() => setPlaying(p => !p), [])
   const canvasHandleRef = useRef<CanvasHandle>(null)
   const pixelDataRef = useRef(state.pixelData)
   pixelDataRef.current = state.pixelData
@@ -253,6 +257,7 @@ export default function App() {
     setTool,
     swapColors,
     stepFrame,
+    togglePlay,
   })
 
   return (
@@ -458,7 +463,16 @@ export default function App() {
         onMoveFrame={moveFrame}
         onionSkin={state.onionSkin}
         onToggleOnionSkin={toggleOnionSkin}
-      />
+      >
+        <AnimationPreview
+          frames={state.frames}
+          currentFrame={state.currentFrame}
+          fps={state.fps}
+          onFpsChange={setFps}
+          playing={playing && state.frames.length > 1}
+          onTogglePlay={togglePlay}
+        />
+      </Timeline>
 
       <div
         style={{

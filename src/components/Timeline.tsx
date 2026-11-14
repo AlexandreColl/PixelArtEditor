@@ -19,6 +19,8 @@ interface TimelineProps {
 }
 
 const THUMB_SIZE = 44
+/** Tall enough for the animation preview to show the default 32x32 canvas at 2x */
+export const TIMELINE_HEIGHT = 88
 
 export const iconBtn: React.CSSProperties = {
   width: 26,
@@ -89,7 +91,7 @@ export default function Timeline({
   return (
     <div
       style={{
-        height: THUMB_SIZE + 26,
+        height: TIMELINE_HEIGHT,
         flexShrink: 0,
         background: '#252525',
         borderTop: '1px solid #444',
