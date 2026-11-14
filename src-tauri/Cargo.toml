@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "0.3.0"
+version = "0.4.0"
 description = "Editor de pixel art de escritorio con agente IA integrado"
 authors = ["Alexandre Coll Molina"]
 license = "MIT"

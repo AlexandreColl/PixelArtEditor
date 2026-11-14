@@ -7,6 +7,8 @@ y el proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-14
+
 ### Añadido
 
 - Animación por fotogramas: tira de fotogramas para añadir, duplicar, borrar y reordenar, y `,` / `.` para moverse entre ellos. Deshacer y rehacer cubren toda la animación.
@@ -95,7 +97,8 @@ Primera versión pública.
 - Barra de herramientas con iconos de lucide-react.
 - Scripts `dev.bat` / `build.bat` y helper `scripts/dev.ps1` para Windows.
 
-[Unreleased]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/AlexandreColl/PixelArtEditor/releases/tag/v0.1.0
