@@ -1,7 +1,8 @@
 import { useRef, useEffect, useCallback, useImperativeHandle, useState } from 'react'
 import type { PixelData, Tool, ShapeTool, Selection } from '../types'
 import { brushFootprints } from '../utils/brush'
-import { TRANSPARENT, parseColor } from '../utils/color'
+import { TRANSPARENT } from '../utils/color'
+import { drawPixels } from '../utils/png'
 
 const cursorMap: Record<string, string> = {
   pencil: 'crosshair',
@@ -292,23 +293,7 @@ export default function Canvas({
 
   useEffect(() => {
     const tc = document.createElement('canvas')
-    tc.width = width
-    tc.height = height
-    const tctx = tc.getContext('2d')!
-    const imageData = tctx.createImageData(width, height)
-    const data = imageData.data
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const color = pixels[y]?.[x] ?? TRANSPARENT
-        const i = (y * width + x) * 4
-        const [r, g, b, a] = parseColor(color) ?? [0, 0, 0, 0]
-        data[i] = r
-        data[i + 1] = g
-        data[i + 2] = b
-        data[i + 3] = a
-      }
-    }
-    tctx.putImageData(imageData, 0, 0)
+    drawPixels(tc, pixels, width, height)
     textureRef.current = tc
     drawRef.current()
   }, [pixels, width, height])
