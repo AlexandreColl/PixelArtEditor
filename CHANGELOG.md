@@ -9,6 +9,12 @@ y el proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
 ### Añadido
 
+- Animación por fotogramas: tira de fotogramas para añadir, duplicar, borrar y reordenar, y `,` / `.` para moverse entre ellos. Deshacer y rehacer cubren toda la animación.
+- Papel cebolla: el fotograma anterior se ve en rojo y transparente bajo el actual.
+- Vista previa de la animación con play/pausa (`P`), velocidad en fps y alternancia entre tamaño real y ampliado.
+- Guardar con varios fotogramas los escribe en fila en el PNG, con la disposición y la velocidad en un bloque de texto del archivo, y al abrirlo se recuperan los fotogramas.
+- Diálogo de exportación (`Ctrl+E`): fotograma actual, sprite sheet con columnas a elegir o GIF animado, a escala ×1–×8.
+- Importar un sprite sheet cortándolo en fotogramas del tamaño indicado.
 - Atajos de una tecla para las herramientas (`B` `E` `F` `I` `L` `R` `O` `S` `M`) y `X` para intercambiar colores.
 - Tooltips propios que muestran el nombre y el atajo de cada botón; los botones de solo icono tienen ahora nombre accesible.
 - Contorno sobre el lienzo de los píxeles que pintará la herramienta, con el tamaño de pincel y el espejo.
@@ -21,6 +27,8 @@ y el proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
 ### Cambiado
 
+- Las cuatro entradas **Export PNG ×N** del menú File se sustituyen por **Export…**, que incluye la escala.
+- **Reducir a la paleta** sin selección se aplica a todos los fotogramas.
 - Las acciones de archivo (nuevo, abrir, importar como pixel art, guardar y exportar PNG) pasan a un menú **File** en la cabecera, junto al botón de guardar.
 - El tamaño del lienzo también se aplica pulsando Enter en los campos W/H.
 - `App.tsx` se divide: los atajos de teclado, las acciones de archivo, los avisos y el tamaño del lienzo tienen ahora su propio hook o componente.

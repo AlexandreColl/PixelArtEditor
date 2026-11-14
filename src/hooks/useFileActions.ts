@@ -8,6 +8,7 @@ import type { Palette, PixelData } from '../types'
 import { TRANSPARENT } from '../utils/color'
 import { fileBaseName, imageDataToPixels, loadImageFile, needsConversion, withExtension } from '../utils/image'
 import { PALETTE_EXTENSIONS, formatForPath, parsePalette, serializePalette } from '../utils/palette'
+import { encodeGif } from '../utils/gif'
 import { pixelsToPngDataUrl } from '../utils/png'
 import { addPngText, base64ToBytes, bytesToBase64, readPngText } from '../utils/pngText'
 import {
@@ -191,7 +192,25 @@ export function useFileActions({
   const exportImage = useCallback(
     async ({ kind, scale, columns }: ExportOptions) => {
       try {
-        const suffix = (kind === 'sheet' ? '-sheet' : '') + (scale > 1 ? `@${scale}x` : '')
+        const scaleSuffix = scale > 1 ? `@${scale}x` : ''
+        if (kind === 'gif') {
+          const fp = await save({
+            filters: [{ name: 'GIF Animation', extensions: ['gif'] }],
+            defaultPath: `${fileName}${scaleSuffix}.gif`,
+          })
+          if (!fp) return
+          const { width, height } = frames[0]
+          const gif = encodeGif(
+            frames.map(f => f.pixels),
+            width,
+            height,
+            { fps, scale },
+          )
+          await invoke('save_gif_file', { path: withExtension(fp, 'gif'), base64Data: bytesToBase64(gif) })
+          showToast(`Exported a ${frames.length}-frame GIF`)
+          return
+        }
+        const suffix = (kind === 'sheet' ? '-sheet' : '') + scaleSuffix
         const fp = await save({
           filters: [{ name: 'PNG Image', extensions: ['png'] }],
           defaultPath: `${fileName}${suffix}.png`,
