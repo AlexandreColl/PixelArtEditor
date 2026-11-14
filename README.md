@@ -82,6 +82,7 @@ Características principales:
 - :mag: Zoom y paneo con rueda del ratón (clic central)
 - :rainbow: Paleta editable con colores primario/secundario (clic izquierdo / derecho), que se recuerda entre sesiones
 - :art: Importación y exportación de paletas `.gpl` (GIMP, Aseprite, Krita) y `.hex` (Lospec), y bloqueo del dibujo a la paleta
+- :film_strip: Animación por fotogramas con papel cebolla y vista previa, exportable a GIF o sprite sheet
 
 <p align="right">(<a href="#readme-top">volver arriba</a>)</p>
 
@@ -203,11 +204,28 @@ Más abajo está la paleta activa, con su nombre y número de colores. Se guarda
 
 Con la paleta **bloqueada**, todo lo que se dibuja usa el color de la paleta más cercano: el selector de color y el cuentagotas se ajustan a ella, y lo mismo ocurre con el sombreado y con los resultados del agente IA.
 
-**Reducir a la paleta** cambia cada píxel de la selección (o de todo el lienzo si no hay selección) por el color de la paleta más cercano, en un solo paso que se deshace con `Ctrl+Z`.
+**Reducir a la paleta** cambia cada píxel de la selección (o, si no hay selección, de todos los fotogramas) por el color de la paleta más cercano, en un solo paso que se deshace con `Ctrl+Z`.
 
 ### Formas
 
 Las formas se previsualizan mientras arrastras y se deshacen con un solo `Ctrl+Z`. El clic izquierdo usa el color primario y el derecho el secundario. En rectángulo y elipse, la casilla **Filled** las rellena; en ese caso el tamaño de pincel no se aplica.
+
+### Animación
+
+La tira de fotogramas está bajo el lienzo. Cada fotograma se dibuja por separado; todos comparten tamaño y paleta.
+
+| Acción               | Cómo                                                                                |
+| -------------------- | ----------------------------------------------------------------------------------- |
+| Nuevo fotograma      | Botón `+` (vacío) o duplicar (copia del actual), que se inserta detrás del actual   |
+| Cambiar de fotograma | Clic en la miniatura, o `,` y `.` para el anterior y el siguiente                   |
+| Reordenar            | Arrastra la miniatura                                                               |
+| Borrar               | Botón de papelera (siempre queda al menos uno)                                      |
+| Papel cebolla        | Botón de capas: muestra el fotograma anterior en rojo y transparente bajo el actual |
+| Reproducir           | Botón de play o `P`. La velocidad se ajusta en fps (1–60)                           |
+
+Deshacer y rehacer funcionan sobre toda la animación: si lo que se deshace está en otro fotograma, el editor salta a él.
+
+La vista previa de la izquierda reproduce la animación sin dejar de editar. Un clic sobre ella alterna entre tamaño real y ampliado.
 
 ### Paneo
 
@@ -219,9 +237,10 @@ Las acciones de archivo están en el menú **File** de la cabecera; junto a él 
 
 - **Nuevo lienzo** — **File → New canvas**, de 32×32
 - **Abrir imagen** — `Ctrl+O`, **File → Open…** o arrastra un PNG directamente al editor
-- **Guardar** — `Ctrl+S` o el botón de guardar: abre el diálogo la primera vez y sobrescribe el archivo original en adelante
+- **Guardar** — `Ctrl+S` o el botón de guardar: abre el diálogo la primera vez y sobrescribe el archivo original en adelante. Con varios fotogramas se guardan todos en fila en el mismo PNG, junto con la velocidad, y al abrirlo vuelven a ser fotogramas. Cualquier otro programa lo ve como un sprite sheet normal
 - **Ctrl+Shift+S** — equivalente a Ctrl+S
-- **Exportar PNG escalado** — **File → Export PNG ×1 / ×2 / ×4 / ×8**. Cada píxel se amplía a un bloque exacto, sin suavizado, y la transparencia se conserva. Es una exportación: no cambia el archivo que tienes abierto
+- **Exportar** — `Ctrl+E` o **File → Export…**: el fotograma actual en PNG, un sprite sheet en PNG (con las columnas que elijas) o un GIF animado, a escala ×1, ×2, ×4 u ×8. Cada píxel se amplía a un bloque exacto, sin suavizado. Es una exportación: no cambia el archivo que tienes abierto. El GIF no admite transparencia parcial, así que los píxeles semitransparentes quedan opacos o transparentes
+- **Importar sprite sheet** — **File → Import sprite sheet…**: indica el tamaño de cada fotograma y una cuadrícula muestra cómo se cortará la imagen. Las celdas vacías del final se descartan
 
 ### Convertir una imagen en pixel art
 
@@ -254,10 +273,13 @@ Al abrir o arrastrar una imagen grande (más de 128 px) o con muchos colores, co
 | ----------------------------------- | ------------------------------------------------- |
 | `B` `E` `F` `I` `L` `R` `O` `S` `M` | Elegir herramienta (ver la tabla de herramientas) |
 | `X`                                 | Intercambiar colores primario y secundario        |
+| `,` / `.`                           | Fotograma anterior / siguiente                    |
+| `P`                                 | Reproducir o parar la animación                   |
 | `Ctrl+Z`                            | Deshacer                                          |
 | `Ctrl+Shift+Z` / `Ctrl+Y`           | Rehacer                                           |
 | `Ctrl+S`                            | Guardar PNG                                       |
 | `Ctrl+O`                            | Abrir imagen                                      |
+| `Ctrl+E`                            | Exportar (PNG, sprite sheet o GIF)                |
 | `G`                                 | Mostrar u ocultar la cuadrícula                   |
 | `Ctrl+0`                            | Ajustar el lienzo a la ventana                    |
 | `Ctrl+C` / `Ctrl+X` / `Ctrl+V`      | Copiar, cortar y pegar la selección               |
@@ -311,6 +333,9 @@ pixel-art-editor/
 │   │   ├── Toolbar.tsx         # Barra de herramientas
 │   │   ├── ColorPalette.tsx    # Colores actuales y paleta editable
 │   │   ├── FileMenu.tsx        # Menú File: nuevo, abrir, importar, guardar y exportar
+│   │   ├── Timeline.tsx        # Tira de fotogramas
+│   │   ├── AnimationPreview.tsx # Vista previa de la animación
+│   │   ├── ExportDialog.tsx    # Exportar fotograma, sprite sheet o GIF
 │   │   └── AIChat.tsx          # Panel de chat con IA
 │   ├── hooks/
 │   │   ├── useEditor.ts        # Estado global, herramientas e historial
@@ -326,7 +351,7 @@ pixel-art-editor/
 │   └── App.tsx                 # Layout principal: une el editor, la paleta y los paneles
 ├── src-tauri/                  # Backend Rust (Tauri)
 │   ├── src/
-│   │   └── lib.rs              # Comandos Tauri (save_png_file, save_palette_file)
+│   │   └── lib.rs              # Comandos Tauri (save_png_file, save_gif_file, save_palette_file)
 │   ├── capabilities/
 │   │   └── default.json        # Permisos de plugins
 │   ├── icons/                  # Iconos de la aplicación
@@ -372,13 +397,13 @@ pixel-art-editor/
 - [x] Bloquear el dibujo a la paleta activa y reducir el lienzo a ella
 - [x] Exportar PNG escalado (×2, ×4, ×8)
 
-### 0.4 — Animación
+### ✅ 0.4 — Animación
 
-- [ ] Varios fotogramas por proyecto
-- [ ] Papel cebolla (fotograma anterior en transparencia)
-- [ ] Vista previa de la animación
-- [ ] Exportar a GIF
-- [ ] Exportar sprite sheet (los fotogramas en una sola imagen)
+- [x] Varios fotogramas por proyecto
+- [x] Papel cebolla (fotograma anterior en transparencia)
+- [x] Vista previa de la animación
+- [x] Exportar a GIF
+- [x] Exportar sprite sheet (los fotogramas en una sola imagen) e importarlo
 
 ### 0.5 — Capas y proyectos
 
