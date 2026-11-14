@@ -5,7 +5,7 @@ import { framesToSheet } from '../utils/spriteSheet'
 import Dialog, { fieldStyle, labelText } from './Dialog'
 import { FrameImage } from './Timeline'
 
-export type ExportKind = 'frame' | 'sheet'
+export type ExportKind = 'frame' | 'sheet' | 'gif'
 
 export interface ExportOptions {
   kind: ExportKind
@@ -17,6 +17,7 @@ export interface ExportOptions {
 interface ExportDialogProps {
   frames: PixelData[]
   currentFrame: number
+  fps: number
   onExport: (options: ExportOptions) => void
   onCancel: () => void
 }
@@ -24,11 +25,12 @@ interface ExportDialogProps {
 const KINDS: { kind: ExportKind; label: string; hint: string }[] = [
   { kind: 'frame', label: 'Current frame', hint: 'PNG of the frame being edited' },
   { kind: 'sheet', label: 'Sprite sheet', hint: 'PNG with every frame, for game engines' },
+  { kind: 'gif', label: 'Animated GIF', hint: 'Plays anywhere; no partial transparency' },
 ]
 
 const PREVIEW_BOX = 280
 
-export default function ExportDialog({ frames, currentFrame, onExport, onCancel }: ExportDialogProps) {
+export default function ExportDialog({ frames, currentFrame, fps, onExport, onCancel }: ExportDialogProps) {
   const [kind, setKind] = useState<ExportKind>(frames.length > 1 ? 'sheet' : 'frame')
   const [scale, setScale] = useState(1)
   // One row by default, which every engine can read
@@ -39,7 +41,7 @@ export default function ExportDialog({ frames, currentFrame, onExport, onCancel 
   const rows = Math.ceil(frames.length / cols)
 
   const preview = useMemo(() => {
-    if (kind === 'frame') return frames[currentFrame]
+    if (kind !== 'sheet') return frames[currentFrame]
     return framesToSheet(
       frames.map(f => f.pixels),
       width,
@@ -97,6 +99,7 @@ export default function ExportDialog({ frames, currentFrame, onExport, onCancel 
 
         <span style={{ fontSize: 12, color: '#888', paddingBottom: 6 }}>
           {kind === 'sheet' && `${cols} × ${rows} · `}
+          {kind === 'gif' && `${frames.length} frames at ${fps} fps · `}
           {outW}×{outH} px
         </span>
       </div>

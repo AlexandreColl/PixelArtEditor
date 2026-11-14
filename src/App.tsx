@@ -338,6 +338,7 @@ export default function App() {
         <ExportDialog
           frames={state.frames}
           currentFrame={state.currentFrame}
+          fps={state.fps}
           onExport={options => {
             setExportOpen(false)
             files.exportImage(options)

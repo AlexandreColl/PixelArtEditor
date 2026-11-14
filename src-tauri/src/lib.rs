@@ -16,18 +16,29 @@ fn write_file(path: &Path, bytes: &[u8]) -> Result<(), String> {
     fs::write(path, bytes).map_err(|e| format!("write error: {}", e))
 }
 
+fn write_base64_file(path: &Path, base64_data: &str) -> Result<(), String> {
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(base64_data)
+        .map_err(|e| format!("base64 decode error: {}", e))?;
+    write_file(path, &bytes)
+}
+
 #[tauri::command]
 fn save_png_file(path: String, base64_data: String) -> Result<(), String> {
     let p = Path::new(&path);
     if !has_extension(p, &["png"]) {
         return Err("only .png files can be saved".to_string());
     }
+    write_base64_file(p, &base64_data)
+}
 
-    let bytes = base64::engine::general_purpose::STANDARD
-        .decode(&base64_data)
-        .map_err(|e| format!("base64 decode error: {}", e))?;
-
-    write_file(p, &bytes)
+#[tauri::command]
+fn save_gif_file(path: String, base64_data: String) -> Result<(), String> {
+    let p = Path::new(&path);
+    if !has_extension(p, &["gif"]) {
+        return Err("only .gif files can be saved".to_string());
+    }
+    write_base64_file(p, &base64_data)
 }
 
 #[tauri::command]
@@ -44,7 +55,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
-        .invoke_handler(tauri::generate_handler![save_png_file, save_palette_file])
+        .invoke_handler(tauri::generate_handler![save_png_file, save_gif_file, save_palette_file])
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -69,5 +80,6 @@ mod tests {
         assert!(has_extension(Path::new("pal.hex"), &["gpl", "hex"]));
         assert!(!has_extension(Path::new("pal.hex.exe"), &["gpl", "hex"]));
         assert!(!has_extension(Path::new("noext"), &["png"]));
+        assert!(!has_extension(Path::new("anim.gif"), &["png"]));
     }
 }
