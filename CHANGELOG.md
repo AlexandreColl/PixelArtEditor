@@ -7,6 +7,34 @@ y el proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-14
+
+### Añadido
+
+- Animación por fotogramas: tira de fotogramas para añadir, duplicar, borrar y reordenar, y `,` / `.` para moverse entre ellos. Deshacer y rehacer cubren toda la animación.
+- Papel cebolla: el fotograma anterior se ve en rojo y transparente bajo el actual.
+- Vista previa de la animación con play/pausa (`P`), velocidad en fps y alternancia entre tamaño real y ampliado.
+- Guardar con varios fotogramas los escribe en fila en el PNG, con la disposición y la velocidad en un bloque de texto del archivo, y al abrirlo se recuperan los fotogramas.
+- Diálogo de exportación (`Ctrl+E`): fotograma actual, sprite sheet con columnas a elegir o GIF animado, a escala ×1–×8.
+- Importar un sprite sheet cortándolo en fotogramas del tamaño indicado.
+- Atajos de una tecla para las herramientas (`B` `E` `F` `I` `L` `R` `O` `S` `M`) y `X` para intercambiar colores.
+- Tooltips propios que muestran el nombre y el atajo de cada botón; los botones de solo icono tienen ahora nombre accesible.
+- Contorno sobre el lienzo de los píxeles que pintará la herramienta, con el tamaño de pincel y el espejo.
+- Coordenadas y color del píxel bajo el cursor, y tamaño de la selección, en la barra de estado.
+- Selector de color integrado (saturación/brillo, tono y campo hexadecimal) siempre visible, y colores primario y secundario superpuestos con botón de intercambio.
+
+### Corregido
+
+- Los píxeles transparentes se pintaban de gris `#e0e0e0` y no se distinguían de ese color; ahora se ven sobre un fondo de cuadros, y los semitransparentes se ven como al exportar.
+
+### Cambiado
+
+- Las cuatro entradas **Export PNG ×N** del menú File se sustituyen por **Export…**, que incluye la escala.
+- **Reducir a la paleta** sin selección se aplica a todos los fotogramas.
+- Las acciones de archivo (nuevo, abrir, importar como pixel art, guardar y exportar PNG) pasan a un menú **File** en la cabecera, junto al botón de guardar.
+- El tamaño del lienzo también se aplica pulsando Enter en los campos W/H.
+- `App.tsx` se divide: los atajos de teclado, las acciones de archivo, los avisos y el tamaño del lienzo tienen ahora su propio hook o componente.
+
 ## [0.3.0] - 2026-11-10
 
 Paletas editables con importación y exportación, bloqueo del dibujo a la paleta, tests automáticos y toolchain actualizado.
@@ -69,7 +97,8 @@ Primera versión pública.
 - Barra de herramientas con iconos de lucide-react.
 - Scripts `dev.bat` / `build.bat` y helper `scripts/dev.ps1` para Windows.
 
-[Unreleased]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/AlexandreColl/PixelArtEditor/releases/tag/v0.1.0

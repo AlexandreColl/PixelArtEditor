@@ -1,8 +1,13 @@
 import { useRef, useEffect, useCallback, useImperativeHandle, useState } from 'react'
 import type { PixelData, Tool, ShapeTool, Selection } from '../types'
-import { TRANSPARENT, parseColor } from '../utils/color'
+import { brushFootprints } from '../utils/brush'
+import { TRANSPARENT } from '../utils/color'
+import { drawPixels } from '../utils/png'
 
 const cursorMap: Record<string, string> = {
+  pencil: 'crosshair',
+  eraser: 'crosshair',
+  shade: 'crosshair',
   fill: 'crosshair',
   picker: 'crosshair',
   selection: 'crosshair',
@@ -20,7 +25,41 @@ export interface CanvasHandle {
   resetPan: () => void
 }
 
-type Point = { x: number; y: number }
+export type Point = { x: number; y: number }
+
+/** Size of the square the tool paints, shown around the pointer; null for tools that do not paint. */
+function footprintSize(tool: Tool, brushSize: number, shapeFilled: boolean): number | null {
+  if (tool === 'pencil' || tool === 'eraser' || tool === 'line') return brushSize
+  if (tool === 'rect' || tool === 'ellipse') return shapeFilled ? 1 : brushSize
+  if (tool === 'shade' || tool === 'fill' || tool === 'picker') return 1
+  return null
+}
+
+/** Side, in screen pixels, of each square of the transparency checkerboard; it does not change with zoom */
+const CHECKER_SIZE = 8
+const CHECKER_LIGHT = '#f0f0f0'
+const CHECKER_DARK = '#cfcfcf'
+
+let checkerTile: HTMLCanvasElement | null = null
+
+/** A 2x2 checker tile, created once and repeated as a pattern behind the pixels. */
+function getCheckerTile(): HTMLCanvasElement {
+  if (checkerTile) return checkerTile
+  const tile = document.createElement('canvas')
+  tile.width = tile.height = CHECKER_SIZE * 2
+  const ctx = tile.getContext('2d')!
+  ctx.fillStyle = CHECKER_LIGHT
+  ctx.fillRect(0, 0, CHECKER_SIZE * 2, CHECKER_SIZE * 2)
+  ctx.fillStyle = CHECKER_DARK
+  ctx.fillRect(CHECKER_SIZE, 0, CHECKER_SIZE, CHECKER_SIZE)
+  ctx.fillRect(0, CHECKER_SIZE, CHECKER_SIZE, CHECKER_SIZE)
+  checkerTile = tile
+  return tile
+}
+
+/** How the previous frame shows under the current one with onion skin: faint and tinted red */
+const ONION_ALPHA = 0.35
+const ONION_TINT = 'rgba(255, 70, 70, 0.55)'
 
 /** Below this zoom the grid lines would hide the pixels, so they are not drawn */
 const MIN_GRID_ZOOM = 4
@@ -31,6 +70,8 @@ interface CanvasProps {
   mirrorX: boolean
   mirrorY: boolean
   pixelData: PixelData
+  /** Frame shown faintly under the canvas (onion skin), or null */
+  onionFrame?: PixelData | null
   tool: Tool
   primaryColor: string
   secondaryColor: string
@@ -60,6 +101,8 @@ interface CanvasProps {
   onMoveStart: (copy: boolean) => boolean
   onMoveTo: (x: number, y: number) => void
   onZoomStep: (direction: 1 | -1) => void
+  /** The pixel under the pointer, or null when it leaves the canvas */
+  onHoverPixel?: (pixel: Point | null) => void
 }
 
 export default function Canvas({
@@ -68,6 +111,7 @@ export default function Canvas({
   mirrorX,
   mirrorY,
   pixelData,
+  onionFrame = null,
   tool,
   primaryColor,
   secondaryColor,
@@ -87,10 +131,12 @@ export default function Canvas({
   onMoveStart,
   onMoveTo,
   onZoomStep,
+  onHoverPixel,
 }: CanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const textureRef = useRef<HTMLCanvasElement | null>(null)
+  const onionTextureRef = useRef<HTMLCanvasElement | null>(null)
   // Refs rather than state so pointer events that arrive before the next render see the stroke
   const isDrawingRef = useRef(false)
   const strokeColorRef = useRef(primaryColor)
@@ -105,6 +151,9 @@ export default function Canvas({
   // Drag of an existing selection: where the pointer started and where the selection was
   const moveRef = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null)
   const [hoverInSelection, setHoverInSelection] = useState(false)
+  // Pixel under the pointer, to outline what the tool will paint
+  const [hover, setHoverState] = useState<Point | null>(null)
+  const hoverRef = useRef<Point | null>(null)
 
   const { width, height, pixels } = pixelData
 
@@ -136,23 +185,32 @@ export default function Canvas({
     canvas.width = cw
     canvas.height = ch
     ctx.imageSmoothingEnabled = false
+    // Transparent and partly transparent pixels show the checkerboard through, as they will look when exported
+    ctx.fillStyle = ctx.createPattern(getCheckerTile(), 'repeat')!
+    ctx.fillRect(0, 0, cw, ch)
+    const onion = onionTextureRef.current
+    if (onion && onion.width === width && onion.height === height) {
+      ctx.globalAlpha = ONION_ALPHA
+      ctx.drawImage(onion, 0, 0, cw, ch)
+      ctx.globalAlpha = 1
+    }
     ctx.drawImage(tc, 0, 0, cw, ch)
 
     if (showGrid && pixelSize >= MIN_GRID_ZOOM) {
-      ctx.strokeStyle = '#c0c0c0'
-      ctx.lineWidth = 0.5
-      for (let x = 0; x <= width; x++) {
-        ctx.beginPath()
-        ctx.moveTo(x * pixelSize, 0)
-        ctx.lineTo(x * pixelSize, ch)
-        ctx.stroke()
+      // Mid gray, half transparent: visible on the checkerboard, on light and on dark pixels
+      ctx.strokeStyle = 'rgba(128, 128, 128, 0.55)'
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      // +0.5 keeps the 1px lines crisp instead of blurred across two device pixels
+      for (let x = 1; x < width; x++) {
+        ctx.moveTo(x * pixelSize + 0.5, 0)
+        ctx.lineTo(x * pixelSize + 0.5, ch)
       }
-      for (let y = 0; y <= height; y++) {
-        ctx.beginPath()
-        ctx.moveTo(0, y * pixelSize)
-        ctx.lineTo(cw, y * pixelSize)
-        ctx.stroke()
+      for (let y = 1; y < height; y++) {
+        ctx.moveTo(0, y * pixelSize + 0.5)
+        ctx.lineTo(cw, y * pixelSize + 0.5)
       }
+      ctx.stroke()
     }
 
     // Symmetry axes, so it is clear where drawing is mirrored
@@ -199,40 +257,78 @@ export default function Canvas({
       ctx.strokeRect(rx, ry, rw, rh)
       ctx.setLineDash([])
     }
-  }, [zoom, selection, selDrag, width, height, showGrid, mirrorX, mirrorY])
+
+    // Outline of what the tool will paint, mirrored like the stroke; dark and light so it shows on any color
+    const size = hover && !isPanning ? footprintSize(tool, brushSize, shapeFilled) : null
+    if (hover && size !== null) {
+      const mirrored = tool !== 'fill' && tool !== 'picker' && tool !== 'shade'
+      ctx.save()
+      for (const sq of brushFootprints(
+        hover.x,
+        hover.y,
+        size,
+        width,
+        height,
+        mirrored && mirrorX,
+        mirrored && mirrorY,
+      )) {
+        const x = sq.x * pixelSize
+        const y = sq.y * pixelSize
+        const w = sq.width * pixelSize
+        const h = sq.height * pixelSize
+        ctx.lineWidth = 1
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.75)'
+        ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1)
+        if (w > 3 && h > 3) {
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)'
+          ctx.strokeRect(x + 1.5, y + 1.5, w - 3, h - 3)
+        }
+      }
+      ctx.restore()
+    }
+  }, [
+    zoom,
+    selection,
+    selDrag,
+    width,
+    height,
+    showGrid,
+    mirrorX,
+    mirrorY,
+    hover,
+    isPanning,
+    tool,
+    brushSize,
+    shapeFilled,
+  ])
 
   const drawRef = useRef(draw)
   drawRef.current = draw
 
   useEffect(() => {
     const tc = document.createElement('canvas')
-    tc.width = width
-    tc.height = height
-    const tctx = tc.getContext('2d')!
-    const imageData = tctx.createImageData(width, height)
-    const data = imageData.data
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const color = pixels[y]?.[x] ?? TRANSPARENT
-        const i = (y * width + x) * 4
-        const [r, g, b, a] = parseColor(color) ?? [0, 0, 0, 0]
-        if (a === 0) {
-          data[i] = 224
-          data[i + 1] = 224
-          data[i + 2] = 224
-          data[i + 3] = 255
-        } else {
-          data[i] = r
-          data[i + 1] = g
-          data[i + 2] = b
-          data[i + 3] = a
-        }
-      }
-    }
-    tctx.putImageData(imageData, 0, 0)
+    drawPixels(tc, pixels, width, height)
     textureRef.current = tc
     drawRef.current()
   }, [pixels, width, height])
+
+  useEffect(() => {
+    if (!onionFrame) {
+      onionTextureRef.current = null
+    } else {
+      const tc = document.createElement('canvas')
+      drawPixels(tc, onionFrame.pixels, onionFrame.width, onionFrame.height)
+      // Tint only where the frame has pixels, so it can't be mistaken for the real ones
+      const tctx = tc.getContext('2d')
+      if (tctx) {
+        tctx.globalCompositeOperation = 'source-atop'
+        tctx.fillStyle = ONION_TINT
+        tctx.fillRect(0, 0, tc.width, tc.height)
+      }
+      onionTextureRef.current = tc
+    }
+    drawRef.current()
+  }, [onionFrame])
 
   useEffect(() => {
     draw()
@@ -271,6 +367,17 @@ export default function Canvas({
       return { x: Math.floor((clientX - rect.left) / zoom), y: Math.floor((clientY - rect.top) / zoom) }
     },
     [zoom],
+  )
+
+  const setHover = useCallback(
+    (pixel: Point | null) => {
+      const prev = hoverRef.current
+      if (prev === pixel || (prev && pixel && prev.x === pixel.x && prev.y === pixel.y)) return
+      hoverRef.current = pixel
+      setHoverState(pixel)
+      onHoverPixel?.(pixel)
+    },
+    [onHoverPixel],
   )
 
   const setSelDrag = useCallback((drag: { start: Point; end: Point } | null) => {
@@ -361,6 +468,8 @@ export default function Canvas({
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
+      setHover(getPixelCoords(e.clientX, e.clientY))
+
       if (isPanning) {
         setPan({ x: e.clientX - panStartRef.current.x, y: e.clientY - panStartRef.current.y })
         return
@@ -412,6 +521,7 @@ export default function Canvas({
       isPanning,
       tool,
       selection,
+      setHover,
       getPixelCoords,
       getRawCoords,
       setSelDrag,
@@ -473,7 +583,10 @@ export default function Canvas({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        onPointerLeave={handlePointerUp}
+        onPointerLeave={() => {
+          handlePointerUp()
+          setHover(null)
+        }}
         onContextMenu={e => e.preventDefault()}
         style={{
           display: 'block',

@@ -82,6 +82,7 @@ Características principales:
 - :mag: Zoom y paneo con rueda del ratón (clic central)
 - :rainbow: Paleta editable con colores primario/secundario (clic izquierdo / derecho), que se recuerda entre sesiones
 - :art: Importación y exportación de paletas `.gpl` (GIMP, Aseprite, Krita) y `.hex` (Lospec), y bloqueo del dibujo a la paleta
+- :film_strip: Animación por fotogramas con papel cebolla y vista previa, exportable a GIF o sprite sheet
 
 <p align="right">(<a href="#readme-top">volver arriba</a>)</p>
 
@@ -147,17 +148,19 @@ Si prefieres compilarlo desde el código fuente, sigue estos pasos.
 
 ### Herramientas
 
-| Icono          | Herramienta       | Descripción                                      |
-| -------------- | ----------------- | ------------------------------------------------ |
-| `Pencil`       | Lápiz             | Dibuja píxel a píxel con el color primario       |
-| `Eraser`       | Borrador          | Elimina píxeles (los deja transparentes)         |
-| `PaintBucket`  | Bote de pintura   | Rellena una región conectada del mismo color     |
-| `Pipette`      | Selector de color | Captura el color de un píxel                     |
-| `Slash`        | Línea             | Arrastra para dibujar una línea recta            |
-| `Square`       | Rectángulo        | Arrastra para dibujar un rectángulo              |
-| `Circle`       | Elipse            | Arrastra para dibujar una elipse                 |
-| `Blend`        | Sombreado         | Difumina mezclando colores de píxeles adyacentes |
-| `MousePointer` | Selección         | Selecciona una región rectangular                |
+| Tecla | Herramienta       | Descripción                                      |
+| ----- | ----------------- | ------------------------------------------------ |
+| `B`   | Lápiz             | Dibuja píxel a píxel con el color primario       |
+| `E`   | Borrador          | Elimina píxeles (los deja transparentes)         |
+| `F`   | Bote de pintura   | Rellena una región conectada del mismo color     |
+| `I`   | Selector de color | Captura el color de un píxel                     |
+| `L`   | Línea             | Arrastra para dibujar una línea recta            |
+| `R`   | Rectángulo        | Arrastra para dibujar un rectángulo              |
+| `O`   | Elipse            | Arrastra para dibujar una elipse                 |
+| `S`   | Sombreado         | Difumina mezclando colores de píxeles adyacentes |
+| `M`   | Selección         | Selecciona una región rectangular                |
+
+Al pasar el ratón por un botón aparece su nombre y su atajo. Sobre el lienzo, un contorno marca los píxeles que pintará la herramienta (con el tamaño de pincel y el espejo aplicados), y la barra de estado muestra las coordenadas y el color del píxel bajo el cursor y el tamaño de la selección. Las zonas transparentes se ven como un fondo de cuadros.
 
 ### Tamaño de pincel
 
@@ -184,7 +187,9 @@ Los botones `FlipHorizontal` y `FlipVertical` de la barra lateral activan el esp
 
 ### Paleta
 
-El panel derecho muestra la paleta activa, con su nombre y número de colores. Se guarda entre sesiones.
+Arriba del panel derecho están los colores primario (delante) y secundario (detrás); el botón de flechas o `X` los intercambia. Debajo, el selector de color edita el primario: el cuadro elige saturación y brillo, la barra el tono, y el campo **Hex** acepta `#rgb` o `#rrggbb`, con o sin `#` (Enter aplica, Esc descarta).
+
+Más abajo está la paleta activa, con su nombre y número de colores. Se guarda entre sesiones.
 
 | Acción                   | Cómo                                                                                                    |
 | ------------------------ | ------------------------------------------------------------------------------------------------------- |
@@ -199,11 +204,28 @@ El panel derecho muestra la paleta activa, con su nombre y número de colores. S
 
 Con la paleta **bloqueada**, todo lo que se dibuja usa el color de la paleta más cercano: el selector de color y el cuentagotas se ajustan a ella, y lo mismo ocurre con el sombreado y con los resultados del agente IA.
 
-**Reducir a la paleta** cambia cada píxel de la selección (o de todo el lienzo si no hay selección) por el color de la paleta más cercano, en un solo paso que se deshace con `Ctrl+Z`.
+**Reducir a la paleta** cambia cada píxel de la selección (o, si no hay selección, de todos los fotogramas) por el color de la paleta más cercano, en un solo paso que se deshace con `Ctrl+Z`.
 
 ### Formas
 
 Las formas se previsualizan mientras arrastras y se deshacen con un solo `Ctrl+Z`. El clic izquierdo usa el color primario y el derecho el secundario. En rectángulo y elipse, la casilla **Filled** las rellena; en ese caso el tamaño de pincel no se aplica.
+
+### Animación
+
+La tira de fotogramas está bajo el lienzo. Cada fotograma se dibuja por separado; todos comparten tamaño y paleta.
+
+| Acción               | Cómo                                                                                |
+| -------------------- | ----------------------------------------------------------------------------------- |
+| Nuevo fotograma      | Botón `+` (vacío) o duplicar (copia del actual), que se inserta detrás del actual   |
+| Cambiar de fotograma | Clic en la miniatura, o `,` y `.` para el anterior y el siguiente                   |
+| Reordenar            | Arrastra la miniatura                                                               |
+| Borrar               | Botón de papelera (siempre queda al menos uno)                                      |
+| Papel cebolla        | Botón de capas: muestra el fotograma anterior en rojo y transparente bajo el actual |
+| Reproducir           | Botón de play o `P`. La velocidad se ajusta en fps (1–60)                           |
+
+Deshacer y rehacer funcionan sobre toda la animación: si lo que se deshace está en otro fotograma, el editor salta a él.
+
+La vista previa de la izquierda reproduce la animación sin dejar de editar. Un clic sobre ella alterna entre tamaño real y ampliado.
 
 ### Paneo
 
@@ -211,14 +233,18 @@ Usa el **botón central del ratón** (rueda) para arrastrar la vista.
 
 ### Carga y guardado
 
-- **Abrir imagen** — `Ctrl+O` o arrastra un PNG directamente al editor
-- **Guardar** — `Ctrl+S` abre el diálogo la primera vez y sobrescribe el archivo original en adelante
+Las acciones de archivo están en el menú **File** de la cabecera; junto a él queda el botón de guardar.
+
+- **Nuevo lienzo** — **File → New canvas**, de 32×32
+- **Abrir imagen** — `Ctrl+O`, **File → Open…** o arrastra un PNG directamente al editor
+- **Guardar** — `Ctrl+S` o el botón de guardar: abre el diálogo la primera vez y sobrescribe el archivo original en adelante. Con varios fotogramas se guardan todos en fila en el mismo PNG, junto con la velocidad, y al abrirlo vuelven a ser fotogramas. Cualquier otro programa lo ve como un sprite sheet normal
 - **Ctrl+Shift+S** — equivalente a Ctrl+S
-- **Exportar PNG escalado** — botón `ImageDown` junto a Guardar, con escala ×1, ×2, ×4 u ×8. Cada píxel se amplía a un bloque exacto, sin suavizado, y la transparencia se conserva. Es una exportación: no cambia el archivo que tienes abierto
+- **Exportar** — `Ctrl+E` o **File → Export…**: el fotograma actual en PNG, un sprite sheet en PNG (con las columnas que elijas) o un GIF animado, a escala ×1, ×2, ×4 u ×8. Cada píxel se amplía a un bloque exacto, sin suavizado. Es una exportación: no cambia el archivo que tienes abierto. El GIF no admite transparencia parcial, así que los píxeles semitransparentes quedan opacos o transparentes
+- **Importar sprite sheet** — **File → Import sprite sheet…**: indica el tamaño de cada fotograma y una cuadrícula muestra cómo se cortará la imagen. Las celdas vacías del final se descartan
 
 ### Convertir una imagen en pixel art
 
-Al abrir o arrastrar una imagen grande (más de 128 px) o con muchos colores, como una foto, aparece el diálogo **Convert to pixel art**. Para convertir también imágenes pequeñas, usa el botón `ImagePlus` (**Import image as pixel art**).
+Al abrir o arrastrar una imagen grande (más de 128 px) o con muchos colores, como una foto, aparece el diálogo **Convert to pixel art**. Para convertir también imágenes pequeñas, usa **File → Import image as pixel art…**.
 
 | Opción                 | Descripción                                                                                                              |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------ |
@@ -243,19 +269,24 @@ Al abrir o arrastrar una imagen grande (más de 128 px) o con muchos colores, co
 
 ## ⌨️ Atajos de Teclado
 
-| Tecla                          | Acción                              |
-| ------------------------------ | ----------------------------------- |
-| `Ctrl+Z`                       | Deshacer                            |
-| `Ctrl+Shift+Z` / `Ctrl+Y`      | Rehacer                             |
-| `Ctrl+S`                       | Guardar PNG                         |
-| `Ctrl+O`                       | Abrir imagen                        |
-| `G`                            | Mostrar u ocultar la cuadrícula     |
-| `Ctrl+0`                       | Ajustar el lienzo a la ventana      |
-| `Ctrl+C` / `Ctrl+X` / `Ctrl+V` | Copiar, cortar y pegar la selección |
-| `Ctrl+A`                       | Seleccionar todo                    |
-| `Supr`                         | Borrar la selección                 |
-| `Esc`                          | Deseleccionar                       |
-| Flechas                        | Mover la selección 1 píxel          |
+| Tecla                               | Acción                                            |
+| ----------------------------------- | ------------------------------------------------- |
+| `B` `E` `F` `I` `L` `R` `O` `S` `M` | Elegir herramienta (ver la tabla de herramientas) |
+| `X`                                 | Intercambiar colores primario y secundario        |
+| `,` / `.`                           | Fotograma anterior / siguiente                    |
+| `P`                                 | Reproducir o parar la animación                   |
+| `Ctrl+Z`                            | Deshacer                                          |
+| `Ctrl+Shift+Z` / `Ctrl+Y`           | Rehacer                                           |
+| `Ctrl+S`                            | Guardar PNG                                       |
+| `Ctrl+O`                            | Abrir imagen                                      |
+| `Ctrl+E`                            | Exportar (PNG, sprite sheet o GIF)                |
+| `G`                                 | Mostrar u ocultar la cuadrícula                   |
+| `Ctrl+0`                            | Ajustar el lienzo a la ventana                    |
+| `Ctrl+C` / `Ctrl+X` / `Ctrl+V`      | Copiar, cortar y pegar la selección               |
+| `Ctrl+A`                            | Seleccionar todo                                  |
+| `Supr`                              | Borrar la selección                               |
+| `Esc`                               | Deseleccionar                                     |
+| Flechas                             | Mover la selección 1 píxel                        |
 
 <p align="right">(<a href="#readme-top">volver arriba</a>)</p>
 
@@ -297,13 +328,19 @@ Puedes hacer doble clic en `build.bat` o `dev.bat` para compilar o ejecutar sin 
 ```
 pixel-art-editor/
 ├── src/                        # Frontend React
-│   ├── components/             # Canvas, Toolbar, ColorPalette, AIChat, ConvertDialog
+│   ├── components/             # Canvas, Toolbar, ColorPalette, AIChat, ConvertDialog, FileMenu…
 │   │   ├── Canvas.tsx          # Lienzo con zoom, grid y dibujo
 │   │   ├── Toolbar.tsx         # Barra de herramientas
 │   │   ├── ColorPalette.tsx    # Colores actuales y paleta editable
+│   │   ├── FileMenu.tsx        # Menú File: nuevo, abrir, importar, guardar y exportar
+│   │   ├── Timeline.tsx        # Tira de fotogramas
+│   │   ├── AnimationPreview.tsx # Vista previa de la animación
+│   │   ├── ExportDialog.tsx    # Exportar fotograma, sprite sheet o GIF
 │   │   └── AIChat.tsx          # Panel de chat con IA
 │   ├── hooks/
 │   │   ├── useEditor.ts        # Estado global, herramientas e historial
+│   │   ├── useFileActions.ts   # Abrir, guardar y exportar imágenes y paletas
+│   │   ├── useKeyboardShortcuts.ts # Atajos de teclado globales
 │   │   └── usePalette.ts       # Paleta activa y bloqueo, guardados entre sesiones
 │   ├── ai/
 │   │   ├── openai.ts           # Cliente OpenAI (visión + JSON)
@@ -311,10 +348,10 @@ pixel-art-editor/
 │   │   └── gemini.ts           # Cliente Google Gemini
 │   ├── types/
 │   │   └── index.ts            # Tipos compartidos
-│   └── App.tsx                 # Layout principal y lógica de guardado
+│   └── App.tsx                 # Layout principal: une el editor, la paleta y los paneles
 ├── src-tauri/                  # Backend Rust (Tauri)
 │   ├── src/
-│   │   └── lib.rs              # Comandos Tauri (save_png_file, save_palette_file)
+│   │   └── lib.rs              # Comandos Tauri (save_png_file, save_gif_file, save_palette_file)
 │   ├── capabilities/
 │   │   └── default.json        # Permisos de plugins
 │   ├── icons/                  # Iconos de la aplicación
@@ -360,13 +397,13 @@ pixel-art-editor/
 - [x] Bloquear el dibujo a la paleta activa y reducir el lienzo a ella
 - [x] Exportar PNG escalado (×2, ×4, ×8)
 
-### 0.4 — Animación
+### ✅ 0.4 — Animación
 
-- [ ] Varios fotogramas por proyecto
-- [ ] Papel cebolla (fotograma anterior en transparencia)
-- [ ] Vista previa de la animación
-- [ ] Exportar a GIF
-- [ ] Exportar sprite sheet (los fotogramas en una sola imagen)
+- [x] Varios fotogramas por proyecto
+- [x] Papel cebolla (fotograma anterior en transparencia)
+- [x] Vista previa de la animación
+- [x] Exportar a GIF
+- [x] Exportar sprite sheet (los fotogramas en una sola imagen) e importarlo
 
 ### 0.5 — Capas y proyectos
 
