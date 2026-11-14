@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { open, save } from '@tauri-apps/plugin-dialog'
 import { readFile } from '@tauri-apps/plugin-fs'
 import { MAX_ORIGINAL_SIZE } from '../components/ConvertDialog'
+import type { ExportOptions } from '../components/ExportDialog'
 import type { Palette, PixelData } from '../types'
 import { TRANSPARENT } from '../utils/color'
 import { fileBaseName, imageDataToPixels, loadImageFile, needsConversion, withExtension } from '../utils/image'
@@ -75,6 +76,8 @@ export function useFileActions({
   const filePathRef = useRef<string | null>(null)
   const [fileName, setFileName] = useState('untitled')
   const [pendingImage, setPendingImage] = useState<PendingImage | null>(null)
+  // An image waiting for its frame size in the sprite sheet dialog
+  const [pendingSheet, setPendingSheet] = useState<{ image: ImageData; name: string } | null>(null)
 
   const setFile = useCallback((path: string | null, name: string) => {
     filePathRef.current = path
@@ -181,24 +184,76 @@ export function useFileActions({
     if (fp) await saveTo(withExtension(fp, 'png'))
   }, [saveTo, fileName])
 
-  /** Saves a scaled copy as a new file; unlike Save it leaves the current file path and name alone. */
-  const exportPng = useCallback(
-    async (scale: number) => {
+  /**
+   * Writes the current frame or a sprite sheet, scaled, as a new file;
+   * unlike Save it leaves the current file path and name alone.
+   */
+  const exportImage = useCallback(
+    async ({ kind, scale, columns }: ExportOptions) => {
       try {
+        const suffix = (kind === 'sheet' ? '-sheet' : '') + (scale > 1 ? `@${scale}x` : '')
         const fp = await save({
           filters: [{ name: 'PNG Image', extensions: ['png'] }],
-          defaultPath: `${fileName}@${scale}x.png`,
+          defaultPath: `${fileName}${suffix}.png`,
         })
         if (!fp) return
-        await savePngFile(pixelData, withExtension(fp, 'png'), scale)
-        showToast(`Exported ${pixelData.width * scale}x${pixelData.height * scale} PNG`)
+        const path = withExtension(fp, 'png')
+        if (kind === 'frame') {
+          await savePngFile(pixelData, path, scale)
+          showToast(`Exported ${pixelData.width * scale}x${pixelData.height * scale} PNG`)
+          return
+        }
+        const { width, height } = frames[0]
+        const sheet = framesToSheet(
+          frames.map(f => f.pixels),
+          width,
+          height,
+          columns,
+        )
+        // The layout goes in the file too, so the editor opens it back as frames
+        await savePngFile(sheet, path, scale, {
+          frames: frames.length,
+          frameWidth: width * scale,
+          frameHeight: height * scale,
+          columns: Math.min(columns, frames.length),
+          fps,
+        })
+        showToast(`Exported a ${sheet.width * scale}x${sheet.height * scale} sprite sheet`)
       } catch (err) {
         showToast('Export failed')
         console.error(err)
       }
     },
-    [pixelData, fileName, showToast],
+    [pixelData, frames, fps, fileName, showToast],
   )
+
+  /** Opens an image to cut into frames; the sprite sheet dialog asks for the frame size. */
+  const openSpriteSheet = useCallback(
+    async (file: File) => {
+      try {
+        setPendingSheet({ image: await loadImageFile(file), name: fileBaseName(file.name) })
+      } catch {
+        showToast('Could not open image')
+      }
+    },
+    [showToast],
+  )
+
+  const acceptSpriteSheet = useCallback(
+    (frameWidth: number, frameHeight: number) => {
+      if (!pendingSheet) return
+      const sheet = imageDataToPixels(pendingSheet.image)
+      const cut = sheetToFrames(sheet.pixels, sheet.width, sheet.height, frameWidth, frameHeight)
+      importFrames(cut, frameWidth, frameHeight)
+      // Saving writes a strip of frames, maybe not the original layout, so never overwrite the source
+      setFile(null, pendingSheet.name)
+      setPendingSheet(null)
+      showToast(`Imported ${cut.length} frame${cut.length === 1 ? '' : 's'} of ${frameWidth}x${frameHeight}`)
+    },
+    [pendingSheet, importFrames, setFile, showToast],
+  )
+
+  const cancelSpriteSheet = useCallback(() => setPendingSheet(null), [])
 
   const acceptConversion = useCallback(
     (pd: PixelData) => {
@@ -257,11 +312,15 @@ export function useFileActions({
   return {
     fileName,
     pendingImage,
+    pendingSheet,
     newCanvas,
     openFile,
     openWithDialog,
     saveImage,
-    exportPng,
+    exportImage,
+    openSpriteSheet,
+    acceptSpriteSheet,
+    cancelSpriteSheet,
     acceptConversion,
     openOriginal,
     cancelConversion,

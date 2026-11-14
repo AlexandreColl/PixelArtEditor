@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-const MAX_CANVAS_SIZE = 256
+export const MAX_CANVAS_SIZE = 256
 
 interface CanvasSizeControlProps {
   width: number
