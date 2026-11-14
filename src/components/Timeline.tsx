@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef, useState } from 'react'
-import { Copy, Plus, Trash2 } from 'lucide-react'
+import { Copy, Layers, Plus, Trash2 } from 'lucide-react'
 import type { PixelData } from '../types'
 import { tip } from './Tooltip'
 import { drawPixels } from '../utils/png'
@@ -12,6 +12,8 @@ interface TimelineProps {
   onDuplicateFrame: () => void
   onDeleteFrame: () => void
   onMoveFrame: (from: number, to: number) => void
+  onionSkin: boolean
+  onToggleOnionSkin: () => void
   /** Extra controls at the left of the strip */
   children?: React.ReactNode
 }
@@ -66,6 +68,8 @@ export default function Timeline({
   onDuplicateFrame,
   onDeleteFrame,
   onMoveFrame,
+  onionSkin,
+  onToggleOnionSkin,
   children,
 }: TimelineProps) {
   const [dragFrom, setDragFrom] = useState<number | null>(null)
@@ -112,6 +116,19 @@ export default function Timeline({
             style={{ ...iconBtn, opacity: frames.length > 1 ? 1 : 0.3 }}
           >
             <Trash2 size={14} />
+          </button>
+          <button
+            {...tip(onionSkin ? 'Hide the previous frame' : 'Onion skin: show the previous frame under this one')}
+            aria-pressed={onionSkin}
+            onClick={onToggleOnionSkin}
+            style={{
+              ...iconBtn,
+              border: onionSkin ? '1px solid #4fc3f7' : iconBtn.border,
+              background: onionSkin ? '#1a3a4a' : iconBtn.background,
+              color: onionSkin ? '#4fc3f7' : iconBtn.color,
+            }}
+          >
+            <Layers size={14} />
           </button>
         </div>
         <span style={{ fontSize: 11, color: '#888', textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>
