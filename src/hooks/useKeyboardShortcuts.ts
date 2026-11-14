@@ -6,6 +6,7 @@ export interface ShortcutActions {
   redo: () => void
   save: () => void
   open: () => void
+  exportImage: () => void
   fit: () => void
   toggleGrid: () => void
   copy: () => void
@@ -59,6 +60,7 @@ const CTRL_SHORTCUTS: Record<string, (a: ShortcutActions, shift: boolean) => voi
   y: a => a.redo(),
   s: a => a.save(),
   o: a => a.open(),
+  e: a => a.exportImage(),
 }
 
 /** True when the key belongs to whatever has focus: a text field, or a modal dialog. */

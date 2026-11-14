@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, FilePlus, FolderOpen, ImageDown, ImagePlus, Save } from 'lucide-react'
-import { EXPORT_SCALES } from '../utils/png'
+import { ChevronDown, FilePlus, FolderOpen, Grid2x2, ImageDown, ImagePlus, Save } from 'lucide-react'
 
 interface FileMenuProps {
   onNew: () => void
   onOpen: () => void
   /** A picked image that always goes through the pixel art conversion */
   onImportAsPixelArt: (file: File) => void
+  /** A picked image to cut into frames */
+  onImportSpriteSheet: (file: File) => void
   onSave: () => void
-  onExportPng: (scale: number) => void
+  onExport: () => void
 }
 
 const itemStyle: React.CSSProperties = {
@@ -28,10 +29,24 @@ const itemStyle: React.CSSProperties = {
 
 const shortcutStyle: React.CSSProperties = { marginLeft: 'auto', paddingLeft: 24, color: '#888', fontSize: 11 }
 
-export default function FileMenu({ onNew, onOpen, onImportAsPixelArt, onSave, onExportPng }: FileMenuProps) {
+export default function FileMenu({
+  onNew,
+  onOpen,
+  onImportAsPixelArt,
+  onImportSpriteSheet,
+  onSave,
+  onExport,
+}: FileMenuProps) {
   const [isOpen, setIsOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  // Both imports pick a file with the same input; this says which one asked
+  const importModeRef = useRef<'pixel-art' | 'sprite-sheet'>('pixel-art')
+
+  const pickImage = (mode: 'pixel-art' | 'sprite-sheet') => {
+    importModeRef.current = mode
+    fileInputRef.current?.click()
+  }
 
   // Close on a click anywhere else or on Escape
   useEffect(() => {
@@ -64,7 +79,7 @@ export default function FileMenu({ onNew, onOpen, onImportAsPixelArt, onSave, on
         accept="image/png,image/gif,image/jpeg"
         onChange={e => {
           const file = e.target.files?.[0]
-          if (file) onImportAsPixelArt(file)
+          if (file) (importModeRef.current === 'sprite-sheet' ? onImportSpriteSheet : onImportAsPixelArt)(file)
           e.target.value = ''
         }}
         style={{ display: 'none' }}
@@ -112,18 +127,19 @@ export default function FileMenu({ onNew, onOpen, onImportAsPixelArt, onSave, on
           <button role="menuitem" style={itemStyle} onClick={pick(onOpen)}>
             <FolderOpen size={15} /> Open… <span style={shortcutStyle}>Ctrl+O</span>
           </button>
-          <button role="menuitem" style={itemStyle} onClick={pick(() => fileInputRef.current?.click())}>
+          <button role="menuitem" style={itemStyle} onClick={pick(() => pickImage('pixel-art'))}>
             <ImagePlus size={15} /> Import image as pixel art…
+          </button>
+          <button role="menuitem" style={itemStyle} onClick={pick(() => pickImage('sprite-sheet'))}>
+            <Grid2x2 size={15} /> Import sprite sheet…
           </button>
           <div style={{ height: 1, background: '#444', margin: '4px 0' }} />
           <button role="menuitem" style={itemStyle} onClick={pick(onSave)}>
             <Save size={15} /> Save <span style={shortcutStyle}>Ctrl+S</span>
           </button>
-          {EXPORT_SCALES.map(scale => (
-            <button key={scale} role="menuitem" style={itemStyle} onClick={pick(() => onExportPng(scale))}>
-              <ImageDown size={15} /> Export PNG ×{scale}
-            </button>
-          ))}
+          <button role="menuitem" style={itemStyle} onClick={pick(onExport)}>
+            <ImageDown size={15} /> Export… <span style={shortcutStyle}>Ctrl+E</span>
+          </button>
         </div>
       )}
     </div>

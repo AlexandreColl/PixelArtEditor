@@ -9,6 +9,7 @@ function setup(overrides: Partial<ShortcutActions> = {}) {
     redo: vi.fn(),
     save: vi.fn(),
     open: vi.fn(),
+    exportImage: vi.fn(),
     fit: vi.fn(),
     toggleGrid: vi.fn(),
     copy: vi.fn(),
@@ -47,10 +48,12 @@ describe('useKeyboardShortcuts', () => {
     expect(press('s', { ctrlKey: true })).toBe(true)
     press('o', { ctrlKey: true })
     press('0', { ctrlKey: true })
+    press('e', { ctrlKey: true })
     press('c', { metaKey: true })
     expect(actions.save).toHaveBeenCalledOnce()
     expect(actions.open).toHaveBeenCalledOnce()
     expect(actions.fit).toHaveBeenCalledOnce()
+    expect(actions.exportImage).toHaveBeenCalledOnce()
     expect(actions.copy).toHaveBeenCalledOnce()
   })
 

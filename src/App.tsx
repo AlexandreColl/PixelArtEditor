@@ -7,6 +7,8 @@ import ColorPalette from './components/ColorPalette'
 import AIChat from './components/AIChat'
 import AnimationPreview from './components/AnimationPreview'
 import ConvertDialog from './components/ConvertDialog'
+import ExportDialog from './components/ExportDialog'
+import SpriteSheetDialog from './components/SpriteSheetDialog'
 import FileMenu from './components/FileMenu'
 import Toast, { useToast } from './components/Toast'
 import Timeline from './components/Timeline'
@@ -123,6 +125,8 @@ export default function App() {
   const [dragOver, setDragOver] = useState(false)
   const [hoverPixel, setHoverPixel] = useState<Point | null>(null)
   const [playing, setPlaying] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
+  const openExport = useCallback(() => setExportOpen(true), [])
   const togglePlay = useCallback(() => setPlaying(p => !p), [])
   const canvasHandleRef = useRef<CanvasHandle>(null)
   const pixelDataRef = useRef(state.pixelData)
@@ -245,6 +249,7 @@ export default function App() {
     redo,
     save: files.saveImage,
     open: files.openWithDialog,
+    exportImage: openExport,
     fit: handleFit,
     toggleGrid,
     copy: handleCopy,
@@ -320,6 +325,27 @@ export default function App() {
         />
       )}
 
+      {files.pendingSheet && (
+        <SpriteSheetDialog
+          image={files.pendingSheet.image}
+          fileName={files.pendingSheet.name}
+          onImport={files.acceptSpriteSheet}
+          onCancel={files.cancelSpriteSheet}
+        />
+      )}
+
+      {exportOpen && (
+        <ExportDialog
+          frames={state.frames}
+          currentFrame={state.currentFrame}
+          onExport={options => {
+            setExportOpen(false)
+            files.exportImage(options)
+          }}
+          onCancel={() => setExportOpen(false)}
+        />
+      )}
+
       <div
         style={{
           height: 40,
@@ -337,8 +363,9 @@ export default function App() {
           onNew={files.newCanvas}
           onOpen={files.openWithDialog}
           onImportAsPixelArt={file => files.openFile(file, true)}
+          onImportSpriteSheet={files.openSpriteSheet}
           onSave={files.saveImage}
-          onExportPng={files.exportPng}
+          onExport={openExport}
         />
         <button {...tip('Save', 'Ctrl+S')} onClick={files.saveImage} style={btnAccent}>
           <Save size={16} />
