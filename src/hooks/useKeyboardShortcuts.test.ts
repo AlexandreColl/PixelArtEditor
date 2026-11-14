@@ -21,6 +21,7 @@ function setup(overrides: Partial<ShortcutActions> = {}) {
     setTool: vi.fn(),
     swapColors: vi.fn(),
     stepFrame: vi.fn(),
+    togglePlay: vi.fn(),
     ...overrides,
   }
   const hook = renderHook(props => useKeyboardShortcuts(props), { initialProps: actions })
@@ -100,12 +101,14 @@ describe('useKeyboardShortcuts', () => {
     expect(actions.toggleGrid).toHaveBeenCalledOnce()
   })
 
-  it('steps through the frames with comma and period', () => {
+  it('steps through the frames with comma and period, and plays with P', () => {
     const { actions } = setup()
     press(',')
     press('.')
+    press('p')
     expect(actions.stepFrame).toHaveBeenNthCalledWith(1, -1)
     expect(actions.stepFrame).toHaveBeenNthCalledWith(2, 1)
+    expect(actions.togglePlay).toHaveBeenCalledOnce()
   })
 
   it('nudges the selection with the arrows, and lets them scroll when nothing is selected', () => {
