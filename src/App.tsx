@@ -101,6 +101,7 @@ export default function App() {
     moveSelectionTo,
     nudgeSelection,
     importFrames,
+    importDocument,
     selectFrame,
     addFrame,
     duplicateFrame,
@@ -126,6 +127,7 @@ export default function App() {
     currentFrame: state.currentFrame,
     fps: state.fps,
     importFrames,
+    importDocument,
     palette,
     replacePalette,
     showToast,
@@ -268,6 +270,7 @@ export default function App() {
     undo,
     redo,
     save: files.saveImage,
+    saveAs: () => files.saveAs(),
     open: files.openWithDialog,
     exportImage: openExport,
     fit: handleFit,
@@ -308,7 +311,7 @@ export default function App() {
         e.preventDefault()
         setDragOver(false)
         const f = e.dataTransfer.files[0]
-        if (f && f.type.startsWith('image/')) files.openFile(f)
+        if (f && (f.type.startsWith('image/') || f.name.toLowerCase().endsWith('.pxa'))) files.openFile(f)
       }}
     >
       {dragOver && (
@@ -386,6 +389,7 @@ export default function App() {
           onImportAsPixelArt={file => files.openFile(file, true)}
           onImportSpriteSheet={files.openSpriteSheet}
           onSave={files.saveImage}
+          onSaveAs={() => files.saveAs()}
           onExport={openExport}
         />
         <button {...tip('Save', 'Ctrl+S')} onClick={files.saveImage} style={btnAccent}>
@@ -550,7 +554,9 @@ export default function App() {
           gap: 16,
         }}
       >
-        <span>{files.fileName}.png</span>
+        <span>
+          {files.fileName}.{files.fileKind}
+        </span>
         <span>Tool: {state.activeTool}</span>
         <span>
           Size: {state.pixelData.width}x{state.pixelData.height}
