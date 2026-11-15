@@ -7,6 +7,7 @@ import ColorPalette from './components/ColorPalette'
 import AIChat from './components/AIChat'
 import AnimationPreview from './components/AnimationPreview'
 import ConvertDialog from './components/ConvertDialog'
+import Dialog from './components/Dialog'
 import ExportDialog from './components/ExportDialog'
 import SpriteSheetDialog from './components/SpriteSheetDialog'
 import FileMenu from './components/FileMenu'
@@ -16,6 +17,7 @@ import Timeline from './components/Timeline'
 import Toolbar from './components/Toolbar'
 import TooltipLayer, { tip } from './components/Tooltip'
 import { useEditor } from './hooks/useEditor'
+import { useAutosave } from './hooks/useAutosave'
 import { useFileActions } from './hooks/useFileActions'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { usePalette } from './hooks/usePalette'
@@ -68,6 +70,8 @@ export default function App() {
     state,
     canUndo,
     canRedo,
+    isDirty,
+    markSaved,
     setTool,
     setPrimaryColor,
     setSecondaryColor,
@@ -128,10 +132,26 @@ export default function App() {
     fps: state.fps,
     importFrames,
     importDocument,
+    markSaved,
     palette,
     replacePalette,
     showToast,
   })
+  const autosave = useAutosave({
+    cels: state.cels,
+    layers: state.layers,
+    fps: state.fps,
+    fileName: files.fileName,
+    isDirty,
+  })
+
+  const recoverAutosave = () => {
+    const r = autosave.takeRecovery()
+    if (!r) return
+    importDocument(r.doc, false)
+    files.adoptRecovered(r.fileName, r.doc.layers.length > 1 ? 'pxa' : 'png')
+    showToast('Recovered unsaved work')
+  }
 
   // Frames as shown, every visible layer blended, for the strip, the preview and the onion skin.
   // Deferred so that blending never slows down a stroke; the canvas draws the layers itself.
@@ -348,6 +368,25 @@ export default function App() {
         />
       )}
 
+      {autosave.recovery && (
+        <Dialog
+          title="Recover unsaved work?"
+          subtitle={`${autosave.recovery.fileName} · ${autosave.recovery.savedAt.toLocaleString()}`}
+          onConfirm={recoverAutosave}
+          onCancel={autosave.discardRecovery}
+          confirmLabel="Recover"
+          cancelLabel="Discard"
+          cancelOnEscape={false}
+        >
+          <div style={{ fontSize: 13, color: '#bbb', lineHeight: 1.5 }}>
+            The editor closed with changes that were not saved: {autosave.recovery.doc.cels.length} frame
+            {autosave.recovery.doc.cels.length === 1 ? '' : 's'}, {autosave.recovery.doc.layers.length} layer
+            {autosave.recovery.doc.layers.length === 1 ? '' : 's'}, {autosave.recovery.doc.width}×
+            {autosave.recovery.doc.height}. Discarding deletes them for good.
+          </div>
+        </Dialog>
+      )}
+
       {files.pendingSheet && (
         <SpriteSheetDialog
           image={files.pendingSheet.image}
@@ -555,6 +594,7 @@ export default function App() {
         }}
       >
         <span>
+          {isDirty && <span {...tip('Unsaved changes (kept by autosave)')}>● </span>}
           {files.fileName}.{files.fileKind}
         </span>
         <span>Tool: {state.activeTool}</span>
