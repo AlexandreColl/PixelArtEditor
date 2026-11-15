@@ -5,6 +5,7 @@ export interface ShortcutActions {
   undo: () => void
   redo: () => void
   save: () => void
+  saveAs: () => void
   open: () => void
   exportImage: () => void
   fit: () => void
@@ -58,7 +59,7 @@ const CTRL_SHORTCUTS: Record<string, (a: ShortcutActions, shift: boolean) => voi
   '0': a => a.fit(),
   z: (a, shift) => (shift ? a.redo() : a.undo()),
   y: a => a.redo(),
-  s: a => a.save(),
+  s: (a, shift) => (shift ? a.saveAs() : a.save()),
   o: a => a.open(),
   e: a => a.exportImage(),
 }

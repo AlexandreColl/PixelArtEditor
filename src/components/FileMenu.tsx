@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, FilePlus, FolderOpen, Grid2x2, ImageDown, ImagePlus, Save } from 'lucide-react'
+import { ChevronDown, FilePlus, FolderOpen, Grid2x2, ImageDown, ImagePlus, Save, SaveAll } from 'lucide-react'
 
 interface FileMenuProps {
   onNew: () => void
@@ -9,6 +9,7 @@ interface FileMenuProps {
   /** A picked image to cut into frames */
   onImportSpriteSheet: (file: File) => void
   onSave: () => void
+  onSaveAs: () => void
   onExport: () => void
 }
 
@@ -35,6 +36,7 @@ export default function FileMenu({
   onImportAsPixelArt,
   onImportSpriteSheet,
   onSave,
+  onSaveAs,
   onExport,
 }: FileMenuProps) {
   const [isOpen, setIsOpen] = useState(false)
@@ -136,6 +138,9 @@ export default function FileMenu({
           <div style={{ height: 1, background: '#444', margin: '4px 0' }} />
           <button role="menuitem" style={itemStyle} onClick={pick(onSave)}>
             <Save size={15} /> Save <span style={shortcutStyle}>Ctrl+S</span>
+          </button>
+          <button role="menuitem" style={itemStyle} onClick={pick(onSaveAs)}>
+            <SaveAll size={15} /> Save as… <span style={shortcutStyle}>Ctrl+Shift+S</span>
           </button>
           <button role="menuitem" style={itemStyle} onClick={pick(onExport)}>
             <ImageDown size={15} /> Export… <span style={shortcutStyle}>Ctrl+E</span>

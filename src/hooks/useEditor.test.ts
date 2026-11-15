@@ -366,7 +366,7 @@ describe('useEditor selection', () => {
 })
 
 describe('useEditor frames', () => {
-  const frameCount = (r: ReturnType<typeof setup>['result']) => r.current.state.frames.length
+  const frameCount = (r: ReturnType<typeof setup>['result']) => r.current.state.cels.length
 
   it('adds an empty frame after the current one and edits it', () => {
     const { result, run, pixel, dot } = setup()
@@ -387,8 +387,8 @@ describe('useEditor frames', () => {
     run(e => e.duplicateFrame())
     expect(pixel(0, 0)).toBe(RED)
     dot(0, 0, BLUE)
-    expect(result.current.state.frames[0].pixels[0][0]).toBe(RED)
-    expect(result.current.state.frames[1].pixels[0][0]).toBe(BLUE)
+    expect(result.current.state.cels[0][0].pixels[0][0]).toBe(RED)
+    expect(result.current.state.cels[1][0].pixels[0][0]).toBe(BLUE)
   })
 
   it('keeps at least one frame', () => {
@@ -420,7 +420,7 @@ describe('useEditor frames', () => {
     run(e => e.addFrame())
     dot(0, 0, BLUE)
     run(e => e.moveFrame(1, 0))
-    expect(result.current.state.frames.map(f => f.pixels[0][0])).toEqual([BLUE, RED])
+    expect(result.current.state.cels.map(([f]) => f.pixels[0][0])).toEqual([BLUE, RED])
     expect(result.current.state.currentFrame).toBe(0)
   })
 
@@ -439,7 +439,7 @@ describe('useEditor frames', () => {
     run(e => e.selectFrame(0))
     run(e => e.undo())
     expect(result.current.state.currentFrame).toBe(1)
-    expect(result.current.state.frames[1].pixels[3][3]).toBe(TRANSPARENT)
+    expect(result.current.state.cels[1][0].pixels[3][3]).toBe(TRANSPARENT)
   })
 
   it('resizes every frame', () => {
@@ -447,11 +447,11 @@ describe('useEditor frames', () => {
     run(e => e.addFrame())
     dot(1, 1, RED)
     run(e => e.resizeCanvas(4, 2))
-    expect(result.current.state.frames.map(f => [f.width, f.height, f.pixels.length])).toEqual([
+    expect(result.current.state.cels.map(([f]) => [f.width, f.height, f.pixels.length])).toEqual([
       [4, 2, 2],
       [4, 2, 2],
     ])
-    expect(result.current.state.frames[1].pixels[1][1]).toBe(RED)
+    expect(result.current.state.cels[1][0].pixels[1][1]).toBe(RED)
   })
 
   it('maps every frame to the palette when nothing is selected', () => {
@@ -464,13 +464,13 @@ describe('useEditor frames', () => {
       changed = e.remapColors(paletteSnapper([RED, BLUE]))
     })
     expect(changed).toBe(2)
-    expect(result.current.state.frames.map(f => f.pixels[0][0])).toEqual([RED, BLUE])
+    expect(result.current.state.cels.map(([f]) => f.pixels[0][0])).toEqual([RED, BLUE])
   })
 
   it('imports several frames and their speed with a fresh history', () => {
     const { result, run } = setup()
     run(e => e.importFrames([[[RED]], [[BLUE]]], 1, 1, 12))
-    expect(result.current.state.frames.map(f => f.pixels)).toEqual([[[RED]], [[BLUE]]])
+    expect(result.current.state.cels.map(([f]) => f.pixels)).toEqual([[[RED]], [[BLUE]]])
     expect(result.current.state.currentFrame).toBe(0)
     expect(result.current.state.fps).toBe(12)
     expect(result.current.canUndo).toBe(false)
@@ -482,5 +482,160 @@ describe('useEditor frames', () => {
     expect(result.current.state.fps).toBe(1)
     run(e => e.setFps(500))
     expect(result.current.state.fps).toBe(60)
+  })
+})
+
+describe('useEditor layers', () => {
+  const layerNames = (r: ReturnType<typeof setup>['result']) => r.current.state.layers.map(l => l.name)
+
+  it('starts with one layer and adds new ones above the current one, in every frame', () => {
+    const { result, run } = setup()
+    run(e => e.addFrame())
+    run(e => e.addLayer())
+    expect(layerNames(result)).toEqual(['Layer 1', 'Layer 2'])
+    expect(result.current.state.currentLayer).toBe(1)
+    expect(result.current.state.cels.map(row => row.length)).toEqual([2, 2])
+  })
+
+  it('paints only the current layer, and the eyedropper picks what is shown', () => {
+    const { result, run, dot } = setup()
+    dot(0, 0, BLUE)
+    run(e => e.addLayer())
+    dot(0, 0, RED)
+    const [bottom, top] = result.current.state.cels[0]
+    expect(bottom.pixels[0][0]).toBe(BLUE)
+    expect(top.pixels[0][0]).toBe(RED)
+    expect(result.current.pickColor(0, 0)).toBe(RED)
+    run(e => e.updateLayer(1, { visible: false }))
+    expect(result.current.pickColor(0, 0)).toBe(BLUE)
+  })
+
+  it('undoes layer changes and shows the layer that changed', () => {
+    const { result, run, dot } = setup()
+    run(e => e.addLayer())
+    dot(1, 1, RED)
+    run(e => e.selectLayer(0))
+    run(e => e.undo())
+    expect(result.current.state.currentLayer).toBe(1)
+    expect(result.current.state.cels[0][1].pixels[1][1]).toBe(TRANSPARENT)
+    run(e => e.undo())
+    expect(layerNames(result)).toEqual(['Layer 1'])
+  })
+
+  it('keeps at least one layer and deletes the current one from every frame', () => {
+    const { result, run } = setup()
+    let removed = true
+    run(e => {
+      removed = e.deleteLayer()
+    })
+    expect(removed).toBe(false)
+    run(e => e.addFrame())
+    run(e => e.addLayer())
+    run(e => e.deleteLayer())
+    expect(result.current.state.cels.map(row => row.length)).toEqual([1, 1])
+  })
+
+  it('duplicates a layer with its pixels and settings', () => {
+    const { result, run, dot } = setup()
+    dot(2, 2, RED)
+    run(e => e.updateLayer(0, { opacity: 0.5 }))
+    run(e => e.duplicateLayer())
+    expect(layerNames(result)).toEqual(['Layer 1', 'Layer 1 copy'])
+    expect(result.current.state.layers[1].opacity).toBe(0.5)
+    expect(result.current.state.cels[0][1].pixels[2][2]).toBe(RED)
+  })
+
+  it('moves a layer and keeps it selected', () => {
+    const { result, run } = setup()
+    run(e => e.addLayer())
+    run(e => e.moveLayer(1, 0))
+    expect(layerNames(result)).toEqual(['Layer 2', 'Layer 1'])
+    expect(result.current.state.currentLayer).toBe(0)
+  })
+
+  it('merges a layer into the one below, blending by its opacity', () => {
+    const { result, run, dot } = setup()
+    dot(0, 0, '#000000')
+    run(e => e.addLayer())
+    dot(0, 0, '#ffffff')
+    dot(1, 0, RED)
+    run(e => e.updateLayer(1, { opacity: 0.5 }))
+    let merged = false
+    run(e => {
+      merged = e.mergeLayerDown()
+    })
+    expect(merged).toBe(true)
+    expect(layerNames(result)).toEqual(['Layer 1'])
+    expect(result.current.state.cels[0][0].pixels[0].slice(0, 2)).toEqual(['#808080', 'rgba(255,0,0,0.502)'])
+    run(e => {
+      merged = e.mergeLayerDown()
+    })
+    expect(merged).toBe(false)
+  })
+
+  it('changes opacity without an undo step until asked, and clamps it', () => {
+    const { result, run } = setup()
+    run(e => e.updateLayer(0, { opacity: 1.5 }, false))
+    expect(result.current.state.layers[0].opacity).toBe(1)
+    expect(result.current.canUndo).toBe(false)
+  })
+
+  it('gives new frames a cel for every layer, and duplicates share them', () => {
+    const { result, run, dot } = setup()
+    run(e => e.addLayer())
+    dot(0, 0, RED)
+    run(e => e.duplicateFrame())
+    expect(result.current.state.cels[1][1]).toBe(result.current.state.cels[0][1])
+  })
+
+  it('imports a document with its layers, selecting the top one', () => {
+    const { result, run } = setup()
+    run(e =>
+      e.importDocument({
+        width: 1,
+        height: 1,
+        fps: 5,
+        cels: [[[[RED]], [[BLUE]]]],
+        layers: [
+          { name: 'Back', visible: true, opacity: 1 },
+          { name: 'Front', visible: false, opacity: 0.25 },
+        ],
+      }),
+    )
+    expect(layerNames(result)).toEqual(['Back', 'Front'])
+    expect(result.current.state.layers[1]).toMatchObject({ visible: false, opacity: 0.25 })
+    expect(result.current.state.currentLayer).toBe(1)
+    expect(result.current.state.fps).toBe(5)
+    expect(result.current.canUndo).toBe(false)
+  })
+})
+
+describe('useEditor unsaved changes', () => {
+  it('starts clean, gets dirty with an edit and clean again when undone or saved', () => {
+    const { result, run, dot } = setup()
+    expect(result.current.isDirty).toBe(false)
+    dot(0, 0, RED)
+    expect(result.current.isDirty).toBe(true)
+    run(e => e.undo())
+    expect(result.current.isDirty).toBe(false)
+    run(e => e.redo())
+    run(e => e.markSaved())
+    expect(result.current.isDirty).toBe(false)
+    run(e => e.undo())
+    expect(result.current.isDirty).toBe(true)
+  })
+
+  it('counts an opened document as saved, unless it is recovered work', () => {
+    const { result, run, dot } = setup()
+    dot(0, 0, RED)
+    run(e => e.importPixels([[BLUE]], 1, 1))
+    expect(result.current.isDirty).toBe(false)
+    run(e =>
+      e.importDocument(
+        { width: 1, height: 1, cels: [[[[RED]]]], layers: [{ name: 'Layer 1', visible: true, opacity: 1 }] },
+        false,
+      ),
+    )
+    expect(result.current.isDirty).toBe(true)
   })
 })

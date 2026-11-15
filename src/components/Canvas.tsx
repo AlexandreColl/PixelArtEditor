@@ -61,6 +61,19 @@ function getCheckerTile(): HTMLCanvasElement {
 const ONION_ALPHA = 0.35
 const ONION_TINT = 'rgba(255, 70, 70, 0.55)'
 
+/** Each cel rendered once to a canvas; cels are never mutated, so the texture stays valid while the cel lives. */
+const textures = new WeakMap<PixelData, HTMLCanvasElement>()
+
+function textureFor(cel: PixelData): HTMLCanvasElement {
+  let tc = textures.get(cel)
+  if (!tc) {
+    tc = document.createElement('canvas')
+    drawPixels(tc, cel.pixels, cel.width, cel.height)
+    textures.set(cel, tc)
+  }
+  return tc
+}
+
 /** Below this zoom the grid lines would hide the pixels, so they are not drawn */
 const MIN_GRID_ZOOM = 4
 
@@ -69,7 +82,10 @@ interface CanvasProps {
   showGrid: boolean
   mirrorX: boolean
   mirrorY: boolean
+  /** The cel being edited; gives the canvas its size */
   pixelData: PixelData
+  /** What is drawn: the visible layers of the current frame, bottom first */
+  layers: { cel: PixelData; opacity: number }[]
   /** Frame shown faintly under the canvas (onion skin), or null */
   onionFrame?: PixelData | null
   tool: Tool
@@ -111,6 +127,7 @@ export default function Canvas({
   mirrorX,
   mirrorY,
   pixelData,
+  layers,
   onionFrame = null,
   tool,
   primaryColor,
@@ -135,7 +152,6 @@ export default function Canvas({
 }: CanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const textureRef = useRef<HTMLCanvasElement | null>(null)
   const onionTextureRef = useRef<HTMLCanvasElement | null>(null)
   // Refs rather than state so pointer events that arrive before the next render see the stroke
   const isDrawingRef = useRef(false)
@@ -155,7 +171,7 @@ export default function Canvas({
   const [hover, setHoverState] = useState<Point | null>(null)
   const hoverRef = useRef<Point | null>(null)
 
-  const { width, height, pixels } = pixelData
+  const { width, height } = pixelData
 
   useImperativeHandle(
     handleRef,
@@ -175,9 +191,6 @@ export default function Canvas({
     if (!canvas) return
     const ctx = canvas.getContext('2d')
     if (!ctx) return
-    const tc = textureRef.current
-    if (!tc) return
-
     const pixelSize = zoom
     const cw = width * pixelSize
     const ch = height * pixelSize
@@ -194,7 +207,12 @@ export default function Canvas({
       ctx.drawImage(onion, 0, 0, cw, ch)
       ctx.globalAlpha = 1
     }
-    ctx.drawImage(tc, 0, 0, cw, ch)
+    for (const { cel, opacity } of layers) {
+      if (cel.width !== width || cel.height !== height) continue
+      ctx.globalAlpha = opacity
+      ctx.drawImage(textureFor(cel), 0, 0, cw, ch)
+    }
+    ctx.globalAlpha = 1
 
     if (showGrid && pixelSize >= MIN_GRID_ZOOM) {
       // Mid gray, half transparent: visible on the checkerboard, on light and on dark pixels
@@ -287,6 +305,7 @@ export default function Canvas({
       ctx.restore()
     }
   }, [
+    layers,
     zoom,
     selection,
     selDrag,
@@ -304,13 +323,6 @@ export default function Canvas({
 
   const drawRef = useRef(draw)
   drawRef.current = draw
-
-  useEffect(() => {
-    const tc = document.createElement('canvas')
-    drawPixels(tc, pixels, width, height)
-    textureRef.current = tc
-    drawRef.current()
-  }, [pixels, width, height])
 
   useEffect(() => {
     if (!onionFrame) {

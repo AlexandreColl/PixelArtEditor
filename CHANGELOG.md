@@ -7,6 +7,22 @@ y el proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-15
+
+### Añadido
+
+- Capas compartidas por todos los fotogramas, con visibilidad, opacidad, nombre y orden. Panel **Layers** para crear, duplicar, combinar hacia abajo y borrar. Deshacer cubre también los cambios de capas.
+- Formato de proyecto `.pxa` que conserva capas, fotogramas y velocidad. Se abre con `Ctrl+O` o arrastrándolo al editor; los archivos dañados o de versiones posteriores se rechazan con un mensaje.
+- **Guardar como** (`Ctrl+Shift+S`) para elegir nombre y formato.
+- Autoguardado del trabajo sin guardar, con la opción de recuperarlo al abrir el editor tras un cierre inesperado.
+- Indicador `●` de cambios sin guardar en la barra de estado.
+
+### Cambiado
+
+- `Ctrl+S` con varias capas guarda un proyecto `.pxa`: si el archivo abierto es un PNG, pide dónde guardarlo en lugar de fundir las capas sin avisar.
+- `Ctrl+Shift+S` pasa de ser igual que `Ctrl+S` a **Guardar como**.
+- El cuentagotas y el color de la barra de estado usan la imagen visible, con todas las capas.
+
 ## [0.4.0] - 2026-11-14
 
 ### Añadido
@@ -97,7 +113,8 @@ Primera versión pública.
 - Barra de herramientas con iconos de lucide-react.
 - Scripts `dev.bat` / `build.bat` y helper `scripts/dev.ps1` para Windows.
 
-[Unreleased]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.1.0...v0.2.0

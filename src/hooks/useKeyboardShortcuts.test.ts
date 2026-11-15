@@ -8,6 +8,7 @@ function setup(overrides: Partial<ShortcutActions> = {}) {
     undo: vi.fn(),
     redo: vi.fn(),
     save: vi.fn(),
+    saveAs: vi.fn(),
     open: vi.fn(),
     exportImage: vi.fn(),
     fit: vi.fn(),
@@ -51,6 +52,9 @@ describe('useKeyboardShortcuts', () => {
     press('e', { ctrlKey: true })
     press('c', { metaKey: true })
     expect(actions.save).toHaveBeenCalledOnce()
+    press('S', { ctrlKey: true, shiftKey: true })
+    expect(actions.saveAs).toHaveBeenCalledOnce()
+    expect(actions.save).toHaveBeenCalledOnce()
     expect(actions.open).toHaveBeenCalledOnce()
     expect(actions.fit).toHaveBeenCalledOnce()
     expect(actions.exportImage).toHaveBeenCalledOnce()
@@ -87,6 +91,9 @@ describe('useKeyboardShortcuts', () => {
     press('e', { altKey: true })
     press('s', { ctrlKey: true })
     expect(actions.setTool).not.toHaveBeenCalled()
+    expect(actions.save).toHaveBeenCalledOnce()
+    press('S', { ctrlKey: true, shiftKey: true })
+    expect(actions.saveAs).toHaveBeenCalledOnce()
     expect(actions.save).toHaveBeenCalledOnce()
   })
 

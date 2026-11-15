@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useEffect, useCallback, useDeferredValue, useMemo, useRef } from 'react'
 import { BotMessageSquare, Save } from 'lucide-react'
 import Canvas from './components/Canvas'
 import type { CanvasHandle, Point } from './components/Canvas'
@@ -7,20 +7,24 @@ import ColorPalette from './components/ColorPalette'
 import AIChat from './components/AIChat'
 import AnimationPreview from './components/AnimationPreview'
 import ConvertDialog from './components/ConvertDialog'
+import Dialog from './components/Dialog'
 import ExportDialog from './components/ExportDialog'
 import SpriteSheetDialog from './components/SpriteSheetDialog'
 import FileMenu from './components/FileMenu'
+import LayersPanel from './components/LayersPanel'
 import Toast, { useToast } from './components/Toast'
 import Timeline from './components/Timeline'
 import Toolbar from './components/Toolbar'
 import TooltipLayer, { tip } from './components/Tooltip'
 import { useEditor } from './hooks/useEditor'
+import { useAutosave } from './hooks/useAutosave'
 import { useFileActions } from './hooks/useFileActions'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { usePalette } from './hooks/usePalette'
 import type { Selection } from './types'
 import { TRANSPARENT, parseColor, toHex } from './utils/color'
 import { paletteSnapper } from './utils/palette'
+import { flattenFrameCached, flattenPixel, visibleCels } from './utils/layers'
 
 const btnAccent: React.CSSProperties = {
   padding: '4px 14px',
@@ -66,6 +70,8 @@ export default function App() {
     state,
     canUndo,
     canRedo,
+    isDirty,
+    markSaved,
     setTool,
     setPrimaryColor,
     setSecondaryColor,
@@ -99,6 +105,7 @@ export default function App() {
     moveSelectionTo,
     nudgeSelection,
     importFrames,
+    importDocument,
     selectFrame,
     addFrame,
     duplicateFrame,
@@ -106,20 +113,55 @@ export default function App() {
     moveFrame,
     toggleOnionSkin,
     setFps,
+    selectLayer,
+    addLayer,
+    duplicateLayer,
+    deleteLayer,
+    moveLayer,
+    mergeLayerDown,
+    updateLayer,
     undo,
     redo,
   } = useEditor()
   const { palette, locked, toggleLocked, addColor, removeColor, moveColor, replacePalette, resetPalette } = usePalette()
   const { toast, showToast } = useToast()
   const files = useFileActions({
-    pixelData: state.pixelData,
-    frames: state.frames,
+    cels: state.cels,
+    layers: state.layers,
+    currentFrame: state.currentFrame,
     fps: state.fps,
     importFrames,
+    importDocument,
+    markSaved,
     palette,
     replacePalette,
     showToast,
   })
+  const autosave = useAutosave({
+    cels: state.cels,
+    layers: state.layers,
+    fps: state.fps,
+    fileName: files.fileName,
+    isDirty,
+  })
+
+  const recoverAutosave = () => {
+    const r = autosave.takeRecovery()
+    if (!r) return
+    importDocument(r.doc, false)
+    files.adoptRecovered(r.fileName, r.doc.layers.length > 1 ? 'pxa' : 'png')
+    showToast('Recovered unsaved work')
+  }
+
+  // Frames as shown, every visible layer blended, for the strip, the preview and the onion skin.
+  // Deferred so that blending never slows down a stroke; the canvas draws the layers itself.
+  const shownCels = useDeferredValue(state.cels)
+  const shownLayers = useDeferredValue(state.layers)
+  const frames = useMemo(() => shownCels.map(row => flattenFrameCached(row, shownLayers)), [shownCels, shownLayers])
+  const canvasLayers = useMemo(
+    () => visibleCels(state.cels[state.currentFrame], state.layers),
+    [state.cels, state.currentFrame, state.layers],
+  )
 
   const [aiOpen, setAiOpen] = useState(false)
   const [dragOver, setDragOver] = useState(false)
@@ -232,8 +274,8 @@ export default function App() {
     [setPrimaryColor, setSecondaryColor],
   )
 
-  const frameRef = useRef({ current: state.currentFrame, count: state.frames.length })
-  frameRef.current = { current: state.currentFrame, count: state.frames.length }
+  const frameRef = useRef({ current: state.currentFrame, count: state.cels.length })
+  frameRef.current = { current: state.currentFrame, count: state.cels.length }
 
   /** Previous or next frame, wrapping around like the animation does. */
   const stepFrame = useCallback(
@@ -248,6 +290,7 @@ export default function App() {
     undo,
     redo,
     save: files.saveImage,
+    saveAs: () => files.saveAs(),
     open: files.openWithDialog,
     exportImage: openExport,
     fit: handleFit,
@@ -288,7 +331,7 @@ export default function App() {
         e.preventDefault()
         setDragOver(false)
         const f = e.dataTransfer.files[0]
-        if (f && f.type.startsWith('image/')) files.openFile(f)
+        if (f && (f.type.startsWith('image/') || f.name.toLowerCase().endsWith('.pxa'))) files.openFile(f)
       }}
     >
       {dragOver && (
@@ -325,6 +368,25 @@ export default function App() {
         />
       )}
 
+      {autosave.recovery && (
+        <Dialog
+          title="Recover unsaved work?"
+          subtitle={`${autosave.recovery.fileName} · ${autosave.recovery.savedAt.toLocaleString()}`}
+          onConfirm={recoverAutosave}
+          onCancel={autosave.discardRecovery}
+          confirmLabel="Recover"
+          cancelLabel="Discard"
+          cancelOnEscape={false}
+        >
+          <div style={{ fontSize: 13, color: '#bbb', lineHeight: 1.5 }}>
+            The editor closed with changes that were not saved: {autosave.recovery.doc.cels.length} frame
+            {autosave.recovery.doc.cels.length === 1 ? '' : 's'}, {autosave.recovery.doc.layers.length} layer
+            {autosave.recovery.doc.layers.length === 1 ? '' : 's'}, {autosave.recovery.doc.width}×
+            {autosave.recovery.doc.height}. Discarding deletes them for good.
+          </div>
+        </Dialog>
+      )}
+
       {files.pendingSheet && (
         <SpriteSheetDialog
           image={files.pendingSheet.image}
@@ -336,7 +398,7 @@ export default function App() {
 
       {exportOpen && (
         <ExportDialog
-          frames={state.frames}
+          frames={state.cels.map(row => flattenFrameCached(row, state.layers))}
           currentFrame={state.currentFrame}
           fps={state.fps}
           onExport={options => {
@@ -366,6 +428,7 @@ export default function App() {
           onImportAsPixelArt={file => files.openFile(file, true)}
           onImportSpriteSheet={files.openSpriteSheet}
           onSave={files.saveImage}
+          onSaveAs={() => files.saveAs()}
           onExport={openExport}
         />
         <button {...tip('Save', 'Ctrl+S')} onClick={files.saveImage} style={btnAccent}>
@@ -431,7 +494,8 @@ export default function App() {
           mirrorX={state.mirrorX}
           mirrorY={state.mirrorY}
           pixelData={state.pixelData}
-          onionFrame={state.onionSkin && state.currentFrame > 0 ? state.frames[state.currentFrame - 1] : null}
+          layers={canvasLayers}
+          onionFrame={state.onionSkin && state.currentFrame > 0 ? (frames[state.currentFrame - 1] ?? null) : null}
           tool={state.activeTool}
           primaryColor={state.primaryColor}
           secondaryColor={state.secondaryColor}
@@ -454,24 +518,38 @@ export default function App() {
           onHoverPixel={setHoverPixel}
         />
 
-        <ColorPalette
-          primaryColor={state.primaryColor}
-          secondaryColor={state.secondaryColor}
-          onPrimaryChange={setPrimaryColor}
-          onSecondaryChange={setSecondaryColor}
-          onSwap={swapColors}
-          paletteName={palette.name}
-          paletteColors={palette.colors}
-          onAddColor={() => addColor(state.primaryColor)}
-          onRemoveColor={removeColor}
-          onMoveColor={moveColor}
-          onResetPalette={resetPalette}
-          onImportFile={files.importPalette}
-          onExport={files.exportPalette}
-          locked={locked}
-          onToggleLock={toggleLocked}
-          onReduce={handleReduceToPalette}
-        />
+        <div style={{ width: 200, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <ColorPalette
+            primaryColor={state.primaryColor}
+            secondaryColor={state.secondaryColor}
+            onPrimaryChange={setPrimaryColor}
+            onSecondaryChange={setSecondaryColor}
+            onSwap={swapColors}
+            paletteName={palette.name}
+            paletteColors={palette.colors}
+            onAddColor={() => addColor(state.primaryColor)}
+            onRemoveColor={removeColor}
+            onMoveColor={moveColor}
+            onResetPalette={resetPalette}
+            onImportFile={files.importPalette}
+            onExport={files.exportPalette}
+            locked={locked}
+            onToggleLock={toggleLocked}
+            onReduce={handleReduceToPalette}
+          />
+          <LayersPanel
+            layers={state.layers}
+            currentLayer={state.currentLayer}
+            onSelect={selectLayer}
+            onAdd={addLayer}
+            onDuplicate={duplicateLayer}
+            onDelete={deleteLayer}
+            onMove={moveLayer}
+            onMergeDown={mergeLayerDown}
+            onUpdate={updateLayer}
+            onCommit={() => commitHistory()}
+          />
+        </div>
 
         <AIChat
           isOpen={aiOpen}
@@ -482,7 +560,7 @@ export default function App() {
       </div>
 
       <Timeline
-        frames={state.frames}
+        frames={frames}
         currentFrame={state.currentFrame}
         onSelectFrame={selectFrame}
         onAddFrame={addFrame}
@@ -493,11 +571,11 @@ export default function App() {
         onToggleOnionSkin={toggleOnionSkin}
       >
         <AnimationPreview
-          frames={state.frames}
+          frames={frames}
           currentFrame={state.currentFrame}
           fps={state.fps}
           onFpsChange={setFps}
-          playing={playing && state.frames.length > 1}
+          playing={playing && state.cels.length > 1}
           onTogglePlay={togglePlay}
         />
       </Timeline>
@@ -515,7 +593,10 @@ export default function App() {
           gap: 16,
         }}
       >
-        <span>{files.fileName}.png</span>
+        <span>
+          {isDirty && <span {...tip('Unsaved changes (kept by autosave)')}>● </span>}
+          {files.fileName}.{files.fileKind}
+        </span>
         <span>Tool: {state.activeTool}</span>
         <span>
           Size: {state.pixelData.width}x{state.pixelData.height}
@@ -528,7 +609,11 @@ export default function App() {
         )}
         <PixelInfo
           pixel={hoverPixel}
-          color={hoverPixel ? state.pixelData.pixels[hoverPixel.y]?.[hoverPixel.x] : undefined}
+          color={
+            hoverPixel && hoverPixel.x < state.pixelData.width && hoverPixel.y < state.pixelData.height
+              ? flattenPixel(state.cels[state.currentFrame], state.layers, hoverPixel.x, hoverPixel.y)
+              : undefined
+          }
         />
       </div>
     </div>

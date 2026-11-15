@@ -37,6 +37,9 @@ interface DialogProps {
   /** Enter and the main button; disabled when null */
   onConfirm: (() => void) | null
   confirmLabel: string
+  cancelLabel?: string
+  /** False when cancelling loses something, so a stray Escape can't do it */
+  cancelOnEscape?: boolean
   width?: number
   children: React.ReactNode
 }
@@ -48,15 +51,19 @@ export default function Dialog({
   onCancel,
   onConfirm,
   confirmLabel,
+  cancelLabel = 'Cancel',
+  cancelOnEscape = true,
   width = 480,
   children,
 }: DialogProps) {
-  const actions = useRef({ onCancel, onConfirm })
-  actions.current = { onCancel, onConfirm }
+  const actions = useRef({ onCancel, onConfirm, cancelOnEscape })
+  actions.current = { onCancel, onConfirm, cancelOnEscape }
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') actions.current.onCancel()
+      if (e.key === 'Escape') {
+        if (actions.current.cancelOnEscape) actions.current.onCancel()
+      }
       // Not from buttons, so Enter on a focused Cancel still cancels
       else if (e.key === 'Enter' && (e.target as HTMLElement).tagName !== 'BUTTON') actions.current.onConfirm?.()
     }
@@ -103,7 +110,7 @@ export default function Dialog({
 
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button onClick={onCancel} style={dialogButton}>
-            Cancel
+            {cancelLabel}
           </button>
           <button
             onClick={() => onConfirm?.()}
