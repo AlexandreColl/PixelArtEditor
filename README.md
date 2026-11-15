@@ -83,6 +83,7 @@ Características principales:
 - :rainbow: Paleta editable con colores primario/secundario (clic izquierdo / derecho), que se recuerda entre sesiones
 - :art: Importación y exportación de paletas `.gpl` (GIMP, Aseprite, Krita) y `.hex` (Lospec), y bloqueo del dibujo a la paleta
 - :film_strip: Animación por fotogramas con papel cebolla y vista previa, exportable a GIF o sprite sheet
+- :card_index_dividers: Capas con visibilidad y opacidad, formato de proyecto `.pxa` y autoguardado
 
 <p align="right">(<a href="#readme-top">volver arriba</a>)</p>
 
@@ -227,6 +228,22 @@ Deshacer y rehacer funcionan sobre toda la animación: si lo que se deshace est�
 
 La vista previa de la izquierda reproduce la animación sin dejar de editar. Un clic sobre ella alterna entre tamaño real y ampliado.
 
+### Capas
+
+El panel **Layers**, bajo la paleta, muestra las capas de arriba abajo, como se ven. Todos los fotogramas tienen las mismas capas, y las herramientas pintan en la capa activa (resaltada).
+
+| Acción               | Cómo                                                                             |
+| -------------------- | -------------------------------------------------------------------------------- |
+| Nueva / duplicar     | Botones `+` y copiar, que crean la capa encima de la activa                      |
+| Ocultar o mostrar    | Icono del ojo                                                                    |
+| Opacidad             | Deslizador bajo la lista; se deshace en un solo paso al soltarlo                 |
+| Renombrar            | Doble clic en el nombre                                                          |
+| Subir / bajar        | Flechas junto a la opacidad                                                      |
+| Combinar hacia abajo | Funde la capa activa en la de debajo, en todos los fotogramas, según su opacidad |
+| Borrar               | Papelera (siempre queda al menos una)                                            |
+
+El cuentagotas, la barra de estado, las miniaturas y las exportaciones usan la imagen que se ve, con todas las capas visibles. La IA y las acciones de selección trabajan sobre la capa activa.
+
 ### Paneo
 
 Usa el **botón central del ratón** (rueda) para arrastrar la vista.
@@ -236,9 +253,12 @@ Usa el **botón central del ratón** (rueda) para arrastrar la vista.
 Las acciones de archivo están en el menú **File** de la cabecera; junto a él queda el botón de guardar.
 
 - **Nuevo lienzo** — **File → New canvas**, de 32×32
-- **Abrir imagen** — `Ctrl+O`, **File → Open…** o arrastra un PNG directamente al editor
-- **Guardar** — `Ctrl+S` o el botón de guardar: abre el diálogo la primera vez y sobrescribe el archivo original en adelante. Con varios fotogramas se guardan todos en fila en el mismo PNG, junto con la velocidad, y al abrirlo vuelven a ser fotogramas. Cualquier otro programa lo ve como un sprite sheet normal
-- **Ctrl+Shift+S** — equivalente a Ctrl+S
+- **Abrir** — `Ctrl+O`, **File → Open…** o arrastra un PNG o un proyecto `.pxa` directamente al editor
+- **Guardar** — `Ctrl+S` o el botón de guardar: abre el diálogo la primera vez y sobrescribe el archivo en adelante
+  - Con **una capa** guarda PNG. Con varios fotogramas se guardan todos en fila en el mismo PNG, junto con la velocidad, y al abrirlo vuelven a ser fotogramas. Cualquier otro programa lo ve como un sprite sheet normal
+  - Con **varias capas** guarda un proyecto `.pxa`, que conserva capas, fotogramas, visibilidad, opacidad y velocidad. Un PNG no puede guardar capas, así que si el archivo abierto es un PNG el editor pide dónde guardar el proyecto en lugar de fundirlas sin avisar
+- **Guardar como** — `Ctrl+Shift+S` o **File → Save as…**: elige nombre y formato. Guardar como PNG con varias capas las funde en una
+- **Autoguardado** — mientras haya cambios sin guardar (marcados con `●` en la barra de estado), el editor guarda una copia cada vez que dejas de dibujar unos segundos y al cerrar la ventana. Si se cierra sin guardar, al volver a abrirlo ofrece recuperar el trabajo. La copia se borra al guardar
 - **Exportar** — `Ctrl+E` o **File → Export…**: el fotograma actual en PNG, un sprite sheet en PNG (con las columnas que elijas) o un GIF animado, a escala ×1, ×2, ×4 u ×8. Cada píxel se amplía a un bloque exacto, sin suavizado. Es una exportación: no cambia el archivo que tienes abierto. El GIF no admite transparencia parcial, así que los píxeles semitransparentes quedan opacos o transparentes
 - **Importar sprite sheet** — **File → Import sprite sheet…**: indica el tamaño de cada fotograma y una cuadrícula muestra cómo se cortará la imagen. Las celdas vacías del final se descartan
 
@@ -259,7 +279,7 @@ Al abrir o arrastrar una imagen grande (más de 128 px) o con muchos colores, co
 
 1. Abre el panel IA con el botón `BotMessageSquare` en la esquina superior derecha
 2. Elige el proveedor (OpenAI, Anthropic o Gemini) y el modelo, e introduce tu clave de API (se guarda localmente)
-3. (Opcional) Selecciona una región con la herramienta `MousePointer`; sin selección se edita todo el lienzo
+3. (Opcional) Selecciona una región con la herramienta `MousePointer`; sin selección se edita todo el lienzo. La IA ve y modifica solo la capa activa
 4. Describe el cambio que quieres (ej: "haz el fondo azul" o "duplica este sprite")
 5. Revisa el resultado y haz clic en **Aplicar Edición**
 
@@ -277,8 +297,9 @@ Al abrir o arrastrar una imagen grande (más de 128 px) o con muchos colores, co
 | `P`                                 | Reproducir o parar la animación                   |
 | `Ctrl+Z`                            | Deshacer                                          |
 | `Ctrl+Shift+Z` / `Ctrl+Y`           | Rehacer                                           |
-| `Ctrl+S`                            | Guardar PNG                                       |
-| `Ctrl+O`                            | Abrir imagen                                      |
+| `Ctrl+S`                            | Guardar (PNG, o proyecto si hay varias capas)     |
+| `Ctrl+Shift+S`                      | Guardar como                                      |
+| `Ctrl+O`                            | Abrir imagen o proyecto                           |
 | `Ctrl+E`                            | Exportar (PNG, sprite sheet o GIF)                |
 | `G`                                 | Mostrar u ocultar la cuadrícula                   |
 | `Ctrl+0`                            | Ajustar el lienzo a la ventana                    |
@@ -336,10 +357,12 @@ pixel-art-editor/
 │   │   ├── Timeline.tsx        # Tira de fotogramas
 │   │   ├── AnimationPreview.tsx # Vista previa de la animación
 │   │   ├── ExportDialog.tsx    # Exportar fotograma, sprite sheet o GIF
+│   │   ├── LayersPanel.tsx     # Panel de capas
 │   │   └── AIChat.tsx          # Panel de chat con IA
 │   ├── hooks/
-│   │   ├── useEditor.ts        # Estado global, herramientas e historial
-│   │   ├── useFileActions.ts   # Abrir, guardar y exportar imágenes y paletas
+│   │   ├── useEditor.ts        # Estado global: capas, fotogramas, herramientas e historial
+│   │   ├── useFileActions.ts   # Abrir, guardar y exportar imágenes, proyectos y paletas
+│   │   ├── useAutosave.ts      # Copia de seguridad del trabajo sin guardar
 │   │   ├── useKeyboardShortcuts.ts # Atajos de teclado globales
 │   │   └── usePalette.ts       # Paleta activa y bloqueo, guardados entre sesiones
 │   ├── ai/
@@ -351,7 +374,7 @@ pixel-art-editor/
 │   └── App.tsx                 # Layout principal: une el editor, la paleta y los paneles
 ├── src-tauri/                  # Backend Rust (Tauri)
 │   ├── src/
-│   │   └── lib.rs              # Comandos Tauri (save_png_file, save_gif_file, save_palette_file)
+│   │   └── lib.rs              # Comandos Tauri (save_png_file, save_gif_file, save_project_file, save_palette_file)
 │   ├── capabilities/
 │   │   └── default.json        # Permisos de plugins
 │   ├── icons/                  # Iconos de la aplicación
@@ -405,11 +428,11 @@ pixel-art-editor/
 - [x] Exportar a GIF
 - [x] Exportar sprite sheet (los fotogramas en una sola imagen) e importarlo
 
-### 0.5 — Capas y proyectos
+### ✅ 0.5 — Capas y proyectos
 
-- [ ] Capas con visibilidad y opacidad
-- [ ] Formato de proyecto propio que conserve capas y fotogramas
-- [ ] Autoguardado
+- [x] Capas con visibilidad y opacidad
+- [x] Formato de proyecto propio que conserve capas y fotogramas
+- [x] Autoguardado
 
 ### 1.0 — Estable
 
