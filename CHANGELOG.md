@@ -7,6 +7,8 @@ y el proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-15
+
 ### Añadido
 
 - Capas compartidas por todos los fotogramas, con visibilidad, opacidad, nombre y orden. Panel **Layers** para crear, duplicar, combinar hacia abajo y borrar. Deshacer cubre también los cambios de capas.
@@ -111,7 +113,8 @@ Primera versión pública.
 - Barra de herramientas con iconos de lucide-react.
 - Scripts `dev.bat` / `build.bat` y helper `scripts/dev.ps1` para Windows.
 
-[Unreleased]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.1.0...v0.2.0
