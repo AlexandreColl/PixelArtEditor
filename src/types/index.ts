@@ -14,6 +14,16 @@ export interface Selection {
   height: number
 }
 
+/** A layer of the animation; every frame has one cel (PixelData) per layer. */
+export interface Layer {
+  /** Stable key for lists; not saved */
+  id: number
+  name: string
+  visible: boolean
+  /** 0–1 */
+  opacity: number
+}
+
 /** The swatches in the color panel */
 export interface Palette {
   name: string
@@ -21,11 +31,14 @@ export interface Palette {
 }
 
 export interface EditorState {
-  /** The frame being edited; always frames[currentFrame] */
+  /** The cel being edited: cels[currentFrame][currentLayer] */
   pixelData: PixelData
-  /** Every frame of the animation, all the same size */
-  frames: PixelData[]
+  /** cels[frame][layer]: the pixels of every layer in every frame, all the same size */
+  cels: PixelData[][]
+  /** Bottom first, in the order they are drawn */
+  layers: Layer[]
   currentFrame: number
+  currentLayer: number
   /** Animation speed, in frames per second */
   fps: number
   /** Shows the previous frame faintly under the current one */
