@@ -1,8 +1,9 @@
 import { useState, useCallback, useRef } from 'react'
-import type { Tool, ShapeTool, PixelData, EditorState, Selection } from '../types'
+import type { Tool, ShapeTool, PixelData, EditorState, Layer, Selection } from '../types'
 import { brushFootprints } from '../utils/brush'
 import { linePoints, shapePoints } from '../utils/shapes'
 import { TRANSPARENT, formatColor, normalizeColor, parseColor, toHex } from '../utils/color'
+import { blendOver, flattenPixel } from '../utils/layers'
 
 const MAX_HISTORY = 100
 
@@ -87,10 +88,35 @@ const DEFAULT_HEIGHT = 32
 export const DEFAULT_FPS = 8
 export const MAX_FPS = 60
 
-/** One undo step: every frame as it was, and the frame that was being edited. */
+let nextLayerId = 1
+
+export function createLayer(name: string, props: Partial<Omit<Layer, 'id' | 'name'>> = {}): Layer {
+  return { id: nextLayerId++, name, visible: true, opacity: 1, ...props }
+}
+
+/** A name like "Layer 3" that no layer has yet. */
+function newLayerName(layers: Layer[]): string {
+  const names = new Set(layers.map(l => l.name))
+  let n = layers.length + 1
+  while (names.has(`Layer ${n}`)) n++
+  return `Layer ${n}`
+}
+
+/** One undo step: every cel and layer as they were, and where the change happened. */
 interface Snapshot {
-  frames: PixelData[]
-  index: number
+  cels: PixelData[][]
+  layers: Layer[]
+  frame: number
+  layer: number
+}
+
+/** The whole document: what an opened project or file replaces. */
+export interface EditorDocument {
+  width: number
+  height: number
+  cels: string[][][][]
+  layers: Omit<Layer, 'id'>[]
+  fps?: number
 }
 
 export function useEditor() {
@@ -98,8 +124,10 @@ export function useEditor() {
     const first = createEmptyPixelData(DEFAULT_WIDTH, DEFAULT_HEIGHT)
     return {
       pixelData: first,
-      frames: [first],
+      cels: [[first]],
+      layers: [createLayer('Layer 1')],
       currentFrame: 0,
+      currentLayer: 0,
       fps: DEFAULT_FPS,
       onionSkin: false,
       activeTool: 'pencil',
@@ -116,18 +144,20 @@ export function useEditor() {
   })
 
   // Pixel data is never mutated in place, so history can hold the same objects as state,
-  // and frames that did not change are shared between snapshots.
+  // and cels that did not change are shared between snapshots.
   // The refs are updated synchronously so several events between renders see the latest pixels.
-  const framesRef = useRef(state.frames)
+  const celsRef = useRef(state.cels)
+  const layersRef = useRef(state.layers)
   const frameIndexRef = useRef(0)
-  /** The frame being edited, framesRef.current[frameIndexRef.current] */
+  const layerIndexRef = useRef(0)
+  /** The cel being edited, celsRef.current[frameIndexRef.current][layerIndexRef.current] */
   const pixelDataRef = useRef(state.pixelData)
   // Read at call time so strokes already in progress follow the latest toggle
   const mirrorRef = useRef({ x: state.mirrorX, y: state.mirrorY })
   mirrorRef.current = { x: state.mirrorX, y: state.mirrorY }
   // Canvas as it was when the current shape drag started; the shape preview is redrawn on top of it
   const shapeBaseRef = useRef<PixelData | null>(null)
-  const historyRef = useRef<Snapshot[]>([{ frames: state.frames, index: 0 }])
+  const historyRef = useRef<Snapshot[]>([{ cels: state.cels, layers: state.layers, frame: 0, layer: 0 }])
   const historyIndexRef = useRef(0)
   // Selection that goes with each history entry, so undo and redo bring back the right one
   const selHistoryRef = useRef<(Selection | null)[]>([null])
@@ -138,33 +168,53 @@ export function useEditor() {
   const clipboardRef = useRef<string[][] | null>(null)
   const [hasClipboard, setHasClipboard] = useState(false)
 
-  /** Replaces every frame and picks the one to edit. Not an undo step by itself: follow with commitHistory. */
-  const setFrames = useCallback((frames: PixelData[], index: number) => {
-    const previous = pixelDataRef.current
-    const pixelData = frames[index]
-    framesRef.current = frames
-    frameIndexRef.current = index
-    pixelDataRef.current = pixelData
-    // A selection made on a canvas of another size would point outside the new one
-    const sizeChanged = previous.width !== pixelData.width || previous.height !== pixelData.height
-    if (sizeChanged) selectionRef.current = null
-    setState(prev => ({
-      ...prev,
-      pixelData,
-      frames,
-      currentFrame: index,
-      ...(sizeChanged ? { selection: null } : {}),
-    }))
-  }, [])
+  /**
+   * Replaces the cels and layers and picks the cel to edit. Not an undo step by itself: follow with commitHistory.
+   * Indices out of range are clamped.
+   */
+  const setDocument = useCallback(
+    (cels: PixelData[][], layers: Layer[], frame = frameIndexRef.current, layer = layerIndexRef.current) => {
+      const previous = pixelDataRef.current
+      const f = clamp(frame, 0, cels.length - 1)
+      const l = clamp(layer, 0, layers.length - 1)
+      const pixelData = cels[f][l]
+      celsRef.current = cels
+      layersRef.current = layers
+      frameIndexRef.current = f
+      layerIndexRef.current = l
+      pixelDataRef.current = pixelData
+      // A selection made on a canvas of another size would point outside the new one
+      const sizeChanged = previous.width !== pixelData.width || previous.height !== pixelData.height
+      if (sizeChanged) selectionRef.current = null
+      setState(prev => ({
+        ...prev,
+        pixelData,
+        cels,
+        layers,
+        currentFrame: f,
+        currentLayer: l,
+        ...(sizeChanged ? { selection: null } : {}),
+      }))
+    },
+    [],
+  )
 
-  /** Replaces the frame being edited. */
+  /** Replaces the cels, keeping the layers. */
+  const setCels = useCallback(
+    (cels: PixelData[][], frame?: number) => setDocument(cels, layersRef.current, frame),
+    [setDocument],
+  )
+
+  /** Replaces the cel being edited. */
   const setPixelData = useCallback(
     (pixelData: PixelData) => {
-      const frames = [...framesRef.current]
-      frames[frameIndexRef.current] = pixelData
-      setFrames(frames, frameIndexRef.current)
+      const cels = [...celsRef.current]
+      const row = [...cels[frameIndexRef.current]]
+      row[layerIndexRef.current] = pixelData
+      cels[frameIndexRef.current] = row
+      setCels(cels)
     },
-    [setFrames],
+    [setCels],
   )
 
   /** Changes the selection without touching history: used while an operation is moving it. */
@@ -183,17 +233,24 @@ export function useEditor() {
   )
 
   /**
-   * Records the current frames as one undo step (no-op if nothing changed).
-   * `changedFrame` is the frame that undo and redo show, by default the one being edited.
+   * Records the current cels and layers as one undo step (no-op if nothing changed).
+   * `changedFrame` and `changedLayer` are what undo and redo show, by default the cel being edited.
    */
-  const commitHistory = useCallback((changedFrame?: number) => {
+  const commitHistory = useCallback((changedFrame?: number, changedLayer?: number) => {
     shapeBaseRef.current = null
     floatRef.current = null
-    const frames = framesRef.current
+    const cels = celsRef.current
+    const layers = layersRef.current
     const idx = historyIndexRef.current
-    if (historyRef.current[idx].frames === frames) return
+    const last = historyRef.current[idx]
+    if (last.cels === cels && last.layers === layers) return
     historyRef.current = historyRef.current.slice(0, idx + 1)
-    historyRef.current.push({ frames, index: changedFrame ?? frameIndexRef.current })
+    historyRef.current.push({
+      cels,
+      layers,
+      frame: changedFrame ?? frameIndexRef.current,
+      layer: changedLayer ?? layerIndexRef.current,
+    })
     selHistoryRef.current = selHistoryRef.current.slice(0, idx + 1)
     selHistoryRef.current.push(selectionRef.current)
     if (historyRef.current.length > MAX_HISTORY) {
@@ -314,9 +371,9 @@ export function useEditor() {
     [setPixelData, commitHistory],
   )
 
-  /** Returns the pixel color as #rrggbb, or null for transparent pixels. */
+  /** Returns the color shown at the pixel, every visible layer blended, as #rrggbb; null where transparent. */
   const pickColor = useCallback((x: number, y: number): string | null => {
-    const c = parseColor(pixelDataRef.current.pixels[y]?.[x])
+    const c = parseColor(flattenPixel(celsRef.current[frameIndexRef.current], layersRef.current, x, y))
     if (!c || c[3] === 0) return null
     return toHex(c)
   }, [])
@@ -363,7 +420,7 @@ export function useEditor() {
     [setPixelData],
   )
 
-  /** Resizes every frame, keeping the pixels from the top-left corner. */
+  /** Resizes every cel, keeping the pixels from the top-left corner. */
   const resizeCanvas = useCallback(
     (newWidth: number, newHeight: number) => {
       const { width, height } = pixelDataRef.current
@@ -375,10 +432,10 @@ export function useEditor() {
           Array.from({ length: newWidth }, (_, x) => old.pixels[y]?.[x] ?? TRANSPARENT),
         ),
       })
-      setFrames(framesRef.current.map(resize), frameIndexRef.current)
+      setCels(celsRef.current.map(row => row.map(resize)))
       commitHistory()
     },
-    [setFrames, commitHistory],
+    [setCels, commitHistory],
   )
 
   const clearCanvas = useCallback(() => {
@@ -416,8 +473,8 @@ export function useEditor() {
   )
 
   /**
-   * Replaces every pixel with map(color), as one undo step: in the selection of the current frame,
-   * or with nothing selected in every frame. Returns how many pixels changed.
+   * Replaces every pixel with map(color), as one undo step: in the selection of the cel being edited,
+   * or with nothing selected in every layer of every frame. Returns how many pixels changed.
    */
   const remapColors = useCallback(
     (map: (color: string) => string): number => {
@@ -439,15 +496,18 @@ export function useEditor() {
         // Unchanged frames stay the same object, so history keeps sharing them
         return changed > before ? { ...frame, pixels } : frame
       }
-      const index = frameIndexRef.current
-      const frames = framesRef.current.map((frame, i) => (selected && i !== index ? frame : remap(frame)))
+      const fi = frameIndexRef.current
+      const li = layerIndexRef.current
+      const cels = celsRef.current.map((row, f) =>
+        selected && f !== fi ? row : row.map((cel, l) => (selected && l !== li ? cel : remap(cel))),
+      )
       if (changed > 0) {
-        setFrames(frames, index)
+        setCels(cels)
         commitHistory()
       }
       return changed
     },
-    [setFrames, commitHistory],
+    [setCels, commitHistory],
   )
 
   const getSelection = useCallback(() => selectionRef.current, [])
@@ -553,20 +613,21 @@ export function useEditor() {
   )
 
   /**
-   * Goes to history entry `to`, showing the frame that the step between them changed,
-   * so undoing a change in another frame brings that frame into view.
+   * Goes to history entry `to`, showing the cel that the step between them changed,
+   * so undoing a change in another frame or layer brings it into view.
    */
   const restoreHistory = useCallback(
     (to: number, changedEntry: number) => {
       historyIndexRef.current = to
       floatRef.current = null
       shapeBaseRef.current = null
-      const { frames } = historyRef.current[to]
-      setFrames(frames, clamp(historyRef.current[changedEntry].index, 0, frames.length - 1))
+      const { cels, layers } = historyRef.current[to]
+      const changed = historyRef.current[changedEntry]
+      setDocument(cels, layers, changed.frame, changed.layer)
       showSelection(selHistoryRef.current[to] ?? null)
       setHistoryVersion(v => v + 1)
     },
-    [setFrames, showSelection],
+    [setDocument, showSelection],
   )
 
   const undo = useCallback(() => {
@@ -579,61 +640,171 @@ export function useEditor() {
     if (idx < historyRef.current.length - 1) restoreHistory(idx + 1, idx + 1)
   }, [restoreHistory])
 
-  /** Switches the frame being edited. Not an undo step. */
-  const selectFrame = useCallback(
-    (index: number) => {
-      if (index < 0 || index >= framesRef.current.length || index === frameIndexRef.current) return
-      // A selection lifted for dragging belongs to the frame it was lifted from
+  /** Switches the cel being edited. Not an undo step. */
+  const selectCel = useCallback(
+    (frame: number, layer: number) => {
+      if (frame === frameIndexRef.current && layer === layerIndexRef.current) return
+      if (frame < 0 || frame >= celsRef.current.length || layer < 0 || layer >= layersRef.current.length) return
+      // A selection lifted for dragging belongs to the cel it was lifted from
       if (floatRef.current) return
       shapeBaseRef.current = null
-      setFrames(framesRef.current, index)
+      setDocument(celsRef.current, layersRef.current, frame, layer)
     },
-    [setFrames],
+    [setDocument],
   )
 
-  /** Inserts a frame after the current one and selects it, as one undo step. Without one, it is empty. */
+  const selectFrame = useCallback((index: number) => selectCel(index, layerIndexRef.current), [selectCel])
+  const selectLayer = useCallback((index: number) => selectCel(frameIndexRef.current, index), [selectCel])
+
+  /** Inserts a frame after the current one and selects it, as one undo step. Without cels, it is empty. */
   const insertFrame = useCallback(
-    (frame?: PixelData) => {
+    (row?: PixelData[]) => {
       const { width, height } = pixelDataRef.current
       const at = frameIndexRef.current + 1
-      const frames = [...framesRef.current]
-      frames.splice(at, 0, frame ?? createEmptyPixelData(width, height))
-      setFrames(frames, at)
+      const cels = [...celsRef.current]
+      cels.splice(at, 0, row ?? layersRef.current.map(() => createEmptyPixelData(width, height)))
+      setCels(cels, at)
       commitHistory()
     },
-    [setFrames, commitHistory],
+    [setCels, commitHistory],
   )
 
   const addFrame = useCallback(() => insertFrame(), [insertFrame])
 
-  // Frames are never mutated, so the copy can be the same object until either is painted
-  const duplicateFrame = useCallback(() => insertFrame(pixelDataRef.current), [insertFrame])
+  // Cels are never mutated, so the copy can share them until either is painted
+  const duplicateFrame = useCallback(() => insertFrame(celsRef.current[frameIndexRef.current]), [insertFrame])
 
   /** Removes the current frame, as one undo step. Returns false when it is the only one. */
   const deleteFrame = useCallback((): boolean => {
-    const frames = framesRef.current
-    if (frames.length <= 1) return false
+    const cels = celsRef.current
+    if (cels.length <= 1) return false
     const index = frameIndexRef.current
-    setFrames(
-      frames.filter((_, i) => i !== index),
-      Math.min(index, frames.length - 2),
+    setCels(
+      cels.filter((_, i) => i !== index),
+      Math.min(index, cels.length - 2),
     )
     // Undoing the deletion shows the frame that comes back
     commitHistory(index)
     return true
-  }, [setFrames, commitHistory])
+  }, [setCels, commitHistory])
 
   /** Moves a frame to another position and selects it, as one undo step. */
   const moveFrame = useCallback(
     (from: number, to: number) => {
-      const frames = [...framesRef.current]
-      if (from === to || from < 0 || to < 0 || from >= frames.length || to >= frames.length) return
-      const [moved] = frames.splice(from, 1)
-      frames.splice(to, 0, moved)
-      setFrames(frames, to)
+      const cels = [...celsRef.current]
+      if (from === to || from < 0 || to < 0 || from >= cels.length || to >= cels.length) return
+      const [moved] = cels.splice(from, 1)
+      cels.splice(to, 0, moved)
+      setCels(cels, to)
       commitHistory()
     },
-    [setFrames, commitHistory],
+    [setCels, commitHistory],
+  )
+
+  /** Inserts a layer above the current one in every frame and selects it, as one undo step. */
+  const insertLayer = useCallback(
+    (layer: Layer, celFor: (row: PixelData[]) => PixelData) => {
+      const at = layerIndexRef.current + 1
+      const layers = [...layersRef.current]
+      layers.splice(at, 0, layer)
+      const cels = celsRef.current.map(row => {
+        const next = [...row]
+        next.splice(at, 0, celFor(row))
+        return next
+      })
+      setDocument(cels, layers, frameIndexRef.current, at)
+      commitHistory()
+    },
+    [setDocument, commitHistory],
+  )
+
+  const addLayer = useCallback(() => {
+    const { width, height } = pixelDataRef.current
+    insertLayer(createLayer(newLayerName(layersRef.current)), () => createEmptyPixelData(width, height))
+  }, [insertLayer])
+
+  const duplicateLayer = useCallback(() => {
+    const li = layerIndexRef.current
+    const { name, visible, opacity } = layersRef.current[li]
+    insertLayer(createLayer(`${name} copy`, { visible, opacity }), row => row[li])
+  }, [insertLayer])
+
+  /** Removes the current layer from every frame, as one undo step. Returns false when it is the only one. */
+  const deleteLayer = useCallback((): boolean => {
+    const layers = layersRef.current
+    if (layers.length <= 1) return false
+    const li = layerIndexRef.current
+    setDocument(
+      celsRef.current.map(row => row.filter((_, i) => i !== li)),
+      layers.filter((_, i) => i !== li),
+      frameIndexRef.current,
+      Math.min(li, layers.length - 2),
+    )
+    commitHistory(undefined, li)
+    return true
+  }, [setDocument, commitHistory])
+
+  /** Moves a layer up or down the stack and selects it, as one undo step. */
+  const moveLayer = useCallback(
+    (from: number, to: number) => {
+      const count = layersRef.current.length
+      if (from === to || from < 0 || to < 0 || from >= count || to >= count) return
+      const move = <T>(list: T[]) => {
+        const next = [...list]
+        const [moved] = next.splice(from, 1)
+        next.splice(to, 0, moved)
+        return next
+      }
+      setDocument(celsRef.current.map(move), move(layersRef.current), frameIndexRef.current, to)
+      commitHistory()
+    },
+    [setDocument, commitHistory],
+  )
+
+  /**
+   * Blends the current layer into the one below it in every frame, as one undo step.
+   * Hidden layers merge too, at their opacity. Returns false for the bottom layer.
+   */
+  const mergeLayerDown = useCallback((): boolean => {
+    const li = layerIndexRef.current
+    if (li === 0) return false
+    const { opacity } = layersRef.current[li]
+    const cels = celsRef.current.map(row => {
+      const top = row[li]
+      const below = row[li - 1]
+      const pixels = below.pixels.map((line, y) =>
+        line.map((color, x) => {
+          const t = parseColor(top.pixels[y][x])
+          if (!t || t[3] === 0) return color
+          return formatColor(blendOver(parseColor(color) ?? [0, 0, 0, 0], t, opacity))
+        }),
+      )
+      return row.filter((_, i) => i !== li).map((cel, i) => (i === li - 1 ? { ...below, pixels } : cel))
+    })
+    setDocument(
+      cels,
+      layersRef.current.filter((_, i) => i !== li),
+      frameIndexRef.current,
+      li - 1,
+    )
+    commitHistory(undefined, li)
+    return true
+  }, [setDocument, commitHistory])
+
+  /** Changes a layer's name, visibility or opacity. With commit (the default) it is an undo step. */
+  const updateLayer = useCallback(
+    (index: number, changes: Partial<Omit<Layer, 'id'>>, commit = true) => {
+      const layers = layersRef.current
+      if (!layers[index]) return
+      const next = { ...layers[index], ...changes }
+      if (next.opacity !== undefined) next.opacity = clamp(next.opacity, 0, 1)
+      setDocument(
+        celsRef.current,
+        layers.map((l, i) => (i === index ? next : l)),
+      )
+      if (commit) commitHistory(undefined, index)
+    },
+    [setDocument, commitHistory],
   )
 
   const setFps = useCallback((fps: number) => {
@@ -644,30 +815,46 @@ export function useEditor() {
     setState(prev => ({ ...prev, onionSkin: !prev.onionSkin }))
   }, [])
 
-  /** Replaces the whole animation, for example with an opened file, and starts a fresh history. */
-  const importFrames = useCallback(
-    (framePixels: string[][][], width: number, height: number, fps?: number) => {
-      const frames = framePixels.map(pixels => ({ width, height, pixels }))
-      if (frames.length === 0) return
-      historyRef.current = [{ frames, index: 0 }]
+  /** Replaces the whole document, for example with an opened project, and starts a fresh history. */
+  const importDocument = useCallback(
+    (doc: EditorDocument) => {
+      const { width, height } = doc
+      if (doc.cels.length === 0 || doc.layers.length === 0) return
+      const cels = doc.cels.map(row => row.map(pixels => ({ width, height, pixels })))
+      const layers = doc.layers.map(({ name, ...rest }) => createLayer(name, rest))
+      historyRef.current = [{ cels, layers, frame: 0, layer: 0 }]
       selHistoryRef.current = [null]
       historyIndexRef.current = 0
       floatRef.current = null
       shapeBaseRef.current = null
       selectionRef.current = null
-      setFrames(frames, 0)
+      // Draw on the top layer, as it is the one in front
+      setDocument(cels, layers, 0, layers.length - 1)
       setHistoryVersion(v => v + 1)
       setState(prev => ({
         ...prev,
         selection: null,
-        fps: fps ? clamp(Math.round(fps), 1, MAX_FPS) : prev.fps,
+        fps: doc.fps ? clamp(Math.round(doc.fps), 1, MAX_FPS) : prev.fps,
         zoom: Math.max(1, Math.floor(1024 / Math.max(width, height))),
       }))
     },
-    [setFrames],
+    [setDocument],
   )
 
-  /** Replaces the animation with a single image. */
+  /** Replaces the document with frames of a single layer. */
+  const importFrames = useCallback(
+    (framePixels: string[][][], width: number, height: number, fps?: number) =>
+      importDocument({
+        width,
+        height,
+        fps,
+        cels: framePixels.map(pixels => [pixels]),
+        layers: [{ name: 'Layer 1', visible: true, opacity: 1 }],
+      }),
+    [importDocument],
+  )
+
+  /** Replaces the document with a single image. */
   const importPixels = useCallback(
     (pixels: string[][], width: number, height: number) => importFrames([pixels], width, height),
     [importFrames],
@@ -703,7 +890,15 @@ export function useEditor() {
     remapColors,
     importPixels,
     importFrames,
+    importDocument,
     selectFrame,
+    selectLayer,
+    addLayer,
+    duplicateLayer,
+    deleteLayer,
+    moveLayer,
+    mergeLayerDown,
+    updateLayer,
     addFrame,
     duplicateFrame,
     deleteFrame,
