@@ -42,6 +42,8 @@ interface FileActionsOptions {
   fps: number
   importFrames: (frames: string[][][], width: number, height: number, fps?: number) => void
   importDocument: (doc: EditorDocument) => void
+  /** Called after a save that kept everything, so the editor knows there are no unsaved changes */
+  markSaved: () => void
   palette: Palette
   replacePalette: (name: string, colors: unknown[]) => boolean
   showToast: (message: string) => void
@@ -86,6 +88,7 @@ export function useFileActions({
   fps,
   importFrames,
   importDocument,
+  markSaved,
   palette,
   replacePalette,
   showToast,
@@ -206,6 +209,7 @@ export function useFileActions({
           }
           await invoke('save_project_file', { path: filePath, contents: serializeProject(doc) })
           setFile(filePath, name, PROJECT_EXTENSION)
+          markSaved()
           showToast(`Saved ${name}.${PROJECT_EXTENSION}`)
           return
         }
@@ -229,6 +233,8 @@ export function useFileActions({
           await savePngFile(frames[0], filePath)
         }
         setFile(filePath, name)
+        // A PNG of several layers lost them, so the work still counts as unsaved (and stays autosaved)
+        if (layers.length === 1) markSaved()
         const what = frames.length > 1 ? `${frames.length} frames` : 'image'
         showToast(`Saved ${what} as ${name}.png${layers.length > 1 ? ' (layers merged)' : ''}`)
       } catch (err) {
@@ -236,7 +242,7 @@ export function useFileActions({
         console.error(err)
       }
     },
-    [cels, layers, flatFrames, fps, setFile, showToast],
+    [cels, layers, flatFrames, fps, setFile, markSaved, showToast],
   )
 
   /** Asks where to save, offering `kind` first; the extension picked in the dialog decides the format. */
@@ -356,6 +362,9 @@ export function useFileActions({
 
   const cancelSpriteSheet = useCallback(() => setPendingSheet(null), [])
 
+  /** Names recovered work after its old file, without a path: it was never saved there, so Save asks where. */
+  const adoptRecovered = useCallback((name: string, kind: FileKind) => setFile(null, name, kind), [setFile])
+
   const acceptConversion = useCallback(
     (pd: PixelData) => {
       if (!pendingImage) return
@@ -424,6 +433,7 @@ export function useFileActions({
     openSpriteSheet,
     acceptSpriteSheet,
     cancelSpriteSheet,
+    adoptRecovered,
     acceptConversion,
     openOriginal,
     cancelConversion,

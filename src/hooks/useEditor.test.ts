@@ -609,3 +609,33 @@ describe('useEditor layers', () => {
     expect(result.current.canUndo).toBe(false)
   })
 })
+
+describe('useEditor unsaved changes', () => {
+  it('starts clean, gets dirty with an edit and clean again when undone or saved', () => {
+    const { result, run, dot } = setup()
+    expect(result.current.isDirty).toBe(false)
+    dot(0, 0, RED)
+    expect(result.current.isDirty).toBe(true)
+    run(e => e.undo())
+    expect(result.current.isDirty).toBe(false)
+    run(e => e.redo())
+    run(e => e.markSaved())
+    expect(result.current.isDirty).toBe(false)
+    run(e => e.undo())
+    expect(result.current.isDirty).toBe(true)
+  })
+
+  it('counts an opened document as saved, unless it is recovered work', () => {
+    const { result, run, dot } = setup()
+    dot(0, 0, RED)
+    run(e => e.importPixels([[BLUE]], 1, 1))
+    expect(result.current.isDirty).toBe(false)
+    run(e =>
+      e.importDocument(
+        { width: 1, height: 1, cels: [[[[RED]]]], layers: [{ name: 'Layer 1', visible: true, opacity: 1 }] },
+        false,
+      ),
+    )
+    expect(result.current.isDirty).toBe(true)
+  })
+})
