@@ -4,11 +4,12 @@ import { open, save } from '@tauri-apps/plugin-dialog'
 import { readFile } from '@tauri-apps/plugin-fs'
 import { MAX_ORIGINAL_SIZE } from '../components/ConvertDialog'
 import type { ExportOptions } from '../components/ExportDialog'
-import type { Palette, PixelData } from '../types'
+import type { Layer, Palette, PixelData } from '../types'
 import { TRANSPARENT } from '../utils/color'
 import { fileBaseName, imageDataToPixels, loadImageFile, needsConversion, withExtension } from '../utils/image'
 import { PALETTE_EXTENSIONS, formatForPath, parsePalette, serializePalette } from '../utils/palette'
 import { encodeGif } from '../utils/gif'
+import { flattenFrameCached } from '../utils/layers'
 import { pixelsToPngDataUrl } from '../utils/png'
 import { addPngText, base64ToBytes, bytesToBase64, readPngText } from '../utils/pngText'
 import {
@@ -31,9 +32,11 @@ export interface PendingImage {
 }
 
 interface FileActionsOptions {
-  /** The frame being edited, which Export PNG writes */
-  pixelData: PixelData
-  frames: PixelData[]
+  /** cels[frame][layer] */
+  cels: PixelData[][]
+  layers: Layer[]
+  /** The frame that Export writes as a single image */
+  currentFrame: number
   fps: number
   importFrames: (frames: string[][][], width: number, height: number, fps?: number) => void
   palette: Palette
@@ -65,8 +68,9 @@ function savedAnimation(image: ImageData, bytes: Uint8Array | undefined) {
  * Desktop dialogs go through Tauri; dropped and picked File objects work in any webview.
  */
 export function useFileActions({
-  pixelData,
-  frames,
+  cels,
+  layers,
+  currentFrame,
   fps,
   importFrames,
   palette,
@@ -79,6 +83,9 @@ export function useFileActions({
   const [pendingImage, setPendingImage] = useState<PendingImage | null>(null)
   // An image waiting for its frame size in the sprite sheet dialog
   const [pendingSheet, setPendingSheet] = useState<{ image: ImageData; name: string } | null>(null)
+
+  /** Every frame as shown, with its visible layers blended. Cached, so cheap to call on each save. */
+  const flatFrames = useCallback(() => cels.map(row => flattenFrameCached(row, layers)), [cels, layers])
 
   const setFile = useCallback((path: string | null, name: string) => {
     filePathRef.current = path
@@ -147,6 +154,7 @@ export function useFileActions({
   const saveTo = useCallback(
     async (filePath: string) => {
       try {
+        const frames = flatFrames()
         const { width, height } = frames[0]
         if (frames.length > 1) {
           // A strip of all the frames, which also opens as a sprite sheet in any other program
@@ -173,7 +181,7 @@ export function useFileActions({
         console.error(err)
       }
     },
-    [frames, fps, setFile, showToast],
+    [flatFrames, fps, setFile, showToast],
   )
 
   const saveImage = useCallback(async () => {
@@ -192,6 +200,7 @@ export function useFileActions({
   const exportImage = useCallback(
     async ({ kind, scale, columns }: ExportOptions) => {
       try {
+        const frames = flatFrames()
         const scaleSuffix = scale > 1 ? `@${scale}x` : ''
         if (kind === 'gif') {
           const fp = await save({
@@ -218,8 +227,9 @@ export function useFileActions({
         if (!fp) return
         const path = withExtension(fp, 'png')
         if (kind === 'frame') {
-          await savePngFile(pixelData, path, scale)
-          showToast(`Exported ${pixelData.width * scale}x${pixelData.height * scale} PNG`)
+          const frame = frames[Math.min(currentFrame, frames.length - 1)]
+          await savePngFile(frame, path, scale)
+          showToast(`Exported ${frame.width * scale}x${frame.height * scale} PNG`)
           return
         }
         const { width, height } = frames[0]
@@ -243,7 +253,7 @@ export function useFileActions({
         console.error(err)
       }
     },
-    [pixelData, frames, fps, fileName, showToast],
+    [flatFrames, currentFrame, fps, fileName, showToast],
   )
 
   /** Opens an image to cut into frames; the sprite sheet dialog asks for the frame size. */

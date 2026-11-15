@@ -85,6 +85,7 @@ export default function ColorPalette({
         flexDirection: 'column',
         gap: 12,
         borderLeft: '1px solid #444',
+        flex: 1,
         minHeight: 0,
       }}
     >

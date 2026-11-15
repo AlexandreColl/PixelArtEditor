@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useEffect, useCallback, useDeferredValue, useMemo, useRef } from 'react'
 import { BotMessageSquare, Save } from 'lucide-react'
 import Canvas from './components/Canvas'
 import type { CanvasHandle, Point } from './components/Canvas'
@@ -10,6 +10,7 @@ import ConvertDialog from './components/ConvertDialog'
 import ExportDialog from './components/ExportDialog'
 import SpriteSheetDialog from './components/SpriteSheetDialog'
 import FileMenu from './components/FileMenu'
+import LayersPanel from './components/LayersPanel'
 import Toast, { useToast } from './components/Toast'
 import Timeline from './components/Timeline'
 import Toolbar from './components/Toolbar'
@@ -21,6 +22,7 @@ import { usePalette } from './hooks/usePalette'
 import type { Selection } from './types'
 import { TRANSPARENT, parseColor, toHex } from './utils/color'
 import { paletteSnapper } from './utils/palette'
+import { flattenFrameCached, flattenPixel, visibleCels } from './utils/layers'
 
 const btnAccent: React.CSSProperties = {
   padding: '4px 14px',
@@ -106,20 +108,38 @@ export default function App() {
     moveFrame,
     toggleOnionSkin,
     setFps,
+    selectLayer,
+    addLayer,
+    duplicateLayer,
+    deleteLayer,
+    moveLayer,
+    mergeLayerDown,
+    updateLayer,
     undo,
     redo,
   } = useEditor()
   const { palette, locked, toggleLocked, addColor, removeColor, moveColor, replacePalette, resetPalette } = usePalette()
   const { toast, showToast } = useToast()
   const files = useFileActions({
-    pixelData: state.pixelData,
-    frames: state.frames,
+    cels: state.cels,
+    layers: state.layers,
+    currentFrame: state.currentFrame,
     fps: state.fps,
     importFrames,
     palette,
     replacePalette,
     showToast,
   })
+
+  // Frames as shown, every visible layer blended, for the strip, the preview and the onion skin.
+  // Deferred so that blending never slows down a stroke; the canvas draws the layers itself.
+  const shownCels = useDeferredValue(state.cels)
+  const shownLayers = useDeferredValue(state.layers)
+  const frames = useMemo(() => shownCels.map(row => flattenFrameCached(row, shownLayers)), [shownCels, shownLayers])
+  const canvasLayers = useMemo(
+    () => visibleCels(state.cels[state.currentFrame], state.layers),
+    [state.cels, state.currentFrame, state.layers],
+  )
 
   const [aiOpen, setAiOpen] = useState(false)
   const [dragOver, setDragOver] = useState(false)
@@ -232,8 +252,8 @@ export default function App() {
     [setPrimaryColor, setSecondaryColor],
   )
 
-  const frameRef = useRef({ current: state.currentFrame, count: state.frames.length })
-  frameRef.current = { current: state.currentFrame, count: state.frames.length }
+  const frameRef = useRef({ current: state.currentFrame, count: state.cels.length })
+  frameRef.current = { current: state.currentFrame, count: state.cels.length }
 
   /** Previous or next frame, wrapping around like the animation does. */
   const stepFrame = useCallback(
@@ -336,7 +356,7 @@ export default function App() {
 
       {exportOpen && (
         <ExportDialog
-          frames={state.frames}
+          frames={state.cels.map(row => flattenFrameCached(row, state.layers))}
           currentFrame={state.currentFrame}
           fps={state.fps}
           onExport={options => {
@@ -431,7 +451,8 @@ export default function App() {
           mirrorX={state.mirrorX}
           mirrorY={state.mirrorY}
           pixelData={state.pixelData}
-          onionFrame={state.onionSkin && state.currentFrame > 0 ? state.frames[state.currentFrame - 1] : null}
+          layers={canvasLayers}
+          onionFrame={state.onionSkin && state.currentFrame > 0 ? (frames[state.currentFrame - 1] ?? null) : null}
           tool={state.activeTool}
           primaryColor={state.primaryColor}
           secondaryColor={state.secondaryColor}
@@ -454,24 +475,38 @@ export default function App() {
           onHoverPixel={setHoverPixel}
         />
 
-        <ColorPalette
-          primaryColor={state.primaryColor}
-          secondaryColor={state.secondaryColor}
-          onPrimaryChange={setPrimaryColor}
-          onSecondaryChange={setSecondaryColor}
-          onSwap={swapColors}
-          paletteName={palette.name}
-          paletteColors={palette.colors}
-          onAddColor={() => addColor(state.primaryColor)}
-          onRemoveColor={removeColor}
-          onMoveColor={moveColor}
-          onResetPalette={resetPalette}
-          onImportFile={files.importPalette}
-          onExport={files.exportPalette}
-          locked={locked}
-          onToggleLock={toggleLocked}
-          onReduce={handleReduceToPalette}
-        />
+        <div style={{ width: 200, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <ColorPalette
+            primaryColor={state.primaryColor}
+            secondaryColor={state.secondaryColor}
+            onPrimaryChange={setPrimaryColor}
+            onSecondaryChange={setSecondaryColor}
+            onSwap={swapColors}
+            paletteName={palette.name}
+            paletteColors={palette.colors}
+            onAddColor={() => addColor(state.primaryColor)}
+            onRemoveColor={removeColor}
+            onMoveColor={moveColor}
+            onResetPalette={resetPalette}
+            onImportFile={files.importPalette}
+            onExport={files.exportPalette}
+            locked={locked}
+            onToggleLock={toggleLocked}
+            onReduce={handleReduceToPalette}
+          />
+          <LayersPanel
+            layers={state.layers}
+            currentLayer={state.currentLayer}
+            onSelect={selectLayer}
+            onAdd={addLayer}
+            onDuplicate={duplicateLayer}
+            onDelete={deleteLayer}
+            onMove={moveLayer}
+            onMergeDown={mergeLayerDown}
+            onUpdate={updateLayer}
+            onCommit={() => commitHistory()}
+          />
+        </div>
 
         <AIChat
           isOpen={aiOpen}
@@ -482,7 +517,7 @@ export default function App() {
       </div>
 
       <Timeline
-        frames={state.frames}
+        frames={frames}
         currentFrame={state.currentFrame}
         onSelectFrame={selectFrame}
         onAddFrame={addFrame}
@@ -493,11 +528,11 @@ export default function App() {
         onToggleOnionSkin={toggleOnionSkin}
       >
         <AnimationPreview
-          frames={state.frames}
+          frames={frames}
           currentFrame={state.currentFrame}
           fps={state.fps}
           onFpsChange={setFps}
-          playing={playing && state.frames.length > 1}
+          playing={playing && state.cels.length > 1}
           onTogglePlay={togglePlay}
         />
       </Timeline>
@@ -528,7 +563,11 @@ export default function App() {
         )}
         <PixelInfo
           pixel={hoverPixel}
-          color={hoverPixel ? state.pixelData.pixels[hoverPixel.y]?.[hoverPixel.x] : undefined}
+          color={
+            hoverPixel && hoverPixel.x < state.pixelData.width && hoverPixel.y < state.pixelData.height
+              ? flattenPixel(state.cels[state.currentFrame], state.layers, hoverPixel.x, hoverPixel.y)
+              : undefined
+          }
         />
       </div>
     </div>
