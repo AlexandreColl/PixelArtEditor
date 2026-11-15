@@ -42,6 +42,15 @@ fn save_gif_file(path: String, base64_data: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn save_project_file(path: String, contents: String) -> Result<(), String> {
+    let p = Path::new(&path);
+    if !has_extension(p, &["pxa"]) {
+        return Err("only .pxa projects can be saved".to_string());
+    }
+    write_file(p, contents.as_bytes())
+}
+
+#[tauri::command]
 fn save_palette_file(path: String, contents: String) -> Result<(), String> {
     let p = Path::new(&path);
     if !has_extension(p, &["gpl", "hex"]) {
@@ -55,7 +64,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
-        .invoke_handler(tauri::generate_handler![save_png_file, save_gif_file, save_palette_file])
+        .invoke_handler(tauri::generate_handler![save_png_file, save_gif_file, save_project_file, save_palette_file])
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -81,5 +90,6 @@ mod tests {
         assert!(!has_extension(Path::new("pal.hex.exe"), &["gpl", "hex"]));
         assert!(!has_extension(Path::new("noext"), &["png"]));
         assert!(!has_extension(Path::new("anim.gif"), &["png"]));
+        assert!(has_extension(Path::new("hero.PXA"), &["pxa"]));
     }
 }
