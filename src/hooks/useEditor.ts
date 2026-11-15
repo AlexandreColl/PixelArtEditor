@@ -159,6 +159,9 @@ export function useEditor() {
   const shapeBaseRef = useRef<PixelData | null>(null)
   const historyRef = useRef<Snapshot[]>([{ cels: state.cels, layers: state.layers, frame: 0, layer: 0 }])
   const historyIndexRef = useRef(0)
+  // The history entry that matches the file on disk; any other entry means unsaved changes.
+  // null when the document has never been saved (a recovered autosave).
+  const savedEntryRef = useRef<Snapshot | null>(historyRef.current[0])
   // Selection that goes with each history entry, so undo and redo bring back the right one
   const selHistoryRef = useRef<(Selection | null)[]>([null])
   const [, setHistoryVersion] = useState(0)
@@ -816,13 +819,18 @@ export function useEditor() {
   }, [])
 
   /** Replaces the whole document, for example with an opened project, and starts a fresh history. */
+  /**
+   * Replaces the whole document and starts a fresh history.
+   * With saved false it counts as unsaved changes, for work that was never written to a file.
+   */
   const importDocument = useCallback(
-    (doc: EditorDocument) => {
+    (doc: EditorDocument, saved = true) => {
       const { width, height } = doc
       if (doc.cels.length === 0 || doc.layers.length === 0) return
       const cels = doc.cels.map(row => row.map(pixels => ({ width, height, pixels })))
       const layers = doc.layers.map(({ name, ...rest }) => createLayer(name, rest))
       historyRef.current = [{ cels, layers, frame: 0, layer: 0 }]
+      savedEntryRef.current = saved ? historyRef.current[0] : null
       selHistoryRef.current = [null]
       historyIndexRef.current = 0
       floatRef.current = null
@@ -860,6 +868,15 @@ export function useEditor() {
     [importFrames],
   )
 
+  /** Marks the current state as the one written to disk. */
+  const markSaved = useCallback(() => {
+    savedEntryRef.current = historyRef.current[historyIndexRef.current]
+    setHistoryVersion(v => v + 1)
+  }, [])
+
+  /** True when the document differs from the last save (undoing back to it counts as no changes). */
+  const isDirty = historyRef.current[historyIndexRef.current] !== savedEntryRef.current
+
   const canUndo = historyIndexRef.current > 0
   const canRedo = historyIndexRef.current < historyRef.current.length - 1
 
@@ -867,6 +884,8 @@ export function useEditor() {
     state,
     canUndo,
     canRedo,
+    isDirty,
+    markSaved,
     setTool,
     setPrimaryColor,
     setSecondaryColor,
