@@ -13,9 +13,10 @@ target/
 .env.local
 .env.*.local
 
-# IDE
+# IDE and assistant settings (never versioned)
 .vscode/
 .idea/
+.claude/
 *.swp
 *.swo
 

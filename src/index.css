@@ -15,8 +15,10 @@ body,
   background: #1e1e1e;
 }
 
-input:focus {
-  outline: none;
+/* Shown when focus comes from the keyboard (and in text fields), so it is always clear where keys go */
+:focus-visible {
+  outline: 2px solid #4fc3f7;
+  outline-offset: 1px;
 }
 
 ::-webkit-scrollbar {
