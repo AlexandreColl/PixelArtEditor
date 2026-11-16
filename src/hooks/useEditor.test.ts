@@ -639,3 +639,36 @@ describe('useEditor unsaved changes', () => {
     expect(result.current.isDirty).toBe(true)
   })
 })
+
+describe('useEditor undoing moves', () => {
+  it('shows a moved frame back where it was on undo, and at its new place on redo', () => {
+    const { result, run, dot } = setup()
+    dot(0, 0, RED)
+    run(e => e.addFrame())
+    run(e => e.addFrame())
+    // Frame 1 (red) goes to the end
+    run(e => e.moveFrame(0, 2))
+    expect(result.current.state.currentFrame).toBe(2)
+    run(e => e.undo())
+    expect(result.current.state.currentFrame).toBe(0)
+    expect(result.current.state.cels[0][0].pixels[0][0]).toBe(RED)
+    run(e => e.redo())
+    expect(result.current.state.currentFrame).toBe(2)
+    expect(result.current.state.cels[2][0].pixels[0][0]).toBe(RED)
+  })
+
+  it('selects a moved layer at its old position on undo, and at its new one on redo', () => {
+    const { result, run } = setup()
+    run(e => e.addLayer())
+    run(e => e.addLayer())
+    run(e => e.moveLayer(2, 0))
+    const names = () => result.current.state.layers.map(l => l.name)
+    const selected = () => names()[result.current.state.currentLayer]
+    expect(selected()).toBe('Layer 3')
+    run(e => e.undo())
+    expect(names()).toEqual(['Layer 1', 'Layer 2', 'Layer 3'])
+    expect(selected()).toBe('Layer 3')
+    run(e => e.redo())
+    expect(selected()).toBe('Layer 3')
+  })
+})
