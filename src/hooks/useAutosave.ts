@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { isTauri } from '@tauri-apps/api/core'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import type { Layer, PixelData } from '../types'
 import type { EditorDocument } from './useEditor'
+import { type AutosaveStore, defaultAutosaveStore } from '../utils/autosaveStore'
 import { parseProject, serializeProject } from '../utils/project'
 
-export const AUTOSAVE_KEY = 'autosave'
 /** Wait this long after the last change, so a stroke in progress is not written on every pointer move */
 export const AUTOSAVE_DELAY = 2000
 
@@ -14,6 +16,8 @@ interface AutosaveOptions {
   fileName: string
   /** Only unsaved work is kept: once the file is saved there is nothing to recover */
   isDirty: boolean
+  /** Where the copy goes; by default a file in the app data folder, or local storage in a browser */
+  store?: AutosaveStore
 }
 
 interface StoredAutosave {
@@ -28,33 +32,71 @@ export interface Recovery {
   doc: EditorDocument
 }
 
-function readStored(): Recovery | null {
+function parseStored(raw: string): Recovery | null {
   try {
-    const raw = localStorage.getItem(AUTOSAVE_KEY)
-    if (!raw) return null
     const stored: StoredAutosave = JSON.parse(raw)
     return { savedAt: new Date(stored.savedAt), fileName: stored.fileName, doc: parseProject(stored.project) }
   } catch {
-    // Unreadable: nothing worth offering, and it would be offered again on every start
-    localStorage.removeItem(AUTOSAVE_KEY)
     return null
   }
 }
 
 /**
- * Keeps a copy of unsaved work in local storage, and on start offers to recover what a crash or
- * an accidental close left behind. The copy is removed as soon as there are no unsaved changes.
+ * Keeps a copy of unsaved work and, on start, offers to recover what a crash or an accidental
+ * close left behind. The copy is removed as soon as there are no unsaved changes.
  */
-export function useAutosave({ cels, layers, fps, fileName, isDirty }: AutosaveOptions) {
-  // Read once on start; while it is offered nothing is written, so the copy can't be overwritten
-  const [recovery, setRecovery] = useState<Recovery | null>(readStored)
-  const pending = useRef<(() => void) | null>(null)
+export function useAutosave({ cels, layers, fps, fileName, isDirty, store }: AutosaveOptions) {
+  const storeRef = useRef<AutosaveStore>(store ?? defaultAutosaveStore())
+  // Nothing is written until the copy left last time has been read, or while it is being offered,
+  // so that copy can't be overwritten before the user decides what to do with it
+  const [phase, setPhase] = useState<'checking' | 'offering' | 'active'>('checking')
+  const [recovery, setRecovery] = useState<Recovery | null>(null)
+  // Store calls run one at a time, in order: a slow write can't land after the removal that follows it
+  const queue = useRef<Promise<void>>(Promise.resolve())
+  const hasCopy = useRef(false)
+  const pending = useRef<(() => Promise<void>) | null>(null)
+
+  const enqueue = useCallback((op: () => Promise<void>) => {
+    queue.current = queue.current.then(op).catch(err => {
+      // The work is still in the editor; only the safety copy is missing
+      console.warn('Autosave failed', err)
+    })
+    return queue.current
+  }, [])
+
+  const removeCopy = useCallback(() => {
+    if (!hasCopy.current) return
+    hasCopy.current = false
+    enqueue(() => storeRef.current.remove())
+  }, [enqueue])
+
+  useEffect(() => {
+    let cancelled = false
+    storeRef.current
+      .read()
+      .then(raw => {
+        if (cancelled) return
+        hasCopy.current = raw !== null
+        const found = raw === null ? null : parseStored(raw)
+        // Unreadable: nothing worth offering, and it would be offered again on every start
+        if (raw !== null && !found) removeCopy()
+        setRecovery(found)
+        setPhase(found ? 'offering' : 'active')
+      })
+      .catch(err => {
+        console.warn('Could not read the autosave', err)
+        if (!cancelled) setPhase('active')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [removeCopy])
 
   useEffect(() => {
     pending.current = null
-    if (recovery) return
+    if (phase !== 'active') return
     if (!isDirty) {
-      localStorage.removeItem(AUTOSAVE_KEY)
+      removeCopy()
       return
     }
     const write = () => {
@@ -67,36 +109,49 @@ export function useAutosave({ cels, layers, fps, fileName, isDirty }: AutosaveOp
         cels: cels.map(row => row.map(cel => cel.pixels)),
       }
       const stored: StoredAutosave = { savedAt: new Date().toISOString(), fileName, project: serializeProject(doc) }
-      try {
-        localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(stored))
-      } catch (err) {
-        // Storage full: the work is still in the editor, only the safety copy is missing
-        console.warn('Autosave failed', err)
-      }
+      const contents = JSON.stringify(stored)
+      hasCopy.current = true
+      return enqueue(() => storeRef.current.write(contents))
     }
     pending.current = write
     const id = window.setTimeout(write, AUTOSAVE_DELAY)
     return () => window.clearTimeout(id)
-  }, [cels, layers, fps, fileName, isDirty, recovery])
+  }, [cels, layers, fps, fileName, isDirty, phase, enqueue, removeCopy])
 
-  // Closing the window must not lose the last two seconds of work
+  // Closing must not lose the last seconds of work: write what is pending, and wait for it
   useEffect(() => {
-    const flush = () => pending.current?.()
-    window.addEventListener('pagehide', flush)
-    return () => window.removeEventListener('pagehide', flush)
+    const flush = () => pending.current?.() ?? queue.current
+    const onPageHide = () => void flush()
+    window.addEventListener('pagehide', onPageHide)
+    // In the desktop app the window waits for the handler before closing
+    let unlisten: (() => void) | null = null
+    let disposed = false
+    if (isTauri()) {
+      getCurrentWindow()
+        .onCloseRequested(() => flush())
+        .then(fn => (disposed ? fn() : (unlisten = fn)))
+        .catch(err => console.warn('Could not watch the window closing', err))
+    }
+    return () => {
+      disposed = true
+      window.removeEventListener('pagehide', onPageHide)
+      unlisten?.()
+    }
   }, [])
 
   /** Hands over the recovered work and starts autosaving again. */
   const takeRecovery = useCallback(() => {
     const r = recovery
     setRecovery(null)
+    setPhase('active')
     return r
   }, [recovery])
 
   const discardRecovery = useCallback(() => {
-    localStorage.removeItem(AUTOSAVE_KEY)
+    removeCopy()
     setRecovery(null)
-  }, [])
+    setPhase('active')
+  }, [removeCopy])
 
   return { recovery, takeRecovery, discardRecovery }
 }
