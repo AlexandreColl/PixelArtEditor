@@ -108,6 +108,8 @@ interface Snapshot {
   layers: Layer[]
   frame: number
   layer: number
+  /** Where the change is once undone, when that is somewhere else (a moved frame or layer goes back) */
+  before?: { frame?: number; layer?: number }
 }
 
 /** The whole document: what an opened project or file replaces. */
@@ -239,7 +241,7 @@ export function useEditor() {
    * Records the current cels and layers as one undo step (no-op if nothing changed).
    * `changedFrame` and `changedLayer` are what undo and redo show, by default the cel being edited.
    */
-  const commitHistory = useCallback((changedFrame?: number, changedLayer?: number) => {
+  const commitHistory = useCallback((changedFrame?: number, changedLayer?: number, before?: Snapshot['before']) => {
     shapeBaseRef.current = null
     floatRef.current = null
     const cels = celsRef.current
@@ -253,6 +255,7 @@ export function useEditor() {
       layers,
       frame: changedFrame ?? frameIndexRef.current,
       layer: changedLayer ?? layerIndexRef.current,
+      before,
     })
     selHistoryRef.current = selHistoryRef.current.slice(0, idx + 1)
     selHistoryRef.current.push(selectionRef.current)
@@ -621,12 +624,14 @@ export function useEditor() {
    */
   const restoreHistory = useCallback(
     (to: number, changedEntry: number) => {
+      const undoing = to < historyIndexRef.current
       historyIndexRef.current = to
       floatRef.current = null
       shapeBaseRef.current = null
       const { cels, layers } = historyRef.current[to]
       const changed = historyRef.current[changedEntry]
-      setDocument(cels, layers, changed.frame, changed.layer)
+      const at = undoing ? { ...changed, ...changed.before } : changed
+      setDocument(cels, layers, at.frame, at.layer)
       showSelection(selHistoryRef.current[to] ?? null)
       setHistoryVersion(v => v + 1)
     },
@@ -699,7 +704,8 @@ export function useEditor() {
       const [moved] = cels.splice(from, 1)
       cels.splice(to, 0, moved)
       setCels(cels, to)
-      commitHistory()
+      // Undoing puts the frame back where it was, so show it there
+      commitHistory(to, undefined, { frame: from })
     },
     [setCels, commitHistory],
   )
@@ -759,7 +765,7 @@ export function useEditor() {
         return next
       }
       setDocument(celsRef.current.map(move), move(layersRef.current), frameIndexRef.current, to)
-      commitHistory()
+      commitHistory(undefined, to, { layer: from })
     },
     [setDocument, commitHistory],
   )
