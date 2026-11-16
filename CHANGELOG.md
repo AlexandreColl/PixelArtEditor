@@ -7,6 +7,12 @@ y el proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Corregido
+
+- El foco del teclado no se veía en los campos de texto: ahora todo elemento enfocado con el teclado muestra un contorno azul.
+- Deshacer el movimiento de una capa o un fotograma seleccionaba el que quedaba en la posición de destino, no el que se había movido.
+- El autoguardado usaba el almacenamiento local del webview, limitado a unos pocos MB, y un proyecto grande podía quedarse sin copia. Ahora la aplicación lo escribe en un archivo de su carpeta de datos y espera a terminarlo antes de cerrar la ventana. Una copia que dejara la 0.5.0 se sigue ofreciendo una vez.
+
 ## [0.5.0] - 2026-11-15
 
 ### Añadido
