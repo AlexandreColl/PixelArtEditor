@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
+import { useLatest } from '../hooks/useLatest'
 
 export const dialogButton: React.CSSProperties = {
   padding: '6px 14px',
@@ -56,8 +57,7 @@ export default function Dialog({
   width = 480,
   children,
 }: DialogProps) {
-  const actions = useRef({ onCancel, onConfirm, cancelOnEscape })
-  actions.current = { onCancel, onConfirm, cancelOnEscape }
+  const actions = useLatest({ onCancel, onConfirm, cancelOnEscape })
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -69,7 +69,7 @@ export default function Dialog({
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [])
+  }, [actions])
 
   return (
     <div

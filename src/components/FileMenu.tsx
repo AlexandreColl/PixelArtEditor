@@ -129,10 +129,24 @@ export default function FileMenu({
           <button role="menuitem" style={itemStyle} onClick={pick(onOpen)}>
             <FolderOpen size={15} /> Open… <span style={shortcutStyle}>Ctrl+O</span>
           </button>
-          <button role="menuitem" style={itemStyle} onClick={pick(() => pickImage('pixel-art'))}>
+          <button
+            role="menuitem"
+            style={itemStyle}
+            onClick={() => {
+              setIsOpen(false)
+              pickImage('pixel-art')
+            }}
+          >
             <ImagePlus size={15} /> Import image as pixel art…
           </button>
-          <button role="menuitem" style={itemStyle} onClick={pick(() => pickImage('sprite-sheet'))}>
+          <button
+            role="menuitem"
+            style={itemStyle}
+            onClick={() => {
+              setIsOpen(false)
+              pickImage('sprite-sheet')
+            }}
+          >
             <Grid2x2 size={15} /> Import sprite sheet…
           </button>
           <div style={{ height: 1, background: '#444', margin: '4px 0' }} />

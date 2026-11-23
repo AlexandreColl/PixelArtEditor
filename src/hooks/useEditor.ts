@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react'
+import { useLatest } from './useLatest'
 import type { Tool, ShapeTool, PixelData, EditorState, Layer, Selection } from '../types'
 import { brushFootprints } from '../utils/brush'
 import { linePoints, shapePoints } from '../utils/shapes'
@@ -155,18 +156,31 @@ export function useEditor() {
   /** The cel being edited, celsRef.current[frameIndexRef.current][layerIndexRef.current] */
   const pixelDataRef = useRef(state.pixelData)
   // Read at call time so strokes already in progress follow the latest toggle
-  const mirrorRef = useRef({ x: state.mirrorX, y: state.mirrorY })
-  mirrorRef.current = { x: state.mirrorX, y: state.mirrorY }
+  const mirrorRef = useLatest({ x: state.mirrorX, y: state.mirrorY })
   // Canvas as it was when the current shape drag started; the shape preview is redrawn on top of it
   const shapeBaseRef = useRef<PixelData | null>(null)
-  const historyRef = useRef<Snapshot[]>([{ cels: state.cels, layers: state.layers, frame: 0, layer: 0 }])
+  const [firstEntry] = useState<Snapshot>(() => ({ cels: state.cels, layers: state.layers, frame: 0, layer: 0 }))
+  const historyRef = useRef<Snapshot[]>([firstEntry])
   const historyIndexRef = useRef(0)
   // The history entry that matches the file on disk; any other entry means unsaved changes.
   // null when the document has never been saved (a recovered autosave).
-  const savedEntryRef = useRef<Snapshot | null>(historyRef.current[0])
+  const savedEntryRef = useRef<Snapshot | null>(firstEntry)
   // Selection that goes with each history entry, so undo and redo bring back the right one
   const selHistoryRef = useRef<(Selection | null)[]>([null])
-  const [, setHistoryVersion] = useState(0)
+  // What the toolbar and status bar show about the history, refreshed whenever the refs above change
+  const [historyStatus, setHistoryStatus] = useState({ canUndo: false, canRedo: false, isDirty: false })
+  const syncHistory = useCallback(() => {
+    const idx = historyIndexRef.current
+    const next = {
+      canUndo: idx > 0,
+      canRedo: idx < historyRef.current.length - 1,
+      // Undoing back to the saved entry counts as no changes
+      isDirty: historyRef.current[idx] !== savedEntryRef.current,
+    }
+    setHistoryStatus(prev =>
+      prev.canUndo === next.canUndo && prev.canRedo === next.canRedo && prev.isDirty === next.isDirty ? prev : next,
+    )
+  }, [])
   // Synchronous copy of state.selection, like pixelDataRef, for operations chained within one event
   const selectionRef = useRef<Selection | null>(null)
   const floatRef = useRef<FloatingSelection | null>(null)
@@ -241,31 +255,34 @@ export function useEditor() {
    * Records the current cels and layers as one undo step (no-op if nothing changed).
    * `changedFrame` and `changedLayer` are what undo and redo show, by default the cel being edited.
    */
-  const commitHistory = useCallback((changedFrame?: number, changedLayer?: number, before?: Snapshot['before']) => {
-    shapeBaseRef.current = null
-    floatRef.current = null
-    const cels = celsRef.current
-    const layers = layersRef.current
-    const idx = historyIndexRef.current
-    const last = historyRef.current[idx]
-    if (last.cels === cels && last.layers === layers) return
-    historyRef.current = historyRef.current.slice(0, idx + 1)
-    historyRef.current.push({
-      cels,
-      layers,
-      frame: changedFrame ?? frameIndexRef.current,
-      layer: changedLayer ?? layerIndexRef.current,
-      before,
-    })
-    selHistoryRef.current = selHistoryRef.current.slice(0, idx + 1)
-    selHistoryRef.current.push(selectionRef.current)
-    if (historyRef.current.length > MAX_HISTORY) {
-      historyRef.current.shift()
-      selHistoryRef.current.shift()
-    }
-    historyIndexRef.current = historyRef.current.length - 1
-    setHistoryVersion(v => v + 1)
-  }, [])
+  const commitHistory = useCallback(
+    (changedFrame?: number, changedLayer?: number, before?: Snapshot['before']) => {
+      shapeBaseRef.current = null
+      floatRef.current = null
+      const cels = celsRef.current
+      const layers = layersRef.current
+      const idx = historyIndexRef.current
+      const last = historyRef.current[idx]
+      if (last.cels === cels && last.layers === layers) return
+      historyRef.current = historyRef.current.slice(0, idx + 1)
+      historyRef.current.push({
+        cels,
+        layers,
+        frame: changedFrame ?? frameIndexRef.current,
+        layer: changedLayer ?? layerIndexRef.current,
+        before,
+      })
+      selHistoryRef.current = selHistoryRef.current.slice(0, idx + 1)
+      selHistoryRef.current.push(selectionRef.current)
+      if (historyRef.current.length > MAX_HISTORY) {
+        historyRef.current.shift()
+        selHistoryRef.current.shift()
+      }
+      historyIndexRef.current = historyRef.current.length - 1
+      syncHistory()
+    },
+    [syncHistory],
+  )
 
   const setTool = useCallback((tool: Tool) => {
     setState(prev => ({ ...prev, activeTool: tool }))
@@ -321,7 +338,7 @@ export function useEditor() {
       }
       setPixelData({ width, height, pixels: newPixels })
     },
-    [setPixelData],
+    [setPixelData, mirrorRef],
   )
 
   /** Marks the start of a shape drag so it can be redrawn from the same canvas on every pointer move. */
@@ -350,7 +367,7 @@ export function useEditor() {
       }
       setPixelData({ width: base.width, height: base.height, pixels })
     },
-    [setPixelData],
+    [setPixelData, mirrorRef],
   )
 
   const fillRegion = useCallback(
@@ -434,8 +451,8 @@ export function useEditor() {
       const resize = (old: PixelData): PixelData => ({
         width: newWidth,
         height: newHeight,
-        pixels: Array.from({ length: newHeight }, (_, y) =>
-          Array.from({ length: newWidth }, (_, x) => old.pixels[y]?.[x] ?? TRANSPARENT),
+        pixels: Array.from({ length: newHeight }, (_row, y) =>
+          Array.from({ length: newWidth }, (_cell, x) => old.pixels[y]?.[x] ?? TRANSPARENT),
         ),
       })
       setCels(celsRef.current.map(row => row.map(resize)))
@@ -633,9 +650,9 @@ export function useEditor() {
       const at = undoing ? { ...changed, ...changed.before } : changed
       setDocument(cels, layers, at.frame, at.layer)
       showSelection(selHistoryRef.current[to] ?? null)
-      setHistoryVersion(v => v + 1)
+      syncHistory()
     },
-    [setDocument, showSelection],
+    [setDocument, showSelection, syncHistory],
   )
 
   const undo = useCallback(() => {
@@ -844,7 +861,7 @@ export function useEditor() {
       selectionRef.current = null
       // Draw on the top layer, as it is the one in front
       setDocument(cels, layers, 0, layers.length - 1)
-      setHistoryVersion(v => v + 1)
+      syncHistory()
       setState(prev => ({
         ...prev,
         selection: null,
@@ -852,7 +869,7 @@ export function useEditor() {
         zoom: Math.max(1, Math.floor(1024 / Math.max(width, height))),
       }))
     },
-    [setDocument],
+    [setDocument, syncHistory],
   )
 
   /** Replaces the document with frames of a single layer. */
@@ -877,14 +894,11 @@ export function useEditor() {
   /** Marks the current state as the one written to disk. */
   const markSaved = useCallback(() => {
     savedEntryRef.current = historyRef.current[historyIndexRef.current]
-    setHistoryVersion(v => v + 1)
-  }, [])
+    syncHistory()
+  }, [syncHistory])
 
-  /** True when the document differs from the last save (undoing back to it counts as no changes). */
-  const isDirty = historyRef.current[historyIndexRef.current] !== savedEntryRef.current
-
-  const canUndo = historyIndexRef.current > 0
-  const canRedo = historyIndexRef.current < historyRef.current.length - 1
+  /** isDirty: the document differs from the last save. */
+  const { canUndo, canRedo, isDirty } = historyStatus
 
   return {
     state,
