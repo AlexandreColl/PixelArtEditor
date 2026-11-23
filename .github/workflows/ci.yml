@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   frontend:
-    name: Frontend (format + test + build)
+    name: Frontend (format + lint + test + build)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -23,19 +23,26 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm run format:check
+      - run: pnpm run lint
       - run: pnpm test
       - run: pnpm run build
 
   tauri:
-    name: Tauri (cargo test)
+    name: Tauri (fmt + clippy + test)
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
       - name: Create placeholder frontend dist
         run: mkdir dist
+      - run: cargo fmt --check
+        working-directory: src-tauri
+      - run: cargo clippy --all-targets --locked -- -D warnings
+        working-directory: src-tauri
       - run: cargo test --locked
         working-directory: src-tauri
