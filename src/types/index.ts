@@ -1,5 +1,5 @@
 export type ShapeTool = 'line' | 'rect' | 'ellipse'
-export type Tool = 'pencil' | 'eraser' | 'fill' | 'picker' | 'selection' | 'shade' | ShapeTool
+export type Tool = 'pencil' | 'eraser' | 'fill' | 'picker' | 'selection' | 'move' | 'shade' | ShapeTool
 
 export interface PixelData {
   width: number

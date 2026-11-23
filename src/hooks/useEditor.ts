@@ -642,6 +642,38 @@ export function useEditor() {
     [setPixelData, showSelection],
   )
 
+  /**
+   * Shows the layer's pixels as they were when the move began, shifted by (dx, dy). What goes past
+   * the edge comes back if the drag returns; it is cut when the move is committed.
+   * Call beginShape first and commitHistory when the drag ends.
+   */
+  const shiftCel = useCallback(
+    (dx: number, dy: number) => {
+      const base = shapeBaseRef.current ?? pixelDataRef.current
+      const { width, height } = base
+      const empty = Array<string>(width).fill(TRANSPARENT)
+      const pixels = Array.from({ length: height }, (_row, y) => {
+        const src = base.pixels[y - dy]
+        if (!src) return empty.slice()
+        // A vertical move keeps whole rows, so what was rendered from them is reused
+        if (dx === 0) return src
+        return Array.from({ length: width }, (_cell, x) => src[x - dx] ?? TRANSPARENT)
+      })
+      setPixelData({ width, height, pixels })
+    },
+    [setPixelData],
+  )
+
+  /** Moves the whole layer by (dx, dy) as one undo step, for the arrow keys. */
+  const nudgeCel = useCallback(
+    (dx: number, dy: number) => {
+      shapeBaseRef.current = pixelDataRef.current
+      shiftCel(dx, dy)
+      commitHistory()
+    },
+    [shiftCel, commitHistory],
+  )
+
   /** Moves the selected pixels by (dx, dy) as one undo step. Returns false if nothing is selected. */
   const nudgeSelection = useCallback(
     (dx: number, dy: number): boolean => {
@@ -937,6 +969,8 @@ export function useEditor() {
     toggleMirrorY,
     paintLine,
     beginShape,
+    shiftCel,
+    nudgeCel,
     drawShape,
     fillRegion,
     shadePixel,

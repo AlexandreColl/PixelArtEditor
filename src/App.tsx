@@ -78,6 +78,8 @@ export default function App() {
     toggleMirrorY,
     paintLine,
     beginShape,
+    shiftCel,
+    nudgeCel,
     drawShape,
     fillRegion,
     shadePixel,
@@ -295,7 +297,13 @@ export default function App() {
     selectAll: handleSelectAll,
     remove: deleteSelection,
     deselect: () => setSelection(null),
-    nudge: nudgeSelection,
+    // The arrows move the selection, or with the move tool the whole layer
+    nudge: (dx, dy) => {
+      if (nudgeSelection(dx, dy)) return true
+      if (state.activeTool !== 'move') return false
+      nudgeCel(dx, dy)
+      return true
+    },
     setTool,
     swapColors,
     stepFrame,
@@ -513,6 +521,7 @@ export default function App() {
           onSelectionChange={setSelection}
           onMoveStart={beginMove}
           onMoveTo={moveSelectionTo}
+          onShiftLayer={shiftCel}
           onZoomStep={handleZoomStep}
           onHoverPixel={setHoverPixel}
         />

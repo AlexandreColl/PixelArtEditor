@@ -15,6 +15,7 @@ const cursorMap: Record<string, string> = {
   line: 'crosshair',
   rect: 'crosshair',
   ellipse: 'crosshair',
+  move: 'move',
 }
 
 const isShapeTool = (tool: Tool): tool is ShapeTool => tool === 'line' || tool === 'rect' || tool === 'ellipse'
@@ -117,6 +118,8 @@ interface CanvasProps {
   /** Starts dragging the selection; with copy the original stays in place. Returns false if nothing is selected. */
   onMoveStart: (copy: boolean) => boolean
   onMoveTo: (x: number, y: number) => void
+  /** The move tool without a selection: the whole layer follows the pointer by (dx, dy) */
+  onShiftLayer: (dx: number, dy: number) => void
   onZoomStep: (direction: 1 | -1) => void
   /** The pixel under the pointer, or null when it leaves the canvas */
   onHoverPixel?: (pixel: Point | null) => void
@@ -148,6 +151,7 @@ export default function Canvas({
   onSelectionChange,
   onMoveStart,
   onMoveTo,
+  onShiftLayer,
   onZoomStep,
   onHoverPixel,
 }: CanvasProps) {
@@ -167,6 +171,7 @@ export default function Canvas({
   const [selDrag, setSelDragState] = useState<{ start: Point; end: Point } | null>(null)
   // Drag of an existing selection: where the pointer started and where the selection was
   const moveRef = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null)
+  const shiftRef = useRef<Point | null>(null)
   const [hoverInSelection, setHoverInSelection] = useState(false)
   // Pixel under the pointer, to outline what the tool will paint
   const [hover, setHoverState] = useState<Point | null>(null)
@@ -429,6 +434,20 @@ export default function Canvas({
         return
       }
 
+      if (tool === 'move') {
+        if (secondary) return
+        const raw = getRawCoords(e.clientX, e.clientY)
+        if (!raw) return
+        // With a selection it moves the selected pixels (Alt copies them), otherwise the whole layer
+        if (selection && onMoveStart(e.altKey)) {
+          moveRef.current = { startX: raw.x, startY: raw.y, originX: selection.x, originY: selection.y }
+          return
+        }
+        shiftRef.current = raw
+        onShapeStart()
+        return
+      }
+
       const coords = getPixelCoords(e.clientX, e.clientY)
       if (!coords) return
       const color = secondary ? secondaryColor : primaryColor
@@ -461,6 +480,7 @@ export default function Canvas({
       primaryColor,
       secondaryColor,
       getPixelCoords,
+      getRawCoords,
       onFillRegion,
       onPickColor,
       onColorPicked,
@@ -491,6 +511,13 @@ export default function Canvas({
       if (move) {
         const raw = getRawCoords(e.clientX, e.clientY)
         if (raw) onMoveTo(move.originX + raw.x - move.startX, move.originY + raw.y - move.startY)
+        return
+      }
+
+      const shift = shiftRef.current
+      if (shift) {
+        const raw = getRawCoords(e.clientX, e.clientY)
+        if (raw) onShiftLayer(raw.x - shift.x, raw.y - shift.y)
         return
       }
 
@@ -538,6 +565,7 @@ export default function Canvas({
       getRawCoords,
       setSelDrag,
       onMoveTo,
+      onShiftLayer,
       onShadePixel,
       onPaintLine,
       onDrawShape,
@@ -555,7 +583,11 @@ export default function Canvas({
     }
     setIsPanning(false)
 
-    // Dropping a dragged selection is one undo step
+    // Dropping a dragged selection, or the moved layer, is one undo step
+    if (shiftRef.current) {
+      shiftRef.current = null
+      onStrokeEnd()
+    }
     if (moveRef.current) {
       moveRef.current = null
       onStrokeEnd()

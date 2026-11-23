@@ -41,6 +41,42 @@ describe('useEditor strokes', () => {
   })
 })
 
+describe('useEditor move tool', () => {
+  it('moves the whole layer, bringing back what crossed the edge until the drag ends', () => {
+    const { result, run, pixel, dot, painted } = setup()
+    dot(0, 0, RED)
+    dot(5, 5, BLUE)
+    run(e => e.beginShape())
+    run(e => e.shiftCel(-1, 0))
+    expect(painted()).toEqual(['4,5'])
+    run(e => e.shiftCel(2, 3))
+    expect(pixel(2, 3)).toBe(RED)
+    expect(pixel(7, 8)).toBe(BLUE)
+    run(e => e.commitHistory())
+    run(e => e.undo())
+    expect(painted()).toEqual(['0,0', '5,5'])
+    expect(result.current.canRedo).toBe(true)
+  })
+
+  it('moves one pixel per arrow key, each an undo step', () => {
+    const { run, painted, dot } = setup()
+    dot(1, 1, RED)
+    run(e => e.nudgeCel(1, 0))
+    run(e => e.nudgeCel(0, 1))
+    expect(painted()).toEqual(['2,2'])
+    run(e => e.undo())
+    expect(painted()).toEqual(['2,1'])
+  })
+
+  it('keeps the rows when it only moves vertically', () => {
+    const { result, run, dot } = setup()
+    dot(3, 3, RED)
+    const before = result.current.state.pixelData.pixels
+    run(e => e.nudgeCel(0, 2))
+    expect(result.current.state.pixelData.pixels[5]).toBe(before[3])
+  })
+})
+
 describe('useEditor history', () => {
   it('starts with an empty 32x32 canvas and nothing to undo', () => {
     const { result, painted } = setup()
