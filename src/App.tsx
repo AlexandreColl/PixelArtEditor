@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useDeferredValue, useMemo, useRef } from 'react'
+import { useLatest } from './hooks/useLatest'
 import { BotMessageSquare, Save } from 'lucide-react'
 import Canvas from './components/Canvas'
 import type { CanvasHandle, Point } from './components/Canvas'
@@ -171,8 +172,7 @@ export default function App() {
   const openExport = useCallback(() => setExportOpen(true), [])
   const togglePlay = useCallback(() => setPlaying(p => !p), [])
   const canvasHandleRef = useRef<CanvasHandle>(null)
-  const pixelDataRef = useRef(state.pixelData)
-  pixelDataRef.current = state.pixelData
+  const pixelDataRef = useLatest(state.pixelData)
 
   // Maps colors to the palette while it is locked
   const snap = useMemo(() => (locked ? paletteSnapper(palette.colors) : null), [locked, palette.colors])
@@ -198,7 +198,7 @@ export default function App() {
   const getAiRegion = useCallback((): Selection => {
     const pd = pixelDataRef.current
     return getSelection() ?? { x: 0, y: 0, width: pd.width, height: pd.height }
-  }, [getSelection])
+  }, [getSelection, pixelDataRef])
 
   const extractCanvasForAI = useCallback(() => {
     const pd = pixelDataRef.current
@@ -214,7 +214,7 @@ export default function App() {
       }
     }
     return { base64: c.toDataURL('image/png').split(',')[1] || '', width: region.width, height: region.height }
-  }, [getAiRegion])
+  }, [getAiRegion, pixelDataRef])
 
   const applyAiPixels = useCallback(
     (pixels: string[][]) => {
@@ -253,8 +253,7 @@ export default function App() {
     setZoom(zoom)
   }, [setZoom])
 
-  const zoomRef = useRef(state.zoom)
-  zoomRef.current = state.zoom
+  const zoomRef = useLatest(state.zoom)
 
   const handleZoomStep = useCallback(
     (direction: 1 | -1) => {
@@ -263,7 +262,7 @@ export default function App() {
       const step = z < 8 ? 1 : 4
       setZoom(z + direction * step)
     },
-    [setZoom],
+    [setZoom, zoomRef],
   )
 
   const handleColorPicked = useCallback(
@@ -274,8 +273,7 @@ export default function App() {
     [setPrimaryColor, setSecondaryColor],
   )
 
-  const frameRef = useRef({ current: state.currentFrame, count: state.cels.length })
-  frameRef.current = { current: state.currentFrame, count: state.cels.length }
+  const frameRef = useLatest({ current: state.currentFrame, count: state.cels.length })
 
   /** Previous or next frame, wrapping around like the animation does. */
   const stepFrame = useCallback(
@@ -283,7 +281,7 @@ export default function App() {
       const { current, count } = frameRef.current
       selectFrame((current + direction + count) % count)
     },
-    [selectFrame],
+    [selectFrame, frameRef],
   )
 
   useKeyboardShortcuts({

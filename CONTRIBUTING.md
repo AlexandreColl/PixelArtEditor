@@ -55,9 +55,20 @@ Consulta la sección **Primeros Pasos** del [README](README.md). Antes de abrir 
 ```sh
 pnpm install
 pnpm run format:check
+pnpm run lint
 pnpm test
 pnpm run build
 ```
+
+Si tocas el backend en Rust (`src-tauri/`), además:
+
+```sh
+cargo fmt --check
+cargo clippy --all-targets -- -D warnings
+cargo test
+```
+
+El CI ejecuta lo mismo y falla con cualquier aviso. El linter es [Oxlint](https://oxc.rs/docs/guide/usage/linter), configurado en `.oxlintrc.json`: incluye las reglas de los hooks de React, que detectan dependencias olvidadas y refs leídos durante el render. Para que un listener o un callback vea siempre las props más recientes sin registrarse en cada render, usa `useLatest` (`src/hooks/useLatest.ts`) en lugar de asignar `ref.current` en el cuerpo del componente.
 
 Los tests usan [Vitest](https://vitest.dev) y viven junto al código que prueban (`foo.ts` → `foo.test.ts`). Las utilidades puras se prueban en Node; los archivos que necesitan el DOM (como los del hook `useEditor`) empiezan con `// @vitest-environment jsdom`. Si arreglas un bug, añade un test que lo reproduzca.
 
