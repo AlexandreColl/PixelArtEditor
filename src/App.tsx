@@ -16,13 +16,16 @@ import LayersPanel from './components/LayersPanel'
 import Toast, { useToast } from './components/Toast'
 import Timeline from './components/Timeline'
 import Toolbar from './components/Toolbar'
+import UpdateDialog from './components/UpdateDialog'
 import TooltipLayer, { tip } from './components/Tooltip'
 import { useEditor } from './hooks/useEditor'
 import { useAutosave } from './hooks/useAutosave'
+import { useUpdater } from './hooks/useUpdater'
 import { useFileActions } from './hooks/useFileActions'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { usePalette } from './hooks/usePalette'
 import type { Selection } from './types'
+import { isTauri } from '@tauri-apps/api/core'
 import { TRANSPARENT, parseColor, toHex } from './utils/color'
 import { paletteSnapper } from './utils/palette'
 import { flattenFrameCached, flattenPixel, visibleCels } from './utils/layers'
@@ -145,6 +148,9 @@ export default function App() {
     fileName: files.fileName,
     isDirty,
   })
+
+  // Installing closes the app: the autosave keeps unsaved work and offers it after the restart
+  const updater = useUpdater({ beforeInstall: autosave.flush, showToast })
 
   const recoverAutosave = () => {
     const r = autosave.takeRecovery()
@@ -385,6 +391,10 @@ export default function App() {
         </Dialog>
       )}
 
+      {updater.status.phase !== 'idle' && !autosave.recovery && (
+        <UpdateDialog status={updater.status} onInstall={updater.install} onLater={updater.dismiss} />
+      )}
+
       {files.pendingSheet && (
         <SpriteSheetDialog
           image={files.pendingSheet.image}
@@ -428,6 +438,7 @@ export default function App() {
           onSave={files.saveImage}
           onSaveAs={() => files.saveAs()}
           onExport={openExport}
+          onCheckUpdates={isTauri() ? updater.checkNow : undefined}
         />
         <button {...tip('Save', 'Ctrl+S')} onClick={files.saveImage} style={btnAccent}>
           <Save size={16} />

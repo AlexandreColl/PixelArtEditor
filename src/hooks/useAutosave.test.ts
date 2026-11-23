@@ -125,6 +125,15 @@ describe('useAutosave', () => {
     expect(store.write).toHaveBeenCalledOnce()
   })
 
+  it('writes straight away when asked to, such as before installing an update', async () => {
+    const { store, get, releaseRead } = memoryStore()
+    releaseRead()
+    const { result } = setup(store)
+    await tick()
+    await act(() => result.current.flush())
+    expect(get()).toContain('#ff0000')
+  })
+
   it('offers what was left, and does not overwrite it while offered', async () => {
     const { store, releaseRead } = memoryStore(left())
     releaseRead()

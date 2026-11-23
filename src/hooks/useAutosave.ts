@@ -118,9 +118,11 @@ export function useAutosave({ cels, layers, fps, fileName, isDirty, store }: Aut
     return () => window.clearTimeout(id)
   }, [cels, layers, fps, fileName, isDirty, phase, enqueue, removeCopy])
 
+  /** Writes what is pending now instead of after the pause, and resolves once it is stored. */
+  const flush = useCallback(() => pending.current?.() ?? queue.current, [])
+
   // Closing must not lose the last seconds of work: write what is pending, and wait for it
   useEffect(() => {
-    const flush = () => pending.current?.() ?? queue.current
     const onPageHide = () => void flush()
     window.addEventListener('pagehide', onPageHide)
     // In the desktop app the window waits for the handler before closing
@@ -137,7 +139,7 @@ export function useAutosave({ cels, layers, fps, fileName, isDirty, store }: Aut
       window.removeEventListener('pagehide', onPageHide)
       unlisten?.()
     }
-  }, [])
+  }, [flush])
 
   /** Hands over the recovered work and starts autosaving again. */
   const takeRecovery = useCallback(() => {
@@ -153,5 +155,5 @@ export function useAutosave({ cels, layers, fps, fileName, isDirty, store }: Aut
     setPhase('active')
   }, [removeCopy])
 
-  return { recovery, takeRecovery, discardRecovery }
+  return { recovery, takeRecovery, discardRecovery, flush }
 }

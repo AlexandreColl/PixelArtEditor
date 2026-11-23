@@ -25,7 +25,17 @@ jobs:
           - platform: ubuntu-22.04
             args: ''
     runs-on: ${{ matrix.platform }}
+    env:
+      # Signs the updates, so installed copies only accept ones built here
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
     steps:
+      - name: Check the updater signing key
+        if: env.TAURI_SIGNING_PRIVATE_KEY == ''
+        run: |
+          echo '::error::The TAURI_SIGNING_PRIVATE_KEY secret is missing; see CONTRIBUTING.md, Releases'
+          exit 1
+
       - uses: actions/checkout@v7
 
       - name: Install Linux dependencies
@@ -71,6 +81,9 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+          # latest.json, which installed copies read to find updates; Windows updates with the NSIS installer
+          includeUpdaterJson: true
+          updaterJsonPreferNsis: true
 
       - name: Checksums of the installers
         shell: bash

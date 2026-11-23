@@ -1,5 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, FilePlus, FolderOpen, Grid2x2, ImageDown, ImagePlus, Save, SaveAll } from 'lucide-react'
+import {
+  ChevronDown,
+  FilePlus,
+  FolderOpen,
+  Grid2x2,
+  ImageDown,
+  ImagePlus,
+  RefreshCw,
+  Save,
+  SaveAll,
+} from 'lucide-react'
 
 interface FileMenuProps {
   onNew: () => void
@@ -11,6 +21,8 @@ interface FileMenuProps {
   onSave: () => void
   onSaveAs: () => void
   onExport: () => void
+  /** Only in the desktop app, which can update itself */
+  onCheckUpdates?: () => void
 }
 
 const itemStyle: React.CSSProperties = {
@@ -38,6 +50,7 @@ export default function FileMenu({
   onSave,
   onSaveAs,
   onExport,
+  onCheckUpdates,
 }: FileMenuProps) {
   const [isOpen, setIsOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -159,6 +172,14 @@ export default function FileMenu({
           <button role="menuitem" style={itemStyle} onClick={pick(onExport)}>
             <ImageDown size={15} /> Export… <span style={shortcutStyle}>Ctrl+E</span>
           </button>
+          {onCheckUpdates && (
+            <>
+              <div style={{ height: 1, background: '#444', margin: '4px 0' }} />
+              <button role="menuitem" style={itemStyle} onClick={pick(onCheckUpdates)}>
+                <RefreshCw size={15} /> Check for updates…
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
