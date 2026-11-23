@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react'
 import { useLatest } from './useLatest'
+import { clampSelection, clearSelected, extractSelected, isSelected } from '../utils/selection'
 import { type FrameDuration, cleanDuration, normalizeDurations } from '../utils/timing'
 import type { Tool, ShapeTool, PixelData, EditorState, Layer, Selection } from '../types'
 import { brushFootprints } from '../utils/brush'
@@ -26,27 +27,6 @@ function clonePixels(pixels: string[][]): string[][] {
 }
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
-
-/** The part of a selection that lies inside the canvas, or null if none of it does. */
-function clampRegion(sel: Selection, width: number, height: number): Selection | null {
-  const x0 = Math.max(0, sel.x)
-  const y0 = Math.max(0, sel.y)
-  const x1 = Math.min(width, sel.x + sel.width)
-  const y1 = Math.min(height, sel.y + sel.height)
-  return x1 > x0 && y1 > y0 ? { x: x0, y: y0, width: x1 - x0, height: y1 - y0 } : null
-}
-
-function extractRegion(pixels: string[][], region: Selection): string[][] {
-  return pixels.slice(region.y, region.y + region.height).map(row => row.slice(region.x, region.x + region.width))
-}
-
-function clearRegion(pixels: string[][], region: Selection): string[][] {
-  const out = clonePixels(pixels)
-  for (let y = region.y; y < region.y + region.height; y++) {
-    for (let x = region.x; x < region.x + region.width; x++) out[y][x] = TRANSPARENT
-  }
-  return out
-}
 
 /** Copy of pixels with the opaque pixels of buffer drawn at (x, y); transparent ones leave what is below. */
 function compositeOnto(pixels: string[][], buffer: string[][], x: number, y: number): string[][] {
@@ -545,7 +525,7 @@ export function useEditor() {
   const remapColors = useCallback(
     (map: (color: string) => string): number => {
       const { width, height } = pixelDataRef.current
-      const selected = selectionRef.current && clampRegion(selectionRef.current, width, height)
+      const selected = selectionRef.current && clampSelection(selectionRef.current, width, height)
       const region = selected ?? { x: 0, y: 0, width, height }
       let changed = 0
       const remap = (frame: PixelData): PixelData => {
@@ -553,6 +533,7 @@ export function useEditor() {
         const pixels = clonePixels(frame.pixels)
         for (let y = region.y; y < region.y + region.height; y++) {
           for (let x = region.x; x < region.x + region.width; x++) {
+            if (!isSelected(region, x, y)) continue
             const color = map(pixels[y][x])
             if (color === pixels[y][x]) continue
             pixels[y][x] = color
@@ -586,9 +567,9 @@ export function useEditor() {
   /** Copies the selected pixels to the editor clipboard. Returns false if nothing is selected. */
   const copySelection = useCallback((): boolean => {
     const { pixels, width, height } = pixelDataRef.current
-    const region = selectionRef.current && clampRegion(selectionRef.current, width, height)
+    const region = selectionRef.current && clampSelection(selectionRef.current, width, height)
     if (!region) return false
-    clipboardRef.current = extractRegion(pixels, region)
+    clipboardRef.current = extractSelected(pixels, region)
     setHasClipboard(true)
     return true
   }, [])
@@ -596,9 +577,9 @@ export function useEditor() {
   /** Makes the selected pixels transparent, as one undo step. Returns false if nothing is selected. */
   const deleteSelection = useCallback((): boolean => {
     const current = pixelDataRef.current
-    const region = selectionRef.current && clampRegion(selectionRef.current, current.width, current.height)
+    const region = selectionRef.current && clampSelection(selectionRef.current, current.width, current.height)
     if (!region) return false
-    setPixelData({ ...current, pixels: clearRegion(current.pixels, region) })
+    setPixelData({ ...current, pixels: clearSelected(current.pixels, region) })
     commitHistory()
     return true
   }, [setPixelData, commitHistory])
@@ -637,11 +618,11 @@ export function useEditor() {
   const beginMove = useCallback(
     (copy: boolean): boolean => {
       const current = pixelDataRef.current
-      const region = selectionRef.current && clampRegion(selectionRef.current, current.width, current.height)
+      const region = selectionRef.current && clampSelection(selectionRef.current, current.width, current.height)
       if (!region) return false
       floatRef.current = {
-        base: copy ? current : { ...current, pixels: clearRegion(current.pixels, region) },
-        buffer: extractRegion(current.pixels, region),
+        base: copy ? current : { ...current, pixels: clearSelected(current.pixels, region) },
+        buffer: extractSelected(current.pixels, region),
       }
       showSelection(region)
       return true
@@ -661,7 +642,8 @@ export function useEditor() {
       const ny = clamp(y, 0, base.height - height)
       setPixelData({ ...base, pixels: compositeOnto(base.pixels, buffer, nx, ny) })
       const sel = selectionRef.current
-      if (!sel || sel.x !== nx || sel.y !== ny) showSelection({ x: nx, y: ny, width, height })
+      // The shape of a wand or lasso selection travels with it
+      if (!sel || sel.x !== nx || sel.y !== ny) showSelection({ ...sel, x: nx, y: ny, width, height })
     },
     [setPixelData, showSelection],
   )

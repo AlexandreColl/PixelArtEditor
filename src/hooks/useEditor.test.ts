@@ -106,6 +106,52 @@ describe('useEditor frame durations', () => {
   })
 })
 
+describe('useEditor shaped selections', () => {
+  // Two pixels selected on a diagonal: the other two in their square are not
+  const diagonal = {
+    x: 1,
+    y: 1,
+    width: 2,
+    height: 2,
+    mask: [
+      [true, false],
+      [false, true],
+    ],
+  }
+
+  it('deletes and copies only the selected pixels', () => {
+    const { run, painted, dot } = setup()
+    for (const [x, y] of [
+      [1, 1],
+      [2, 1],
+      [1, 2],
+      [2, 2],
+    ])
+      dot(x, y, RED)
+    run(e => e.setSelection(diagonal))
+    run(e => e.copySelection())
+    run(e => e.deleteSelection())
+    expect(painted()).toEqual(['2,1', '1,2'])
+    run(e => e.pasteClipboard(5, 5))
+    expect(painted()).toEqual(['2,1', '1,2', '5,5', '6,6'])
+  })
+
+  it('moves the selected pixels with the shape of the selection', () => {
+    const { result, run, painted, dot } = setup()
+    for (const [x, y] of [
+      [1, 1],
+      [2, 1],
+      [1, 2],
+      [2, 2],
+    ])
+      dot(x, y, RED)
+    run(e => e.setSelection(diagonal))
+    run(e => e.nudgeSelection(3, 0))
+    expect(painted()).toEqual(['2,1', '4,1', '1,2', '5,2'])
+    expect(result.current.state.selection).toEqual({ ...diagonal, x: 4 })
+  })
+})
+
 describe('useEditor history', () => {
   it('starts with an empty 32x32 canvas and nothing to undo', () => {
     const { result, painted } = setup()

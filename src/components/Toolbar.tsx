@@ -8,6 +8,8 @@ import {
   Pipette,
   Blend,
   MousePointer,
+  Wand,
+  Lasso,
   Move,
   Grid3x3,
   Maximize,
@@ -61,6 +63,8 @@ const tools: { id: Tool; label: string; icon: React.ComponentType<{ size?: numbe
   { id: 'ellipse', label: 'Ellipse', icon: Circle },
   { id: 'shade', label: 'Shade', icon: Blend },
   { id: 'selection', label: 'Select', icon: MousePointer },
+  { id: 'wand', label: 'Magic wand: select an area of one color', icon: Wand },
+  { id: 'lasso', label: 'Lasso: select a freehand shape', icon: Lasso },
   { id: 'move', label: 'Move', icon: Move },
 ]
 
