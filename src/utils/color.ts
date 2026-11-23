@@ -27,6 +27,24 @@ export function parseColor(color: unknown): RGBA | null {
   return null
 }
 
+const parsed = new Map<string, Readonly<RGBA>>()
+const TRANSPARENT_RGBA: Readonly<RGBA> = [0, 0, 0, 0]
+
+/**
+ * parseColor for drawing loops: an image has many pixels and few colors, so each color string is
+ * parsed once. Unreadable colors count as transparent. The result is shared: never change it.
+ */
+export function parseColorCached(color: string): Readonly<RGBA> {
+  let c = parsed.get(color)
+  if (!c) {
+    // Bounded, for long sessions that go through many colors (gradients, imported photos)
+    if (parsed.size >= 65536) parsed.clear()
+    c = parseColor(color) ?? TRANSPARENT_RGBA
+    parsed.set(color, c)
+  }
+  return c
+}
+
 export function toHex([r, g, b]: RGBA): string {
   return '#' + [r, g, b].map(n => n.toString(16).padStart(2, '0')).join('')
 }

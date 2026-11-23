@@ -66,8 +66,14 @@ interface FloatingSelection {
 }
 
 /** Paints the brush squares (see brushFootprints), mirrored when asked. */
+/**
+ * Stamps the brush into `pixels`, a shallow copy of `source` (its rows are shared until written).
+ * A row is copied the first time it is written, so the rows a stroke does not touch stay the same
+ * arrays, and what was rendered from them (textures, blended frames) is reused.
+ */
 function stampBrush(
   pixels: string[][],
+  source: string[][],
   width: number,
   height: number,
   cx: number,
@@ -79,7 +85,9 @@ function stampBrush(
 ) {
   for (const sq of brushFootprints(cx, cy, size, width, height, mirrorX, mirrorY)) {
     for (let y = sq.y; y < sq.y + sq.height; y++) {
-      for (let x = sq.x; x < sq.x + sq.width; x++) pixels[y][x] = color
+      if (pixels[y] === source[y]) pixels[y] = [...source[y]]
+      const row = pixels[y]
+      for (let x = sq.x; x < sq.x + sq.width; x++) row[x] = color
     }
   }
 }
@@ -331,10 +339,10 @@ export function useEditor() {
   const paintLine = useCallback(
     (x0: number, y0: number, x1: number, y1: number, color: string, size: number) => {
       const { pixels, width, height } = pixelDataRef.current
-      const newPixels = clonePixels(pixels)
+      const newPixels = [...pixels]
       // A full line rather than single points, so fast pointer moves don't leave gaps
       for (const [x, y] of linePoints(x0, y0, x1, y1)) {
-        stampBrush(newPixels, width, height, x, y, color, size, mirrorRef.current.x, mirrorRef.current.y)
+        stampBrush(newPixels, pixels, width, height, x, y, color, size, mirrorRef.current.x, mirrorRef.current.y)
       }
       setPixelData({ width, height, pixels: newPixels })
     },
@@ -359,11 +367,22 @@ export function useEditor() {
       filled: boolean,
     ) => {
       const base = shapeBaseRef.current ?? pixelDataRef.current
-      const pixels = clonePixels(base.pixels)
+      const pixels = [...base.pixels]
       // A filled shape is the exact area between the two corners, so the brush size only applies to outlines
       const brush = filled && shape !== 'line' ? 1 : size
       for (const [x, y] of shapePoints(shape, x0, y0, x1, y1, filled)) {
-        stampBrush(pixels, base.width, base.height, x, y, color, brush, mirrorRef.current.x, mirrorRef.current.y)
+        stampBrush(
+          pixels,
+          base.pixels,
+          base.width,
+          base.height,
+          x,
+          y,
+          color,
+          brush,
+          mirrorRef.current.x,
+          mirrorRef.current.y,
+        )
       }
       setPixelData({ width: base.width, height: base.height, pixels })
     },

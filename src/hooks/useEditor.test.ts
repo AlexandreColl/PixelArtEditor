@@ -26,6 +26,21 @@ function setup() {
   return { result, run, pixel, painted, dot }
 }
 
+describe('useEditor strokes', () => {
+  it('copies only the rows a stroke touches, so the others keep what was rendered from them', () => {
+    const { result, run } = setup()
+    const before = result.current.state.pixelData.pixels
+    run(e => e.paintLine(2, 5, 6, 5, RED, 1))
+    const after = result.current.state.pixelData.pixels
+    expect(after).not.toBe(before)
+    expect(after[4]).toBe(before[4])
+    expect(after[5]).not.toBe(before[5])
+    // The old row is left as it was, for undo
+    expect(before[5][2]).toBe(TRANSPARENT)
+    expect(after[5].slice(2, 7)).toEqual([RED, RED, RED, RED, RED])
+  })
+})
+
 describe('useEditor history', () => {
   it('starts with an empty 32x32 canvas and nothing to undo', () => {
     const { result, painted } = setup()
