@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 export const MAX_CANVAS_SIZE = 256
 
@@ -29,10 +29,12 @@ export default function CanvasSizeControl({ width, height, onResize }: CanvasSiz
   const [h, setH] = useState(String(height))
 
   // Follow the canvas when its size changes elsewhere (open, new, undo of a resize...)
-  useEffect(() => {
+  const [shown, setShown] = useState({ width, height })
+  if (shown.width !== width || shown.height !== height) {
+    setShown({ width, height })
     setW(String(width))
     setH(String(height))
-  }, [width, height])
+  }
 
   const apply = () => {
     const newW = parseSize(w, width)
