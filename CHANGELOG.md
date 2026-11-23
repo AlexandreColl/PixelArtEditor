@@ -7,6 +7,8 @@ y el proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-11-23
+
 ### Seguridad
 
 - La aplicación tiene una política de seguridad de contenido (CSP): solo carga código propio y solo se conecta con las APIs de OpenAI, Anthropic y Google Gemini, así que un script inyectado no podría enviar las claves de API a otro sitio.
@@ -136,7 +138,8 @@ Primera versión pública.
 - Barra de herramientas con iconos de lucide-react.
 - Scripts `dev.bat` / `build.bat` y helper `scripts/dev.ps1` para Windows.
 
-[Unreleased]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.5.2...HEAD
+[0.5.2]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.3.0...v0.4.0
