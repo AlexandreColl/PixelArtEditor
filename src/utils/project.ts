@@ -2,6 +2,7 @@
 // Pixels are stored as indices into a color list, run-length encoded, since pixel art repeats a lot.
 import type { EditorDocument } from '../hooks/useEditor'
 import { TRANSPARENT, normalizeColor } from './color'
+import { type FrameDuration, hasCustomDurations, normalizeDurations } from './timing'
 
 export const PROJECT_EXTENSION = 'pxa'
 const FORMAT = 'pixel-art-editor'
@@ -20,6 +21,8 @@ interface ProjectFile {
   layers: { name: string; visible: boolean; opacity: number }[]
   /** frames[frame][layer]: [count, colorIndex, count, colorIndex, ...] row by row */
   frames: number[][][]
+  /** Milliseconds per frame, null to follow fps. Left out when every frame follows fps (older files) */
+  durations?: FrameDuration[]
 }
 
 export function serializeProject(doc: EditorDocument): string {
@@ -57,6 +60,7 @@ export function serializeProject(doc: EditorDocument): string {
     layers: doc.layers.map(({ name, visible, opacity }) => ({ name, visible, opacity })),
     frames: doc.cels.map(row => row.map(encode)),
   }
+  if (doc.durations && hasCustomDurations(doc.durations)) file.durations = doc.durations
   return JSON.stringify(file)
 }
 
@@ -103,6 +107,7 @@ export function parseProject(text: string): EditorDocument {
     width,
     height,
     fps: Number.isFinite(data.fps) ? data.fps : undefined,
+    durations: normalizeDurations(data.durations, frames.length),
     layers: layers.map((l, i) => ({
       name: typeof l?.name === 'string' && l.name.trim() ? l.name : `Layer ${i + 1}`,
       visible: l?.visible !== false,

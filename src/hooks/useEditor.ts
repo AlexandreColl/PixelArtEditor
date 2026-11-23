@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react'
 import { useLatest } from './useLatest'
+import { type FrameDuration, cleanDuration, normalizeDurations } from '../utils/timing'
 import type { Tool, ShapeTool, PixelData, EditorState, Layer, Selection } from '../types'
 import { brushFootprints } from '../utils/brush'
 import { linePoints, shapePoints } from '../utils/shapes'
@@ -115,6 +116,7 @@ function newLayerName(layers: Layer[]): string {
 interface Snapshot {
   cels: PixelData[][]
   layers: Layer[]
+  durations: FrameDuration[]
   frame: number
   layer: number
   /** Where the change is once undone, when that is somewhere else (a moved frame or layer goes back) */
@@ -128,6 +130,8 @@ export interface EditorDocument {
   cels: string[][][][]
   layers: Omit<Layer, 'id'>[]
   fps?: number
+  /** durations[frame] in milliseconds, or null to follow fps; missing means every frame follows fps */
+  durations?: FrameDuration[]
 }
 
 export function useEditor() {
@@ -140,6 +144,7 @@ export function useEditor() {
       currentFrame: 0,
       currentLayer: 0,
       fps: DEFAULT_FPS,
+      durations: [null],
       onionSkin: false,
       activeTool: 'pencil',
       primaryColor: '#000000',
@@ -159,6 +164,7 @@ export function useEditor() {
   // The refs are updated synchronously so several events between renders see the latest pixels.
   const celsRef = useRef(state.cels)
   const layersRef = useRef(state.layers)
+  const durationsRef = useRef(state.durations)
   const frameIndexRef = useRef(0)
   const layerIndexRef = useRef(0)
   /** The cel being edited, celsRef.current[frameIndexRef.current][layerIndexRef.current] */
@@ -167,7 +173,13 @@ export function useEditor() {
   const mirrorRef = useLatest({ x: state.mirrorX, y: state.mirrorY })
   // Canvas as it was when the current shape drag started; the shape preview is redrawn on top of it
   const shapeBaseRef = useRef<PixelData | null>(null)
-  const [firstEntry] = useState<Snapshot>(() => ({ cels: state.cels, layers: state.layers, frame: 0, layer: 0 }))
+  const [firstEntry] = useState<Snapshot>(() => ({
+    cels: state.cels,
+    layers: state.layers,
+    durations: state.durations,
+    frame: 0,
+    layer: 0,
+  }))
   const historyRef = useRef<Snapshot[]>([firstEntry])
   const historyIndexRef = useRef(0)
   // The history entry that matches the file on disk; any other entry means unsaved changes.
@@ -197,16 +209,24 @@ export function useEditor() {
 
   /**
    * Replaces the cels and layers and picks the cel to edit. Not an undo step by itself: follow with commitHistory.
-   * Indices out of range are clamped.
+   * Indices out of range are clamped. Durations stay as they are unless given; they must match the frames.
    */
   const setDocument = useCallback(
-    (cels: PixelData[][], layers: Layer[], frame = frameIndexRef.current, layer = layerIndexRef.current) => {
+    (
+      cels: PixelData[][],
+      layers: Layer[],
+      frame = frameIndexRef.current,
+      layer = layerIndexRef.current,
+      durations = durationsRef.current,
+    ) => {
+      if (durations.length !== cels.length) durations = normalizeDurations(durations, cels.length)
       const previous = pixelDataRef.current
       const f = clamp(frame, 0, cels.length - 1)
       const l = clamp(layer, 0, layers.length - 1)
       const pixelData = cels[f][l]
       celsRef.current = cels
       layersRef.current = layers
+      durationsRef.current = durations
       frameIndexRef.current = f
       layerIndexRef.current = l
       pixelDataRef.current = pixelData
@@ -218,6 +238,7 @@ export function useEditor() {
         pixelData,
         cels,
         layers,
+        durations,
         currentFrame: f,
         currentLayer: l,
         ...(sizeChanged ? { selection: null } : {}),
@@ -228,7 +249,8 @@ export function useEditor() {
 
   /** Replaces the cels, keeping the layers. */
   const setCels = useCallback(
-    (cels: PixelData[][], frame?: number) => setDocument(cels, layersRef.current, frame),
+    (cels: PixelData[][], frame?: number, durations?: FrameDuration[]) =>
+      setDocument(cels, layersRef.current, frame, undefined, durations),
     [setDocument],
   )
 
@@ -269,13 +291,15 @@ export function useEditor() {
       floatRef.current = null
       const cels = celsRef.current
       const layers = layersRef.current
+      const durations = durationsRef.current
       const idx = historyIndexRef.current
       const last = historyRef.current[idx]
-      if (last.cels === cels && last.layers === layers) return
+      if (last.cels === cels && last.layers === layers && last.durations === durations) return
       historyRef.current = historyRef.current.slice(0, idx + 1)
       historyRef.current.push({
         cels,
         layers,
+        durations,
         frame: changedFrame ?? frameIndexRef.current,
         layer: changedLayer ?? layerIndexRef.current,
         before,
@@ -696,10 +720,10 @@ export function useEditor() {
       historyIndexRef.current = to
       floatRef.current = null
       shapeBaseRef.current = null
-      const { cels, layers } = historyRef.current[to]
+      const { cels, layers, durations } = historyRef.current[to]
       const changed = historyRef.current[changedEntry]
       const at = undoing ? { ...changed, ...changed.before } : changed
-      setDocument(cels, layers, at.frame, at.layer)
+      setDocument(cels, layers, at.frame, at.layer, durations)
       showSelection(selHistoryRef.current[to] ?? null)
       syncHistory()
     },
@@ -734,12 +758,14 @@ export function useEditor() {
 
   /** Inserts a frame after the current one and selects it, as one undo step. Without cels, it is empty. */
   const insertFrame = useCallback(
-    (row?: PixelData[]) => {
+    (row?: PixelData[], duration: FrameDuration = null) => {
       const { width, height } = pixelDataRef.current
       const at = frameIndexRef.current + 1
       const cels = [...celsRef.current]
       cels.splice(at, 0, row ?? layersRef.current.map(() => createEmptyPixelData(width, height)))
-      setCels(cels, at)
+      const durations = [...durationsRef.current]
+      durations.splice(at, 0, duration)
+      setCels(cels, at, durations)
       commitHistory()
     },
     [setCels, commitHistory],
@@ -747,8 +773,11 @@ export function useEditor() {
 
   const addFrame = useCallback(() => insertFrame(), [insertFrame])
 
-  // Cels are never mutated, so the copy can share them until either is painted
-  const duplicateFrame = useCallback(() => insertFrame(celsRef.current[frameIndexRef.current]), [insertFrame])
+  // Cels are never mutated, so the copy can share them until either is painted. It keeps the duration too.
+  const duplicateFrame = useCallback(
+    () => insertFrame(celsRef.current[frameIndexRef.current], durationsRef.current[frameIndexRef.current]),
+    [insertFrame],
+  )
 
   /** Removes the current frame, as one undo step. Returns false when it is the only one. */
   const deleteFrame = useCallback((): boolean => {
@@ -758,6 +787,7 @@ export function useEditor() {
     setCels(
       cels.filter((_, i) => i !== index),
       Math.min(index, cels.length - 2),
+      durationsRef.current.filter((_, i) => i !== index),
     )
     // Undoing the deletion shows the frame that comes back
     commitHistory(index)
@@ -771,7 +801,10 @@ export function useEditor() {
       if (from === to || from < 0 || to < 0 || from >= cels.length || to >= cels.length) return
       const [moved] = cels.splice(from, 1)
       cels.splice(to, 0, moved)
-      setCels(cels, to)
+      const durations = [...durationsRef.current]
+      const [duration] = durations.splice(from, 1)
+      durations.splice(to, 0, duration)
+      setCels(cels, to, durations)
       // Undoing puts the frame back where it was, so show it there
       commitHistory(to, undefined, { frame: from })
     },
@@ -884,6 +917,19 @@ export function useEditor() {
     [setDocument, commitHistory],
   )
 
+  /** Gives frame `index` its own duration in milliseconds, or null to follow fps, as one undo step. */
+  const setFrameDuration = useCallback(
+    (index: number, duration: unknown) => {
+      const durations = [...durationsRef.current]
+      if (index < 0 || index >= durations.length) return
+      durations[index] = cleanDuration(duration)
+      if (durations[index] === durationsRef.current[index]) return
+      setCels(celsRef.current, frameIndexRef.current, durations)
+      commitHistory(index)
+    },
+    [setCels, commitHistory],
+  )
+
   const setFps = useCallback((fps: number) => {
     setState(prev => ({ ...prev, fps: clamp(Math.round(fps) || 1, 1, MAX_FPS) }))
   }, [])
@@ -903,7 +949,8 @@ export function useEditor() {
       if (doc.cels.length === 0 || doc.layers.length === 0) return
       const cels = doc.cels.map(row => row.map(pixels => ({ width, height, pixels })))
       const layers = doc.layers.map(({ name, ...rest }) => createLayer(name, rest))
-      historyRef.current = [{ cels, layers, frame: 0, layer: 0 }]
+      const durations = normalizeDurations(doc.durations, cels.length)
+      historyRef.current = [{ cels, layers, durations, frame: 0, layer: 0 }]
       savedEntryRef.current = saved ? historyRef.current[0] : null
       selHistoryRef.current = [null]
       historyIndexRef.current = 0
@@ -911,7 +958,7 @@ export function useEditor() {
       shapeBaseRef.current = null
       selectionRef.current = null
       // Draw on the top layer, as it is the one in front
-      setDocument(cels, layers, 0, layers.length - 1)
+      setDocument(cels, layers, 0, layers.length - 1, durations)
       syncHistory()
       setState(prev => ({
         ...prev,
@@ -925,11 +972,12 @@ export function useEditor() {
 
   /** Replaces the document with frames of a single layer. */
   const importFrames = useCallback(
-    (framePixels: string[][][], width: number, height: number, fps?: number) =>
+    (framePixels: string[][][], width: number, height: number, fps?: number, durations?: FrameDuration[]) =>
       importDocument({
         width,
         height,
         fps,
+        durations,
         cels: framePixels.map(pixels => [pixels]),
         layers: [{ name: 'Layer 1', visible: true, opacity: 1 }],
       }),
@@ -996,6 +1044,7 @@ export function useEditor() {
     deleteFrame,
     moveFrame,
     setFps,
+    setFrameDuration,
     toggleOnionSkin,
     hasClipboard,
     getSelection,

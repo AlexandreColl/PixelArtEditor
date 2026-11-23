@@ -4,12 +4,15 @@ import type { PixelData } from '../types'
 import { MAX_FPS } from '../hooks/useEditor'
 import { FrameImage, TIMELINE_HEIGHT } from './Timeline'
 import { tip } from './Tooltip'
+import { type FrameDuration, frameDuration } from '../utils/timing'
 import Button from './Button'
 
 interface AnimationPreviewProps {
   frames: PixelData[]
   currentFrame: number
   fps: number
+  /** durations[frame] in milliseconds, or null to follow fps */
+  durations: FrameDuration[]
   onFpsChange: (fps: number) => void
   playing: boolean
   onTogglePlay: () => void
@@ -25,6 +28,7 @@ export default function AnimationPreview({
   frames,
   currentFrame,
   fps,
+  durations,
   onFpsChange,
   playing,
   onTogglePlay,
@@ -47,14 +51,17 @@ export default function AnimationPreview({
     if (playing) setTick(0)
   }
 
-  useEffect(() => {
-    if (!playing) return
-    const id = window.setInterval(() => setTick(t => t + 1), 1000 / fps)
-    return () => window.clearInterval(id)
-  }, [playing, fps])
-
   // Starts from the frame being edited, so a long animation plays from where you are
   const shown = playing ? (currentFrame + tick) % frames.length : currentFrame
+
+  // Each frame waits its own duration; every tick arms the wait for the next frame
+  const wait = frameDuration(durations, shown, fps)
+  useEffect(() => {
+    if (!playing) return
+    const id = window.setTimeout(() => setTick(tick + 1), wait)
+    return () => window.clearTimeout(id)
+  }, [playing, tick, wait])
+
   const frame = frames[Math.min(shown, frames.length - 1)]
 
   const commitFps = () => {

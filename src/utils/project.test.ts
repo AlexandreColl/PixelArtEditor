@@ -10,6 +10,7 @@ const doc: EditorDocument = {
   width: 3,
   height: 2,
   fps: 12,
+  durations: [null, 250],
   layers: [
     { name: 'Background', visible: true, opacity: 1 },
     { name: 'Glow', visible: false, opacity: 0.4 },
@@ -41,6 +42,12 @@ const doc: EditorDocument = {
 describe('project files', () => {
   it('round trips every frame, layer and setting', () => {
     expect(parseProject(serializeProject(doc))).toEqual(doc)
+  })
+
+  it('opens files without durations, from before they existed, with every frame following fps', () => {
+    const file = JSON.parse(serializeProject({ ...doc, durations: [null, null] }))
+    expect(file.durations).toBeUndefined()
+    expect(parseProject(JSON.stringify(file)).durations).toEqual([null, null])
   })
 
   it('stores repeated pixels as runs', () => {

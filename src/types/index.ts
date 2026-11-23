@@ -41,6 +41,8 @@ export interface EditorState {
   currentLayer: number
   /** Animation speed, in frames per second */
   fps: number
+  /** durations[frame]: milliseconds, or null to follow fps */
+  durations: (number | null)[]
   /** Shows the previous frame faintly under the current one */
   onionSkin: boolean
   activeTool: Tool

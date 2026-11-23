@@ -109,6 +109,7 @@ export default function App() {
     moveFrame,
     toggleOnionSkin,
     setFps,
+    setFrameDuration,
     selectLayer,
     addLayer,
     duplicateLayer,
@@ -126,6 +127,7 @@ export default function App() {
     layers: state.layers,
     currentFrame: state.currentFrame,
     fps: state.fps,
+    durations: state.durations,
     importFrames,
     importDocument,
     markSaved,
@@ -137,6 +139,7 @@ export default function App() {
     cels: state.cels,
     layers: state.layers,
     fps: state.fps,
+    durations: state.durations,
     fileName: files.fileName,
     isDirty,
   })
@@ -407,6 +410,7 @@ export default function App() {
           frames={state.cels.map(row => flattenFrameCached(row, state.layers))}
           currentFrame={state.currentFrame}
           fps={state.fps}
+          durations={state.durations}
           onExport={options => {
             setExportOpen(false)
             files.exportImage(options)
@@ -577,11 +581,15 @@ export default function App() {
         onMoveFrame={moveFrame}
         onionSkin={state.onionSkin}
         onToggleOnionSkin={toggleOnionSkin}
+        durations={state.durations}
+        fps={state.fps}
+        onDurationChange={setFrameDuration}
       >
         <AnimationPreview
           frames={frames}
           currentFrame={state.currentFrame}
           fps={state.fps}
+          durations={state.durations}
           onFpsChange={setFps}
           playing={playing && state.cels.length > 1}
           onTogglePlay={togglePlay}

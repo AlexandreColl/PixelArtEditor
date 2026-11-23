@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import type { PixelData } from '../types'
 import { EXPORT_SCALES } from '../utils/png'
 import { framesToSheet } from '../utils/spriteSheet'
+import { type FrameDuration, frameDurations, hasCustomDurations } from '../utils/timing'
 import Dialog, { fieldStyle, labelText } from './Dialog'
 import { FrameImage } from './Timeline'
 
@@ -18,6 +19,7 @@ interface ExportDialogProps {
   frames: PixelData[]
   currentFrame: number
   fps: number
+  durations: FrameDuration[]
   onExport: (options: ExportOptions) => void
   onCancel: () => void
 }
@@ -30,7 +32,8 @@ const KINDS: { kind: ExportKind; label: string; hint: string }[] = [
 
 const PREVIEW_BOX = 280
 
-export default function ExportDialog({ frames, currentFrame, fps, onExport, onCancel }: ExportDialogProps) {
+export default function ExportDialog({ frames, currentFrame, fps, durations, onExport, onCancel }: ExportDialogProps) {
+  const totalMs = frameDurations(frames.length, fps, durations).reduce((a, b) => a + b, 0)
   const [kind, setKind] = useState<ExportKind>(frames.length > 1 ? 'sheet' : 'frame')
   const [scale, setScale] = useState(1)
   // One row by default, which every engine can read
@@ -99,7 +102,10 @@ export default function ExportDialog({ frames, currentFrame, fps, onExport, onCa
 
         <span style={{ fontSize: 12, color: 'var(--text-subtle)', paddingBottom: 6 }}>
           {kind === 'sheet' && `${cols} × ${rows} · `}
-          {kind === 'gif' && `${frames.length} frames at ${fps} fps · `}
+          {kind === 'gif' &&
+            (hasCustomDurations(durations)
+              ? `${frames.length} frames, ${(totalMs / 1000).toFixed(2)} s · `
+              : `${frames.length} frames at ${fps} fps · `)}
           {outW}×{outH} px
         </span>
       </div>

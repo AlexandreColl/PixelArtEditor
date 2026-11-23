@@ -4,6 +4,7 @@ import type { PixelData } from '../types'
 import { tip } from './Tooltip'
 import Button from './Button'
 import { drawPixels } from '../utils/png'
+import { type FrameDuration, MAX_DURATION, MIN_DURATION } from '../utils/timing'
 
 interface TimelineProps {
   frames: PixelData[]
@@ -15,6 +16,11 @@ interface TimelineProps {
   onMoveFrame: (from: number, to: number) => void
   onionSkin: boolean
   onToggleOnionSkin: () => void
+  /** durations[frame] in milliseconds, or null to follow fps */
+  durations: FrameDuration[]
+  fps: number
+  /** A typed duration for a frame; an empty value makes it follow fps again */
+  onDurationChange: (index: number, duration: string) => void
   /** Extra controls at the left of the strip */
   children?: React.ReactNode
 }
@@ -47,6 +53,68 @@ export const FrameImage = memo(function FrameImage({ frame, box }: { frame: Pixe
   )
 })
 
+/** How long the current frame shows. Empty, it follows the animation speed, shown as the placeholder. */
+function FrameDurationField({
+  duration,
+  fps,
+  onChange,
+}: {
+  duration: FrameDuration
+  fps: number
+  onChange: (value: string) => void
+}) {
+  const [text, setText] = useState(duration === null ? '' : String(duration))
+  // Follow undo and the other frame operations
+  const [shown, setShown] = useState(duration)
+  if (duration !== shown) {
+    setShown(duration)
+    setText(duration === null ? '' : String(duration))
+  }
+  const commit = () => {
+    if (text.trim() === '' ? duration !== null : Number(text) !== duration) onChange(text)
+    else setText(duration === null ? '' : String(duration))
+  }
+  return (
+    <label
+      {...tip(`How long this frame shows, in milliseconds.\nEmpty: follows the speed (${fps} fps)`)}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 3,
+        fontSize: 11,
+        color: 'var(--text-subtle)',
+      }}
+    >
+      <input
+        type="number"
+        aria-label="Frame duration in milliseconds"
+        min={MIN_DURATION}
+        max={MAX_DURATION}
+        step={10}
+        placeholder={String(Math.round(1000 / fps))}
+        value={text}
+        onChange={e => setText(e.target.value)}
+        onBlur={commit}
+        onKeyDown={e => {
+          if (e.key === 'Enter') commit()
+          if (e.key === 'Escape') setText(duration === null ? '' : String(duration))
+        }}
+        style={{
+          width: 54,
+          padding: '1px 4px',
+          borderRadius: 4,
+          border: '1px solid var(--border)',
+          background: 'var(--bg)',
+          color: duration === null ? 'var(--text-muted)' : 'var(--accent)',
+          fontSize: 11,
+        }}
+      />
+      ms
+    </label>
+  )
+}
+
 /** The strip of frames under the canvas: pick, add, duplicate, delete and drag to reorder. */
 export default function Timeline({
   frames,
@@ -58,6 +126,9 @@ export default function Timeline({
   onMoveFrame,
   onionSkin,
   onToggleOnionSkin,
+  durations,
+  fps,
+  onDurationChange,
   children,
 }: TimelineProps) {
   const [dragFrom, setDragFrom] = useState<number | null>(null)
@@ -119,6 +190,12 @@ export default function Timeline({
         >
           Frame {currentFrame + 1} / {frames.length}
         </span>
+        <FrameDurationField
+          key={currentFrame}
+          duration={durations[currentFrame] ?? null}
+          fps={fps}
+          onChange={value => onDurationChange(currentFrame, value)}
+        />
       </div>
 
       <div
@@ -185,6 +262,21 @@ export default function Timeline({
             >
               {i + 1}
             </span>
+            {durations[i] != null && (
+              <span
+                style={{
+                  position: 'absolute',
+                  right: 2,
+                  top: 0,
+                  fontSize: 9,
+                  color: 'var(--accent)',
+                  textShadow: '0 0 2px #000, 0 0 2px #000',
+                  pointerEvents: 'none',
+                }}
+              >
+                {durations[i]}ms
+              </span>
+            )}
           </div>
         ))}
       </div>

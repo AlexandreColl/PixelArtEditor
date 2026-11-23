@@ -77,6 +77,35 @@ describe('useEditor move tool', () => {
   })
 })
 
+describe('useEditor frame durations', () => {
+  it('keeps each duration with its frame when frames are added, moved and deleted', () => {
+    const { result, run } = setup()
+    const durations = () => result.current.state.durations
+    expect(durations()).toEqual([null])
+    run(e => e.setFrameDuration(0, '200'))
+    run(e => e.duplicateFrame())
+    expect(durations()).toEqual([200, 200])
+    run(e => e.addFrame())
+    run(e => e.setFrameDuration(2, 50))
+    run(e => e.moveFrame(2, 0))
+    expect(durations()).toEqual([50, 200, 200])
+    run(e => e.deleteFrame())
+    expect(durations()).toEqual([200, 200])
+  })
+
+  it('undoes a duration change and clears it with an empty value', () => {
+    const { result, run } = setup()
+    run(e => e.setFrameDuration(0, 120))
+    run(e => e.setFrameDuration(0, ''))
+    expect(result.current.state.durations).toEqual([null])
+    run(e => e.undo())
+    expect(result.current.state.durations).toEqual([120])
+    run(e => e.undo())
+    expect(result.current.state.durations).toEqual([null])
+    expect(result.current.canUndo).toBe(false)
+  })
+})
+
 describe('useEditor history', () => {
   it('starts with an empty 32x32 canvas and nothing to undo', () => {
     const { result, painted } = setup()
