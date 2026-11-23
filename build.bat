@@ -9,5 +9,5 @@ if %errorlevel% neq 0 (
   exit /b %errorlevel%
 )
 echo.
-echo Build complete! Executable at src-tauri\target\release\app.exe
+echo Build complete! Executable at src-tauri\target\release\pixel-art-editor.exe
 pause

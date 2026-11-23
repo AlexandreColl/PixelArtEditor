@@ -321,7 +321,7 @@ Al abrir o arrastrar una imagen grande (más de 128 px) o con muchos colores, co
 pnpm run tauri:build
 ```
 
-El ejecutable se genera en `src-tauri/target/release/app.exe`. También se crean instaladores MSI y NSIS en la carpeta `bundle/`.
+El ejecutable se genera en `src-tauri/target/release/pixel-art-editor.exe`. También se crean instaladores MSI y NSIS en la carpeta `bundle/`.
 
 ### Scripts disponibles
 
