@@ -7,6 +7,21 @@ y el proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Seguridad
+
+- La aplicación tiene una política de seguridad de contenido (CSP): solo carga código propio y solo se conecta con las APIs de OpenAI, Anthropic y Google Gemini, así que un script inyectado no podría enviar las claves de API a otro sitio.
+
+### Corregido
+
+- Los botones de deshacer y rehacer y la marca de cambios sin guardar ya no dependen de leer el historial durante el render, lo que podía mostrarlos desfasados con el renderizado concurrente de React.
+- El selector de color, el tamaño del lienzo y la velocidad de la animación se actualizan en el mismo render cuando cambian desde otro sitio, sin pasar un instante por el valor anterior.
+
+### Interno
+
+- Linter Oxlint, con las reglas de los hooks de React, en `pnpm run lint` y en el CI.
+- `cargo fmt` y `cargo clippy` en el CI.
+- Dependabot propone cada semana actualizaciones agrupadas de pnpm y cargo, y cada mes de GitHub Actions, contra `develop`.
+
 ## [0.5.1] - 2026-11-16
 
 ### Corregido

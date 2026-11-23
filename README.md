@@ -333,6 +333,8 @@ El ejecutable se genera en `src-tauri/target/release/app.exe`. También se crean
 | `pnpm run tauri:build`  | Compila el binario de producción                       |
 | `pnpm run format`       | Formatea el código con Prettier                        |
 | `pnpm run format:check` | Comprueba el formato (usado en CI)                     |
+| `pnpm run lint`         | Analiza el código con Oxlint (usado en CI)             |
+| `pnpm run typecheck`    | Comprueba los tipos sin compilar                       |
 | `pnpm test`             | Ejecuta los tests una vez (usado en CI)                |
 | `pnpm run test:watch`   | Ejecuta los tests en modo watch                        |
 
@@ -374,14 +376,15 @@ pixel-art-editor/
 │   └── App.tsx                 # Layout principal: une el editor, la paleta y los paneles
 ├── src-tauri/                  # Backend Rust (Tauri)
 │   ├── src/
-│   │   └── lib.rs              # Comandos Tauri (save_png_file, save_gif_file, save_project_file, save_palette_file)
+│   │   └── lib.rs              # Comandos Tauri: guardar archivos y el autoguardado
 │   ├── capabilities/
 │   │   └── default.json        # Permisos de plugins
 │   ├── icons/                  # Iconos de la aplicación
-│   └── tauri.conf.json         # Configuración de ventana y build
-├── .github/                    # CI, workflow de release y plantillas
+│   └── tauri.conf.json         # Configuración de ventana, build y política de seguridad (CSP)
+├── .github/                    # CI, release, Dependabot y plantillas
 ├── scripts/
 │   └── dev.ps1                 # Helper que configura VS + Node + Cargo
+├── .oxlintrc.json              # Reglas del linter
 ├── pnpm-workspace.yaml         # Configuración de pnpm (hoisting y builds permitidos)
 ├── build.bat                   # Build con un clic
 ├── dev.bat                     # Dev con un clic
