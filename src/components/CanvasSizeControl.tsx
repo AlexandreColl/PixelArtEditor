@@ -12,9 +12,9 @@ const inputStyle: React.CSSProperties = {
   width: 48,
   padding: '2px 6px',
   borderRadius: 4,
-  border: '1px solid #555',
-  background: '#1e1e1e',
-  color: '#e0e0e0',
+  border: '1px solid var(--border)',
+  background: 'var(--bg)',
+  color: 'var(--text)',
   fontSize: 12,
 }
 
@@ -46,7 +46,7 @@ export default function CanvasSizeControl({ width, height, onResize }: CanvasSiz
 
   return (
     <>
-      <label style={{ fontSize: 12, color: '#aaa' }}>W:</label>
+      <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>W:</label>
       <input
         type="number"
         value={w}
@@ -56,7 +56,7 @@ export default function CanvasSizeControl({ width, height, onResize }: CanvasSiz
         onKeyDown={e => e.key === 'Enter' && apply()}
         style={inputStyle}
       />
-      <label style={{ fontSize: 12, color: '#aaa' }}>H:</label>
+      <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>H:</label>
       <input
         type="number"
         value={h}
@@ -71,9 +71,9 @@ export default function CanvasSizeControl({ width, height, onResize }: CanvasSiz
         style={{
           padding: '2px 10px',
           borderRadius: 4,
-          border: '1px solid #4fc3f7',
+          border: '1px solid var(--accent)',
           background: 'transparent',
-          color: '#4fc3f7',
+          color: 'var(--accent)',
           cursor: 'pointer',
           fontSize: 12,
         }}

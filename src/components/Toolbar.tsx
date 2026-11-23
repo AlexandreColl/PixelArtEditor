@@ -73,16 +73,16 @@ const btnBase: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  color: '#ccc',
+  color: 'var(--text-soft)',
   lineHeight: 1,
 }
 
 const toggleBtn = (on: boolean): React.CSSProperties => ({
   ...btnBase,
   height: 28,
-  border: on ? '1px solid #4fc3f7' : '1px solid #555',
-  background: on ? '#3a3a3a' : 'transparent',
-  color: on ? '#4fc3f7' : '#ccc',
+  border: on ? '1px solid var(--accent)' : '1px solid var(--border)',
+  background: on ? 'var(--surface-raised)' : 'transparent',
+  color: on ? 'var(--accent)' : 'var(--text-soft)',
 })
 
 export default function Toolbar({
@@ -117,13 +117,13 @@ export default function Toolbar({
     <div
       style={{
         width: 88,
-        background: '#2d2d2d',
+        background: 'var(--surface)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         padding: '8px 0',
         gap: 4,
-        borderRight: '1px solid #444',
+        borderRight: '1px solid var(--divider)',
         overflowY: 'auto',
       }}
     >
@@ -137,8 +137,8 @@ export default function Toolbar({
               onClick={() => onToolChange(t.id)}
               style={{
                 ...btnBase,
-                border: activeTool === t.id ? '2px solid #4fc3f7' : '2px solid transparent',
-                background: activeTool === t.id ? '#3a3a3a' : 'transparent',
+                border: activeTool === t.id ? '2px solid var(--accent)' : '2px solid transparent',
+                background: activeTool === t.id ? 'var(--surface-raised)' : 'transparent',
               }}
             >
               <Icon size={18} />
@@ -147,7 +147,7 @@ export default function Toolbar({
         })}
       </div>
 
-      <div style={{ width: 76, height: 1, background: '#444', margin: '6px 0' }} />
+      <div style={{ width: 76, height: 1, background: 'var(--divider)', margin: '6px 0' }} />
 
       <div style={{ display: 'flex', gap: 4 }}>
         <button
@@ -168,31 +168,31 @@ export default function Toolbar({
         </button>
       </div>
 
-      <div style={{ width: 76, height: 1, background: '#444', margin: '6px 0' }} />
+      <div style={{ width: 76, height: 1, background: 'var(--divider)', margin: '6px 0' }} />
 
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
         <div style={{ display: 'flex', gap: 4 }}>
           <button
             {...tip('Zoom out')}
             onClick={() => onZoomChange(zoom - 4)}
-            style={{ ...btnBase, height: 28, fontSize: 16, border: '1px solid #555' }}
+            style={{ ...btnBase, height: 28, fontSize: 16, border: '1px solid var(--border)' }}
           >
             −
           </button>
           <button
             {...tip('Zoom in')}
             onClick={() => onZoomChange(zoom + 4)}
-            style={{ ...btnBase, height: 28, fontSize: 16, border: '1px solid #555' }}
+            style={{ ...btnBase, height: 28, fontSize: 16, border: '1px solid var(--border)' }}
           >
             +
           </button>
         </div>
-        <span style={{ color: '#aaa', fontSize: 11, textAlign: 'center' }}>{zoom}x</span>
+        <span style={{ color: 'var(--text-muted)', fontSize: 11, textAlign: 'center' }}>{zoom}x</span>
         <div style={{ display: 'flex', gap: 4 }}>
           <button
             {...tip('Fit to window', 'Ctrl+0')}
             onClick={onFit}
-            style={{ ...btnBase, height: 28, border: '1px solid #555' }}
+            style={{ ...btnBase, height: 28, border: '1px solid var(--border)' }}
           >
             <Maximize size={16} />
           </button>
@@ -202,9 +202,9 @@ export default function Toolbar({
             style={{
               ...btnBase,
               height: 28,
-              border: showGrid ? '1px solid #4fc3f7' : '1px solid #555',
-              background: showGrid ? '#3a3a3a' : 'transparent',
-              color: showGrid ? '#4fc3f7' : '#ccc',
+              border: showGrid ? '1px solid var(--accent)' : '1px solid var(--border)',
+              background: showGrid ? 'var(--surface-raised)' : 'transparent',
+              color: showGrid ? 'var(--accent)' : 'var(--text-soft)',
             }}
           >
             <Grid3x3 size={16} />
@@ -265,7 +265,14 @@ export default function Toolbar({
       {(activeTool === 'rect' || activeTool === 'ellipse') && (
         <label
           {...tip('Fill the shape instead of drawing only its outline')}
-          style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#aaa', fontSize: 11, cursor: 'pointer' }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            color: 'var(--text-muted)',
+            fontSize: 11,
+            cursor: 'pointer',
+          }}
         >
           <input type="checkbox" checked={shapeFilled} onChange={onToggleShapeFilled} />
           Filled
@@ -277,9 +284,9 @@ export default function Toolbar({
         activeTool === 'line' ||
         ((activeTool === 'rect' || activeTool === 'ellipse') && !shapeFilled)) && (
         <div style={{ width: 76, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-          <div style={{ width: 76, height: 1, background: '#444', margin: '6px 0' }} />
-          <span style={{ color: '#aaa', fontSize: 11 }}>
-            Brush <b style={{ color: '#e0e0e0', fontSize: 13 }}>{brushSize}</b>
+          <div style={{ width: 76, height: 1, background: 'var(--divider)', margin: '6px 0' }} />
+          <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>
+            Brush <b style={{ color: 'var(--text)', fontSize: 13 }}>{brushSize}</b>
           </span>
           <input
             type="range"
@@ -287,7 +294,7 @@ export default function Toolbar({
             max={16}
             value={brushSize}
             onChange={e => onBrushSizeChange(Number(e.target.value))}
-            style={{ width: 60, height: 4, accentColor: '#4fc3f7', cursor: 'pointer' }}
+            style={{ width: 60, height: 4, accentColor: 'var(--accent)', cursor: 'pointer' }}
           />
         </div>
       )}
@@ -296,7 +303,7 @@ export default function Toolbar({
         <button
           {...tip('Clear canvas')}
           onClick={onClear}
-          style={{ ...btnBase, border: '1px solid #d32f2f', color: '#d32f2f', fontSize: 20 }}
+          style={{ ...btnBase, border: '1px solid var(--danger)', color: 'var(--danger)', fontSize: 20 }}
         >
           ✕
         </button>

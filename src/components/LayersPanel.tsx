@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ArrowDown, ArrowUp, Copy, Eye, EyeOff, Merge, Plus, Trash2 } from 'lucide-react'
 import type { Layer } from '../types'
-import { iconBtn } from './Timeline'
+import Button from './Button'
 import { tip } from './Tooltip'
 
 interface LayersPanelProps {
@@ -18,8 +18,6 @@ interface LayersPanelProps {
   /** Records the opacity dragged so far as one undo step */
   onCommit: () => void
 }
-
-const smallBtn: React.CSSProperties = { ...iconBtn, width: 24, height: 24 }
 
 /** The layer stack, top layer first as it is drawn in front, with the settings of the current one. */
 export default function LayersPanel({
@@ -38,18 +36,12 @@ export default function LayersPanel({
   const current = layers[currentLayer]
   const top = layers.length - 1
 
-  const disabled = (off: boolean): React.CSSProperties => ({
-    ...smallBtn,
-    opacity: off ? 0.3 : 1,
-    cursor: off ? 'default' : 'pointer',
-  })
-
   return (
     <div
       style={{
-        background: '#2d2d2d',
-        borderLeft: '1px solid #444',
-        borderTop: '1px solid #444',
+        background: 'var(--surface)',
+        borderLeft: '1px solid var(--divider)',
+        borderTop: '1px solid var(--divider)',
         padding: 12,
         display: 'flex',
         flexDirection: 'column',
@@ -58,29 +50,31 @@ export default function LayersPanel({
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        <span style={{ fontSize: 11, color: '#aaa', marginRight: 'auto' }}>Layers</span>
-        <button {...tip('New layer')} onClick={onAdd} style={smallBtn}>
+        <span style={{ fontSize: 11, color: 'var(--text-muted)', marginRight: 'auto' }}>Layers</span>
+        <Button icon size="sm" {...tip('New layer')} onClick={onAdd}>
           <Plus size={13} />
-        </button>
-        <button {...tip('Duplicate layer')} onClick={onDuplicate} style={smallBtn}>
+        </Button>
+        <Button icon size="sm" {...tip('Duplicate layer')} onClick={onDuplicate}>
           <Copy size={13} />
-        </button>
-        <button
+        </Button>
+        <Button
+          icon
+          size="sm"
           {...tip(currentLayer > 0 ? 'Merge down into the layer below' : 'The bottom layer has nothing to merge into')}
           onClick={onMergeDown}
           disabled={currentLayer === 0}
-          style={disabled(currentLayer === 0)}
         >
           <Merge size={13} />
-        </button>
-        <button
+        </Button>
+        <Button
+          icon
+          size="sm"
           {...tip(layers.length > 1 ? 'Delete layer' : 'The only layer cannot be deleted')}
           onClick={onDelete}
           disabled={layers.length <= 1}
-          style={disabled(layers.length <= 1)}
         >
           <Trash2 size={13} />
-        </button>
+        </Button>
       </div>
 
       <div
@@ -107,22 +101,24 @@ export default function LayersPanel({
                 borderRadius: 4,
                 cursor: 'pointer',
                 fontSize: 12,
-                background: i === currentLayer ? '#1a3a4a' : 'transparent',
-                border: i === currentLayer ? '1px solid #4fc3f7' : '1px solid transparent',
-                color: layer.visible ? '#e0e0e0' : '#777',
+                background: i === currentLayer ? 'var(--accent-bg)' : 'transparent',
+                border: i === currentLayer ? '1px solid var(--accent)' : '1px solid transparent',
+                color: layer.visible ? 'var(--text)' : '#777',
               }}
             >
-              <button
+              <Button
+                variant="ghost"
+                icon
+                size="xs"
                 {...tip(layer.visible ? 'Hide layer' : 'Show layer')}
                 aria-pressed={layer.visible}
                 onClick={e => {
                   e.stopPropagation()
                   onUpdate(i, { visible: !layer.visible })
                 }}
-                style={{ ...smallBtn, width: 20, height: 20, border: 'none' }}
               >
                 {layer.visible ? <Eye size={13} /> : <EyeOff size={13} />}
-              </button>
+              </Button>
               {renaming === i ? (
                 <input
                   autoFocus
@@ -143,9 +139,9 @@ export default function LayersPanel({
                     minWidth: 0,
                     padding: '1px 4px',
                     borderRadius: 3,
-                    border: '1px solid #555',
-                    background: '#1e1e1e',
-                    color: '#e0e0e0',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg)',
+                    color: 'var(--text)',
                     fontSize: 12,
                   }}
                 />
@@ -158,7 +154,7 @@ export default function LayersPanel({
                 </span>
               )}
               {layer.opacity < 1 && (
-                <span style={{ fontSize: 10, color: '#888' }}>{Math.round(layer.opacity * 100)}%</span>
+                <span style={{ fontSize: 10, color: 'var(--text-subtle)' }}>{Math.round(layer.opacity * 100)}%</span>
               )}
             </div>
           ))}
@@ -169,7 +165,7 @@ export default function LayersPanel({
           {...tip('Opacity of the current layer')}
           style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}
         >
-          <span style={{ fontSize: 11, color: '#aaa' }}>Opacity</span>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Opacity</span>
           <input
             type="range"
             min={0}
@@ -180,26 +176,28 @@ export default function LayersPanel({
             onKeyUp={onCommit}
             style={{ flex: 1, minWidth: 0 }}
           />
-          <span style={{ fontSize: 11, color: '#888', width: 30, textAlign: 'right' }}>
+          <span style={{ fontSize: 11, color: 'var(--text-subtle)', width: 30, textAlign: 'right' }}>
             {Math.round(current.opacity * 100)}%
           </span>
         </label>
-        <button
+        <Button
+          icon
+          size="sm"
           {...tip('Move layer up')}
           onClick={() => onMove(currentLayer, currentLayer + 1)}
           disabled={currentLayer === top}
-          style={disabled(currentLayer === top)}
         >
           <ArrowUp size={13} />
-        </button>
-        <button
+        </Button>
+        <Button
+          icon
+          size="sm"
           {...tip('Move layer down')}
           onClick={() => onMove(currentLayer, currentLayer - 1)}
           disabled={currentLayer === 0}
-          style={disabled(currentLayer === 0)}
         >
           <ArrowDown size={13} />
-        </button>
+        </Button>
       </div>
     </div>
   )

@@ -582,7 +582,7 @@ export default function Canvas({
       style={{
         flex: 1,
         overflow: 'auto',
-        background: '#1e1e1e',
+        background: 'var(--bg)',
         cursor: isPanning
           ? 'grabbing'
           : tool === 'selection' && hoverInSelection

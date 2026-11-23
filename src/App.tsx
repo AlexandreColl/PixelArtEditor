@@ -7,6 +7,7 @@ import CanvasSizeControl from './components/CanvasSizeControl'
 import ColorPalette from './components/ColorPalette'
 import AIChat from './components/AIChat'
 import AnimationPreview from './components/AnimationPreview'
+import Button from './components/Button'
 import ConvertDialog from './components/ConvertDialog'
 import Dialog from './components/Dialog'
 import ExportDialog from './components/ExportDialog'
@@ -29,17 +30,6 @@ import { isTauri } from '@tauri-apps/api/core'
 import { TRANSPARENT, parseColor, toHex } from './utils/color'
 import { paletteSnapper } from './utils/palette'
 import { flattenFrameCached, flattenPixel, visibleCels } from './utils/layers'
-
-const btnAccent: React.CSSProperties = {
-  padding: '4px 14px',
-  borderRadius: 6,
-  border: '1px solid #4fc3f7',
-  background: '#1a3a4a',
-  color: '#4fc3f7',
-  cursor: 'pointer',
-  fontSize: 13,
-  fontWeight: 600,
-}
 
 /** Position and color of the pixel under the pointer, at the right of the status bar. */
 function PixelInfo({ pixel, color }: { pixel: Point | null; color: string | undefined }) {
@@ -319,8 +309,8 @@ export default function App() {
         height: '100vh',
         display: 'flex',
         flexDirection: 'column',
-        background: '#1e1e1e',
-        color: '#e0e0e0',
+        background: 'var(--bg)',
+        color: 'var(--text)',
         fontFamily: 'system-ui, -apple-system, sans-serif',
         overflow: 'hidden',
       }}
@@ -345,12 +335,12 @@ export default function App() {
             inset: 0,
             zIndex: 1000,
             background: 'rgba(79, 195, 247, 0.15)',
-            border: '3px dashed #4fc3f7',
+            border: '3px dashed var(--accent)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             fontSize: 24,
-            color: '#4fc3f7',
+            color: 'var(--accent)',
             fontWeight: 700,
             pointerEvents: 'none',
           }}
@@ -420,15 +410,15 @@ export default function App() {
       <div
         style={{
           height: 40,
-          background: '#2d2d2d',
-          borderBottom: '1px solid #444',
+          background: 'var(--surface)',
+          borderBottom: '1px solid var(--divider)',
           display: 'flex',
           alignItems: 'center',
           padding: '0 16px',
           gap: 8,
         }}
       >
-        <span style={{ fontWeight: 700, fontSize: 14, color: '#4fc3f7' }}>Pixel Art Editor</span>
+        <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--accent)' }}>Pixel Art Editor</span>
 
         <FileMenu
           onNew={files.newCanvas}
@@ -440,11 +430,11 @@ export default function App() {
           onExport={openExport}
           onCheckUpdates={isTauri() ? updater.checkNow : undefined}
         />
-        <button {...tip('Save', 'Ctrl+S')} onClick={files.saveImage} style={btnAccent}>
+        <Button variant="primary" style={{ padding: '4px 14px' }} {...tip('Save', 'Ctrl+S')} onClick={files.saveImage}>
           <Save size={16} />
-        </button>
+        </Button>
 
-        <div style={{ width: 1, height: 24, background: '#444', margin: '0 8px' }} />
+        <div style={{ width: 1, height: 24, background: 'var(--divider)', margin: '0 8px' }} />
 
         <CanvasSizeControl width={state.pixelData.width} height={state.pixelData.height} onResize={resizeCanvas} />
 
@@ -456,9 +446,9 @@ export default function App() {
           style={{
             padding: '4px 12px',
             borderRadius: 6,
-            border: aiOpen ? '1px solid #4fc3f7' : '1px solid #555',
-            background: aiOpen ? '#1a3a4a' : 'transparent',
-            color: aiOpen ? '#4fc3f7' : '#aaa',
+            border: aiOpen ? '1px solid var(--accent)' : '1px solid var(--border)',
+            background: aiOpen ? 'var(--accent-bg)' : 'transparent',
+            color: aiOpen ? 'var(--accent)' : 'var(--text-muted)',
             cursor: 'pointer',
             fontSize: 13,
           }}
@@ -592,13 +582,13 @@ export default function App() {
       <div
         style={{
           height: 24,
-          background: '#2d2d2d',
-          borderTop: '1px solid #444',
+          background: 'var(--surface)',
+          borderTop: '1px solid var(--divider)',
           display: 'flex',
           alignItems: 'center',
           padding: '0 12px',
           fontSize: 11,
-          color: '#888',
+          color: 'var(--text-subtle)',
           gap: 16,
         }}
       >

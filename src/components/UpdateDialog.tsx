@@ -16,7 +16,7 @@ export function ReleaseNotes({ text }: { text: string }) {
         const plain = line.replace(/\*\*(.+?)\*\*/g, '$1').replace(/`([^`]+)`/g, '$1')
         if (/^#{1,6} /.test(line))
           return (
-            <div key={i} style={{ marginTop: i ? 8 : 0, fontWeight: 600, color: '#e0e0e0' }}>
+            <div key={i} style={{ marginTop: i ? 8 : 0, fontWeight: 600, color: 'var(--text)' }}>
               {plain.replace(/^#+ /, '')}
             </div>
           )
@@ -54,8 +54,8 @@ export default function UpdateDialog({ status, onInstall, onLater }: UpdateDialo
             overflow: 'auto',
             padding: '8px 10px',
             borderRadius: 6,
-            background: '#1e1e1e',
-            color: '#ccc',
+            background: 'var(--bg)',
+            color: 'var(--text-soft)',
             fontSize: 12,
             lineHeight: 1.5,
           }}
@@ -72,7 +72,7 @@ export default function UpdateDialog({ status, onInstall, onLater }: UpdateDialo
       </div>
       {installing && status.progress !== null && (
         <div style={{ marginTop: 6, height: 4, borderRadius: 2, background: '#333', overflow: 'hidden' }}>
-          <div style={{ width: `${status.progress * 100}%`, height: '100%', background: '#4fc3f7' }} />
+          <div style={{ width: `${status.progress * 100}%`, height: '100%', background: 'var(--accent)' }} />
         </div>
       )}
     </Dialog>
