@@ -7,6 +7,9 @@ on:
 
 permissions:
   contents: write
+  # Signed build provenance for each installer
+  id-token: write
+  attestations: write
 
 jobs:
   build:
@@ -22,7 +25,17 @@ jobs:
           - platform: ubuntu-22.04
             args: ''
     runs-on: ${{ matrix.platform }}
+    env:
+      # Signs the updates, so installed copies only accept ones built here
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
     steps:
+      - name: Check the updater signing key
+        if: env.TAURI_SIGNING_PRIVATE_KEY == ''
+        run: |
+          echo '::error::The TAURI_SIGNING_PRIVATE_KEY secret is missing; see CONTRIBUTING.md, Releases'
+          exit 1
+
       - uses: actions/checkout@v7
 
       - name: Install Linux dependencies
@@ -46,13 +59,38 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # Fails the release when the changelog has no section for this version
+      - name: Release notes from the changelog
+        id: notes
+        shell: bash
+        run: |
+          {
+            echo 'body<<NOTES_EOF'
+            node scripts/release-notes.mjs "$GITHUB_REF_NAME"
+            echo 'NOTES_EOF'
+          } >> "$GITHUB_OUTPUT"
+
       - uses: tauri-apps/tauri-action@v1
+        id: tauri
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'Pixel Art Editor ${{ github.ref_name }}'
-          releaseBody: 'Consulta el [CHANGELOG](https://github.com/AlexandreColl/PixelArtEditor/blob/main/CHANGELOG.md) para ver los cambios.'
+          releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+          # latest.json, which installed copies read to find updates; Windows updates with the NSIS installer
+          includeUpdaterJson: true
+          updaterJsonPreferNsis: true
+
+      - name: Checksums of the installers
+        shell: bash
+        env:
+          ARTIFACTS: ${{ steps.tauri.outputs.artifactPaths }}
+        run: node scripts/checksums.mjs "$ARTIFACTS" checksums.txt
+
+      - uses: actions/attest-build-provenance@v4
+        with:
+          subject-checksums: checksums.txt

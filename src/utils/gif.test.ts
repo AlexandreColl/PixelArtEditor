@@ -96,6 +96,12 @@ describe('frameDelays', () => {
     expect(eight.reduce((a, b) => a + b)).toBe(100)
     expect(new Set(eight)).toEqual(new Set([12, 13]))
   })
+
+  it('uses the duration of each frame, the others following fps', () => {
+    expect(frameDelays(3, 10, [500, null, 25])).toEqual([50, 10, 3])
+    // 25 ms rounds to 3 here and 2 later, keeping the total exact
+    expect(frameDelays(2, 10, [25, 25]).reduce((a, b) => a + b)).toBe(5)
+  })
 })
 
 describe('encodeGif', () => {

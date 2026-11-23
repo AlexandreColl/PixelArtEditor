@@ -94,9 +94,9 @@ export default function TooltipLayer() {
         padding: '5px 8px',
         borderRadius: 4,
         background: '#111',
-        border: '1px solid #444',
+        border: '1px solid var(--divider)',
         boxShadow: '0 4px 10px rgba(0,0,0,0.5)',
-        color: '#e0e0e0',
+        color: 'var(--text)',
         fontSize: 12,
         lineHeight: 1.4,
         whiteSpace: 'pre-line',
@@ -111,8 +111,8 @@ export default function TooltipLayer() {
             marginLeft: 8,
             padding: '0 4px',
             borderRadius: 3,
-            border: '1px solid #555',
-            color: '#aaa',
+            border: '1px solid var(--border)',
+            color: 'var(--text-muted)',
             fontSize: 11,
           }}
         >

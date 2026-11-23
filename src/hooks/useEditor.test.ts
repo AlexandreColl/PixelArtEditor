@@ -26,6 +26,132 @@ function setup() {
   return { result, run, pixel, painted, dot }
 }
 
+describe('useEditor strokes', () => {
+  it('copies only the rows a stroke touches, so the others keep what was rendered from them', () => {
+    const { result, run } = setup()
+    const before = result.current.state.pixelData.pixels
+    run(e => e.paintLine(2, 5, 6, 5, RED, 1))
+    const after = result.current.state.pixelData.pixels
+    expect(after).not.toBe(before)
+    expect(after[4]).toBe(before[4])
+    expect(after[5]).not.toBe(before[5])
+    // The old row is left as it was, for undo
+    expect(before[5][2]).toBe(TRANSPARENT)
+    expect(after[5].slice(2, 7)).toEqual([RED, RED, RED, RED, RED])
+  })
+})
+
+describe('useEditor move tool', () => {
+  it('moves the whole layer, bringing back what crossed the edge until the drag ends', () => {
+    const { result, run, pixel, dot, painted } = setup()
+    dot(0, 0, RED)
+    dot(5, 5, BLUE)
+    run(e => e.beginShape())
+    run(e => e.shiftCel(-1, 0))
+    expect(painted()).toEqual(['4,5'])
+    run(e => e.shiftCel(2, 3))
+    expect(pixel(2, 3)).toBe(RED)
+    expect(pixel(7, 8)).toBe(BLUE)
+    run(e => e.commitHistory())
+    run(e => e.undo())
+    expect(painted()).toEqual(['0,0', '5,5'])
+    expect(result.current.canRedo).toBe(true)
+  })
+
+  it('moves one pixel per arrow key, each an undo step', () => {
+    const { run, painted, dot } = setup()
+    dot(1, 1, RED)
+    run(e => e.nudgeCel(1, 0))
+    run(e => e.nudgeCel(0, 1))
+    expect(painted()).toEqual(['2,2'])
+    run(e => e.undo())
+    expect(painted()).toEqual(['2,1'])
+  })
+
+  it('keeps the rows when it only moves vertically', () => {
+    const { result, run, dot } = setup()
+    dot(3, 3, RED)
+    const before = result.current.state.pixelData.pixels
+    run(e => e.nudgeCel(0, 2))
+    expect(result.current.state.pixelData.pixels[5]).toBe(before[3])
+  })
+})
+
+describe('useEditor frame durations', () => {
+  it('keeps each duration with its frame when frames are added, moved and deleted', () => {
+    const { result, run } = setup()
+    const durations = () => result.current.state.durations
+    expect(durations()).toEqual([null])
+    run(e => e.setFrameDuration(0, '200'))
+    run(e => e.duplicateFrame())
+    expect(durations()).toEqual([200, 200])
+    run(e => e.addFrame())
+    run(e => e.setFrameDuration(2, 50))
+    run(e => e.moveFrame(2, 0))
+    expect(durations()).toEqual([50, 200, 200])
+    run(e => e.deleteFrame())
+    expect(durations()).toEqual([200, 200])
+  })
+
+  it('undoes a duration change and clears it with an empty value', () => {
+    const { result, run } = setup()
+    run(e => e.setFrameDuration(0, 120))
+    run(e => e.setFrameDuration(0, ''))
+    expect(result.current.state.durations).toEqual([null])
+    run(e => e.undo())
+    expect(result.current.state.durations).toEqual([120])
+    run(e => e.undo())
+    expect(result.current.state.durations).toEqual([null])
+    expect(result.current.canUndo).toBe(false)
+  })
+})
+
+describe('useEditor shaped selections', () => {
+  // Two pixels selected on a diagonal: the other two in their square are not
+  const diagonal = {
+    x: 1,
+    y: 1,
+    width: 2,
+    height: 2,
+    mask: [
+      [true, false],
+      [false, true],
+    ],
+  }
+
+  it('deletes and copies only the selected pixels', () => {
+    const { run, painted, dot } = setup()
+    for (const [x, y] of [
+      [1, 1],
+      [2, 1],
+      [1, 2],
+      [2, 2],
+    ])
+      dot(x, y, RED)
+    run(e => e.setSelection(diagonal))
+    run(e => e.copySelection())
+    run(e => e.deleteSelection())
+    expect(painted()).toEqual(['2,1', '1,2'])
+    run(e => e.pasteClipboard(5, 5))
+    expect(painted()).toEqual(['2,1', '1,2', '5,5', '6,6'])
+  })
+
+  it('moves the selected pixels with the shape of the selection', () => {
+    const { result, run, painted, dot } = setup()
+    for (const [x, y] of [
+      [1, 1],
+      [2, 1],
+      [1, 2],
+      [2, 2],
+    ])
+      dot(x, y, RED)
+    run(e => e.setSelection(diagonal))
+    run(e => e.nudgeSelection(3, 0))
+    expect(painted()).toEqual(['2,1', '4,1', '1,2', '5,2'])
+    expect(result.current.state.selection).toEqual({ ...diagonal, x: 4 })
+  })
+})
+
 describe('useEditor history', () => {
   it('starts with an empty 32x32 canvas and nothing to undo', () => {
     const { result, painted } = setup()

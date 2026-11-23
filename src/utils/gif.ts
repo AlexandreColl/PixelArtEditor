@@ -2,9 +2,12 @@
 // when it does, the colors are reduced with the same median cut as the image conversion.
 import { parseColor } from './color'
 import { type RGB, buildPalette, nearest } from './pixelate'
+import { type FrameDuration, frameDurations } from './timing'
 
 export interface GifOptions {
   fps: number
+  /** Milliseconds per frame, null to follow fps */
+  durations?: FrameDuration[]
   /** Every pixel becomes a scale x scale block */
   scale?: number
 }
@@ -13,9 +16,15 @@ export interface GifOptions {
 const ALPHA_CUTOFF = 128
 const MAX_CODE = 4096
 
-/** Delays in hundredths of a second, rounded so the total keeps the exact speed instead of drifting. */
-export function frameDelays(count: number, fps: number): number[] {
-  const at = (i: number) => Math.round((i * 100) / fps)
+/**
+ * Delays in hundredths of a second, which is all GIF has, rounded so the total keeps the exact
+ * timing instead of drifting.
+ */
+export function frameDelays(count: number, fps: number, durations: FrameDuration[] = []): number[] {
+  const ms = frameDurations(count, fps, durations)
+  const starts = [0]
+  for (const d of ms) starts.push(starts[starts.length - 1] + d)
+  const at = (i: number) => Math.round(starts[i] / 10)
   return Array.from({ length: count }, (_, i) => at(i + 1) - at(i))
 }
 
@@ -161,7 +170,7 @@ export function encodeGif(frames: string[][][], width: number, height: number, o
   w.u16(0)
   w.byte(0)
 
-  const delays = frameDelays(frames.length, options.fps)
+  const delays = frameDelays(frames.length, options.fps, options.durations)
   indices.forEach((frame, i) => {
     // Graphic control: clear to transparent before the next frame, so frames don't pile up
     w.byte(0x21, 0xf9, 4, (2 << 2) | (transparent ? 1 : 0))

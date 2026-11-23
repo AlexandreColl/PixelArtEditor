@@ -19,16 +19,16 @@ interface ConvertDialogProps {
 
 const labelStyle: React.CSSProperties = {
   fontSize: 12,
-  color: '#aaa',
+  color: 'var(--text-muted)',
   display: 'flex',
   justifyContent: 'space-between',
 }
 const buttonStyle: React.CSSProperties = {
   padding: '6px 14px',
   borderRadius: 6,
-  border: '1px solid #555',
+  border: '1px solid var(--border)',
   background: 'transparent',
-  color: '#e0e0e0',
+  color: 'var(--text)',
   cursor: 'pointer',
   fontSize: 13,
 }
@@ -110,8 +110,8 @@ export default function ConvertDialog({ image, fileName, onConvert, onOpenOrigin
   const canOpenOriginal = longSide <= MAX_ORIGINAL_SIZE
   // Checkerboard so transparent areas are visible in both previews
   const checker: React.CSSProperties = {
-    background: 'repeating-conic-gradient(#3a3a3a 0% 25%, #2a2a2a 0% 50%) 50% / 16px 16px',
-    border: '1px solid #444',
+    background: 'repeating-conic-gradient(var(--surface-raised) 0% 25%, #2a2a2a 0% 50%) 50% / 16px 16px',
+    border: '1px solid var(--divider)',
   }
 
   return (
@@ -130,8 +130,8 @@ export default function ConvertDialog({ image, fileName, onConvert, onOpenOrigin
     >
       <div
         style={{
-          background: '#2d2d2d',
-          border: '1px solid #444',
+          background: 'var(--surface)',
+          border: '1px solid var(--divider)',
           borderRadius: 10,
           padding: 20,
           width: 'min(600px, calc(100vw - 32px))',
@@ -140,12 +140,12 @@ export default function ConvertDialog({ image, fileName, onConvert, onOpenOrigin
           display: 'flex',
           flexDirection: 'column',
           gap: 16,
-          color: '#e0e0e0',
+          color: 'var(--text)',
         }}
       >
         <div>
           <div style={{ fontWeight: 700, fontSize: 15 }}>Convert to pixel art</div>
-          <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+          <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginTop: 4 }}>
             {fileName} · {image.width}×{image.height}
           </div>
         </div>
@@ -153,7 +153,7 @@ export default function ConvertDialog({ image, fileName, onConvert, onOpenOrigin
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: 'center' }}>
           <figure style={{ margin: 0, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center' }}>
             <canvas ref={originalRef} width={previewW} height={previewH} style={checker} />
-            <figcaption style={{ fontSize: 11, color: '#888' }}>Original</figcaption>
+            <figcaption style={{ fontSize: 11, color: 'var(--text-subtle)' }}>Original</figcaption>
           </figure>
           <figure style={{ margin: 0, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center' }}>
             <canvas
@@ -161,7 +161,7 @@ export default function ConvertDialog({ image, fileName, onConvert, onOpenOrigin
               data-testid="pixelate-preview"
               style={{ ...checker, width: previewW, height: previewH, imageRendering: 'pixelated' }}
             />
-            <figcaption style={{ fontSize: 11, color: '#888' }}>
+            <figcaption style={{ fontSize: 11, color: 'var(--text-subtle)' }}>
               Pixel art · {result.width}×{result.height}
             </figcaption>
           </figure>
@@ -178,9 +178,9 @@ export default function ConvertDialog({ image, fileName, onConvert, onOpenOrigin
               style={{
                 padding: '6px 8px',
                 borderRadius: 6,
-                border: '1px solid #555',
-                background: '#1e1e1e',
-                color: '#e0e0e0',
+                border: '1px solid var(--border)',
+                background: 'var(--bg)',
+                color: 'var(--text)',
               }}
             >
               {sizeOptions.map(s => (
@@ -216,7 +216,7 @@ export default function ConvertDialog({ image, fileName, onConvert, onOpenOrigin
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
             <input type="checkbox" checked={dither} onChange={e => setDither(e.target.checked)} />
             Dithering
-            <span style={{ fontSize: 11, color: '#888' }}>(smoother gradients)</span>
+            <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>(smoother gradients)</span>
           </label>
         </div>
 
@@ -242,9 +242,9 @@ export default function ConvertDialog({ image, fileName, onConvert, onOpenOrigin
             onClick={() => onConvert(result)}
             style={{
               ...buttonStyle,
-              border: '1px solid #4fc3f7',
-              background: '#1a3a4a',
-              color: '#4fc3f7',
+              border: '1px solid var(--accent)',
+              background: 'var(--accent-bg)',
+              color: 'var(--accent)',
               fontWeight: 600,
             }}
           >

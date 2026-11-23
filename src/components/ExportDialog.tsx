@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import type { PixelData } from '../types'
 import { EXPORT_SCALES } from '../utils/png'
 import { framesToSheet } from '../utils/spriteSheet'
+import { type FrameDuration, frameDurations, hasCustomDurations } from '../utils/timing'
 import Dialog, { fieldStyle, labelText } from './Dialog'
 import { FrameImage } from './Timeline'
 
@@ -18,6 +19,7 @@ interface ExportDialogProps {
   frames: PixelData[]
   currentFrame: number
   fps: number
+  durations: FrameDuration[]
   onExport: (options: ExportOptions) => void
   onCancel: () => void
 }
@@ -30,7 +32,8 @@ const KINDS: { kind: ExportKind; label: string; hint: string }[] = [
 
 const PREVIEW_BOX = 280
 
-export default function ExportDialog({ frames, currentFrame, fps, onExport, onCancel }: ExportDialogProps) {
+export default function ExportDialog({ frames, currentFrame, fps, durations, onExport, onCancel }: ExportDialogProps) {
+  const totalMs = frameDurations(frames.length, fps, durations).reduce((a, b) => a + b, 0)
   const [kind, setKind] = useState<ExportKind>(frames.length > 1 ? 'sheet' : 'frame')
   const [scale, setScale] = useState(1)
   // One row by default, which every engine can read
@@ -66,7 +69,7 @@ export default function ExportDialog({ frames, currentFrame, fps, onExport, onCa
           <label key={k.kind} style={{ display: 'flex', alignItems: 'baseline', gap: 8, fontSize: 13 }}>
             <input type="radio" name="export-kind" checked={kind === k.kind} onChange={() => setKind(k.kind)} />
             {k.label}
-            <span style={{ fontSize: 11, color: '#888' }}>{k.hint}</span>
+            <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{k.hint}</span>
           </label>
         ))}
       </div>
@@ -97,9 +100,12 @@ export default function ExportDialog({ frames, currentFrame, fps, onExport, onCa
           </label>
         )}
 
-        <span style={{ fontSize: 12, color: '#888', paddingBottom: 6 }}>
+        <span style={{ fontSize: 12, color: 'var(--text-subtle)', paddingBottom: 6 }}>
           {kind === 'sheet' && `${cols} × ${rows} · `}
-          {kind === 'gif' && `${frames.length} frames at ${fps} fps · `}
+          {kind === 'gif' &&
+            (hasCustomDurations(durations)
+              ? `${frames.length} frames, ${(totalMs / 1000).toFixed(2)} s · `
+              : `${frames.length} frames at ${fps} fps · `)}
           {outW}×{outH} px
         </span>
       </div>
@@ -112,7 +118,7 @@ export default function ExportDialog({ frames, currentFrame, fps, onExport, onCa
           minHeight: 80,
           padding: 8,
           borderRadius: 6,
-          background: '#1e1e1e',
+          background: 'var(--bg)',
         }}
       >
         <FrameImage frame={preview} box={PREVIEW_BOX} />

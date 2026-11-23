@@ -13,6 +13,7 @@ import { encodeGif } from '../utils/gif'
 import { PROJECT_EXTENSION, parseProject, serializeProject } from '../utils/project'
 import { flattenFrameCached } from '../utils/layers'
 import { pixelsToPngDataUrl } from '../utils/png'
+import { type FrameDuration, hasCustomDurations } from '../utils/timing'
 import { addPngText, base64ToBytes, bytesToBase64, readPngText } from '../utils/pngText'
 import {
   ANIMATION_KEY,
@@ -40,7 +41,8 @@ interface FileActionsOptions {
   /** The frame that Export writes as a single image */
   currentFrame: number
   fps: number
-  importFrames: (frames: string[][][], width: number, height: number, fps?: number) => void
+  durations: FrameDuration[]
+  importFrames: (frames: string[][][], width: number, height: number, fps?: number, durations?: FrameDuration[]) => void
   importDocument: (doc: EditorDocument) => void
   /** Called after a save that kept everything, so the editor knows there are no unsaved changes */
   markSaved: () => void
@@ -86,6 +88,7 @@ export function useFileActions({
   layers,
   currentFrame,
   fps,
+  durations,
   importFrames,
   importDocument,
   markSaved,
@@ -139,7 +142,7 @@ export function useFileActions({
       const animation = forceConvert ? null : savedAnimation(image, bytes)
       if (animation) {
         const { info } = animation
-        importFrames(animation.frames, info.frameWidth, info.frameHeight, info.fps)
+        importFrames(animation.frames, info.frameWidth, info.frameHeight, info.fps, info.durations)
         setFile(path, name)
         return
       }
@@ -204,6 +207,7 @@ export function useFileActions({
             width: cels[0][0].width,
             height: cels[0][0].height,
             fps,
+            durations,
             layers,
             cels: cels.map(row => row.map(cel => cel.pixels)),
           }
@@ -228,6 +232,7 @@ export function useFileActions({
             frameHeight: height,
             columns: frames.length,
             fps,
+            ...(hasCustomDurations(durations) ? { durations } : {}),
           })
         } else {
           await savePngFile(frames[0], filePath)
@@ -242,7 +247,7 @@ export function useFileActions({
         console.error(err)
       }
     },
-    [cels, layers, flatFrames, fps, setFile, markSaved, showToast],
+    [cels, layers, flatFrames, fps, durations, setFile, markSaved, showToast],
   )
 
   /** Asks where to save, offering `kind` first; the extension picked in the dialog decides the format. */
@@ -291,7 +296,7 @@ export function useFileActions({
             frames.map(f => f.pixels),
             width,
             height,
-            { fps, scale },
+            { fps, durations, scale },
           )
           await invoke('save_gif_file', { path: withExtension(fp, 'gif'), base64Data: bytesToBase64(gif) })
           showToast(`Exported a ${frames.length}-frame GIF`)
@@ -331,7 +336,7 @@ export function useFileActions({
         console.error(err)
       }
     },
-    [flatFrames, currentFrame, fps, fileName, showToast],
+    [flatFrames, currentFrame, fps, durations, fileName, showToast],
   )
 
   /** Opens an image to cut into frames; the sprite sheet dialog asks for the frame size. */

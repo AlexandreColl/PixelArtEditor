@@ -24,7 +24,16 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run format:check
       - run: pnpm run lint
-      - run: pnpm test
+      - run: pnpm run test:coverage
+      - name: Coverage summary
+        if: always() && hashFiles('coverage/coverage-summary.json') != ''
+        run: node scripts/coverage-summary.mjs >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        if: always() && hashFiles('coverage/index.html') != ''
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 14
       - run: pnpm run build
 
   tauri:

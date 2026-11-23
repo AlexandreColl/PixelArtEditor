@@ -45,6 +45,9 @@ export const TOOL_KEYS: Record<Tool, string> = {
   ellipse: 'O',
   shade: 'S',
   selection: 'M',
+  wand: 'W',
+  lasso: 'Q',
+  move: 'V',
 }
 
 const TOOL_BY_KEY = Object.fromEntries(

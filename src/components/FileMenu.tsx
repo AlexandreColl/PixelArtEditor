@@ -1,5 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, FilePlus, FolderOpen, Grid2x2, ImageDown, ImagePlus, Save, SaveAll } from 'lucide-react'
+import {
+  ChevronDown,
+  FilePlus,
+  FolderOpen,
+  Grid2x2,
+  ImageDown,
+  ImagePlus,
+  RefreshCw,
+  Save,
+  SaveAll,
+} from 'lucide-react'
 
 interface FileMenuProps {
   onNew: () => void
@@ -11,6 +21,8 @@ interface FileMenuProps {
   onSave: () => void
   onSaveAs: () => void
   onExport: () => void
+  /** Only in the desktop app, which can update itself */
+  onCheckUpdates?: () => void
 }
 
 const itemStyle: React.CSSProperties = {
@@ -21,14 +33,19 @@ const itemStyle: React.CSSProperties = {
   padding: '6px 12px',
   border: 'none',
   background: 'transparent',
-  color: '#e0e0e0',
+  color: 'var(--text)',
   fontSize: 13,
   textAlign: 'left',
   cursor: 'pointer',
   whiteSpace: 'nowrap',
 }
 
-const shortcutStyle: React.CSSProperties = { marginLeft: 'auto', paddingLeft: 24, color: '#888', fontSize: 11 }
+const shortcutStyle: React.CSSProperties = {
+  marginLeft: 'auto',
+  paddingLeft: 24,
+  color: 'var(--text-subtle)',
+  fontSize: 11,
+}
 
 export default function FileMenu({
   onNew,
@@ -38,6 +55,7 @@ export default function FileMenu({
   onSave,
   onSaveAs,
   onExport,
+  onCheckUpdates,
 }: FileMenuProps) {
   const [isOpen, setIsOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -97,9 +115,9 @@ export default function FileMenu({
           gap: 4,
           padding: '4px 8px 4px 10px',
           borderRadius: 4,
-          border: isOpen ? '1px solid #4fc3f7' : '1px solid #555',
-          background: isOpen ? '#3a3a3a' : 'transparent',
-          color: '#e0e0e0',
+          border: isOpen ? '1px solid var(--accent)' : '1px solid var(--border)',
+          background: isOpen ? 'var(--surface-raised)' : 'transparent',
+          color: 'var(--text)',
           cursor: 'pointer',
           fontSize: 13,
         }}
@@ -117,8 +135,8 @@ export default function FileMenu({
             zIndex: 100,
             minWidth: 220,
             padding: '4px 0',
-            background: '#2d2d2d',
-            border: '1px solid #555',
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
             borderRadius: 6,
             boxShadow: '0 6px 16px rgba(0,0,0,0.5)',
           }}
@@ -149,7 +167,7 @@ export default function FileMenu({
           >
             <Grid2x2 size={15} /> Import sprite sheet…
           </button>
-          <div style={{ height: 1, background: '#444', margin: '4px 0' }} />
+          <div style={{ height: 1, background: 'var(--divider)', margin: '4px 0' }} />
           <button role="menuitem" style={itemStyle} onClick={pick(onSave)}>
             <Save size={15} /> Save <span style={shortcutStyle}>Ctrl+S</span>
           </button>
@@ -159,6 +177,14 @@ export default function FileMenu({
           <button role="menuitem" style={itemStyle} onClick={pick(onExport)}>
             <ImageDown size={15} /> Export… <span style={shortcutStyle}>Ctrl+E</span>
           </button>
+          {onCheckUpdates && (
+            <>
+              <div style={{ height: 1, background: 'var(--divider)', margin: '4px 0' }} />
+              <button role="menuitem" style={itemStyle} onClick={pick(onCheckUpdates)}>
+                <RefreshCw size={15} /> Check for updates…
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>

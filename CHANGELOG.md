@@ -7,6 +7,26 @@ y el proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Añadido
+
+- **Herramienta de mover** (`V`): arrastra todo el contenido de la capa, o solo la selección si la hay. Las flechas la mueven un píxel por pulsación.
+- **Varita mágica** (`W`) y **lazo** (`Q`). Las selecciones pueden tener cualquier forma: copiar, cortar, borrar, mover y reducir a la paleta afectan solo a los píxeles seleccionados, y el contorno sigue la forma.
+- **Duración propia para cada fotograma**, en milisegundos, en el campo bajo el contador de fotogramas. Vacío, el fotograma sigue los fps. La respetan la vista previa, el GIF, los proyectos `.pxa` y los PNG animados, y se deshace como cualquier cambio.
+- **Actualizaciones automáticas**: el editor busca versiones nuevas al arrancar y en **File → Check for updates…**, muestra qué cambia y la instala con un clic. Van firmadas, y el trabajo sin guardar se recupera tras el reinicio.
+- Cada instalador lleva una atestación de procedencia de GitHub, verificable con `gh attestation verify`.
+- Las notas de cada release salen de su sección de este CHANGELOG.
+
+### Cambiado
+
+- Dibujar en lienzos grandes es mucho más fluido: un trazo solo vuelve a dibujar y a combinar las filas que toca. En 256×256, redibujar la capa en cada movimiento del puntero pasa de unos 22 ms a menos de 1 ms, y combinar tres capas, de 33 ms a menos de 1 ms.
+- Los botones tienen estados de hover, pulsado y deshabilitado comunes, y los colores de la interfaz están centralizados.
+- El ejecutable que genera el build local se llama `pixel-art-editor.exe` (antes `app.exe`).
+
+### Interno
+
+- Cobertura de tests en el CI, con un mínimo que no puede bajar.
+- Las ramas `main` y `develop` están protegidas y exigen el CI.
+
 ## [0.5.2] - 2026-11-23
 
 ### Seguridad

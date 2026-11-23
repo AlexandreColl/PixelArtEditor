@@ -1,34 +1,17 @@
 import { useEffect } from 'react'
 import { useLatest } from '../hooks/useLatest'
-
-export const dialogButton: React.CSSProperties = {
-  padding: '6px 14px',
-  borderRadius: 6,
-  border: '1px solid #555',
-  background: 'transparent',
-  color: '#e0e0e0',
-  cursor: 'pointer',
-  fontSize: 13,
-}
-
-export const primaryButton: React.CSSProperties = {
-  ...dialogButton,
-  border: '1px solid #4fc3f7',
-  background: '#1a3a4a',
-  color: '#4fc3f7',
-  fontWeight: 600,
-}
+import Button from './Button'
 
 export const fieldStyle: React.CSSProperties = {
   padding: '5px 8px',
   borderRadius: 6,
-  border: '1px solid #555',
-  background: '#1e1e1e',
-  color: '#e0e0e0',
+  border: '1px solid var(--border)',
+  background: 'var(--bg)',
+  color: 'var(--text)',
   fontSize: 13,
 }
 
-export const labelText: React.CSSProperties = { fontSize: 12, color: '#aaa' }
+export const labelText: React.CSSProperties = { fontSize: 12, color: 'var(--text-muted)' }
 
 interface DialogProps {
   title: string
@@ -88,8 +71,8 @@ export default function Dialog({
     >
       <div
         style={{
-          background: '#2d2d2d',
-          border: '1px solid #444',
+          background: 'var(--surface)',
+          border: '1px solid var(--divider)',
           borderRadius: 10,
           padding: 20,
           width: `min(${width}px, calc(100vw - 32px))`,
@@ -98,27 +81,21 @@ export default function Dialog({
           display: 'flex',
           flexDirection: 'column',
           gap: 16,
-          color: '#e0e0e0',
+          color: 'var(--text)',
         }}
       >
         <div>
           <div style={{ fontWeight: 700, fontSize: 15 }}>{title}</div>
-          {subtitle && <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>{subtitle}</div>}
+          {subtitle && <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginTop: 4 }}>{subtitle}</div>}
         </div>
 
         {children}
 
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-          <button onClick={onCancel} style={dialogButton}>
-            {cancelLabel}
-          </button>
-          <button
-            onClick={() => onConfirm?.()}
-            disabled={!onConfirm}
-            style={{ ...primaryButton, opacity: onConfirm ? 1 : 0.4, cursor: onConfirm ? 'pointer' : 'default' }}
-          >
+          <Button onClick={onCancel}>{cancelLabel}</Button>
+          <Button variant="primary" onClick={() => onConfirm?.()} disabled={!onConfirm}>
             {confirmLabel}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

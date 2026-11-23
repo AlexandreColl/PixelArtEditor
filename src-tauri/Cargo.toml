@@ -1,7 +1,7 @@
 [package]
-name = "app"
+name = "pixel-art-editor"
 version = "0.5.2"
-description = "Editor de pixel art de escritorio con agente IA integrado"
+description = "Editor de pixel art de escritorio con animación, capas y agente IA"
 authors = ["Alexandre Coll Molina"]
 license = "MIT"
 repository = "https://github.com/AlexandreColl/PixelArtEditor"
@@ -11,7 +11,7 @@ rust-version = "1.90"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
-name = "app_lib"
+name = "pixel_art_editor_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
@@ -26,3 +26,8 @@ tauri-plugin-log = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 base64 = "0.23"
+
+# Self-update and relaunch, only where there are installers to update
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"

@@ -1,5 +1,7 @@
 import { useState, useCallback, useRef } from 'react'
 import { useLatest } from './useLatest'
+import { clampSelection, clearSelected, extractSelected, isSelected } from '../utils/selection'
+import { type FrameDuration, cleanDuration, normalizeDurations } from '../utils/timing'
 import type { Tool, ShapeTool, PixelData, EditorState, Layer, Selection } from '../types'
 import { brushFootprints } from '../utils/brush'
 import { linePoints, shapePoints } from '../utils/shapes'
@@ -26,27 +28,6 @@ function clonePixels(pixels: string[][]): string[][] {
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
 
-/** The part of a selection that lies inside the canvas, or null if none of it does. */
-function clampRegion(sel: Selection, width: number, height: number): Selection | null {
-  const x0 = Math.max(0, sel.x)
-  const y0 = Math.max(0, sel.y)
-  const x1 = Math.min(width, sel.x + sel.width)
-  const y1 = Math.min(height, sel.y + sel.height)
-  return x1 > x0 && y1 > y0 ? { x: x0, y: y0, width: x1 - x0, height: y1 - y0 } : null
-}
-
-function extractRegion(pixels: string[][], region: Selection): string[][] {
-  return pixels.slice(region.y, region.y + region.height).map(row => row.slice(region.x, region.x + region.width))
-}
-
-function clearRegion(pixels: string[][], region: Selection): string[][] {
-  const out = clonePixels(pixels)
-  for (let y = region.y; y < region.y + region.height; y++) {
-    for (let x = region.x; x < region.x + region.width; x++) out[y][x] = TRANSPARENT
-  }
-  return out
-}
-
 /** Copy of pixels with the opaque pixels of buffer drawn at (x, y); transparent ones leave what is below. */
 function compositeOnto(pixels: string[][], buffer: string[][], x: number, y: number): string[][] {
   const out = clonePixels(pixels)
@@ -66,8 +47,14 @@ interface FloatingSelection {
 }
 
 /** Paints the brush squares (see brushFootprints), mirrored when asked. */
+/**
+ * Stamps the brush into `pixels`, a shallow copy of `source` (its rows are shared until written).
+ * A row is copied the first time it is written, so the rows a stroke does not touch stay the same
+ * arrays, and what was rendered from them (textures, blended frames) is reused.
+ */
 function stampBrush(
   pixels: string[][],
+  source: string[][],
   width: number,
   height: number,
   cx: number,
@@ -79,7 +66,9 @@ function stampBrush(
 ) {
   for (const sq of brushFootprints(cx, cy, size, width, height, mirrorX, mirrorY)) {
     for (let y = sq.y; y < sq.y + sq.height; y++) {
-      for (let x = sq.x; x < sq.x + sq.width; x++) pixels[y][x] = color
+      if (pixels[y] === source[y]) pixels[y] = [...source[y]]
+      const row = pixels[y]
+      for (let x = sq.x; x < sq.x + sq.width; x++) row[x] = color
     }
   }
 }
@@ -107,6 +96,7 @@ function newLayerName(layers: Layer[]): string {
 interface Snapshot {
   cels: PixelData[][]
   layers: Layer[]
+  durations: FrameDuration[]
   frame: number
   layer: number
   /** Where the change is once undone, when that is somewhere else (a moved frame or layer goes back) */
@@ -120,6 +110,8 @@ export interface EditorDocument {
   cels: string[][][][]
   layers: Omit<Layer, 'id'>[]
   fps?: number
+  /** durations[frame] in milliseconds, or null to follow fps; missing means every frame follows fps */
+  durations?: FrameDuration[]
 }
 
 export function useEditor() {
@@ -132,6 +124,7 @@ export function useEditor() {
       currentFrame: 0,
       currentLayer: 0,
       fps: DEFAULT_FPS,
+      durations: [null],
       onionSkin: false,
       activeTool: 'pencil',
       primaryColor: '#000000',
@@ -151,6 +144,7 @@ export function useEditor() {
   // The refs are updated synchronously so several events between renders see the latest pixels.
   const celsRef = useRef(state.cels)
   const layersRef = useRef(state.layers)
+  const durationsRef = useRef(state.durations)
   const frameIndexRef = useRef(0)
   const layerIndexRef = useRef(0)
   /** The cel being edited, celsRef.current[frameIndexRef.current][layerIndexRef.current] */
@@ -159,7 +153,13 @@ export function useEditor() {
   const mirrorRef = useLatest({ x: state.mirrorX, y: state.mirrorY })
   // Canvas as it was when the current shape drag started; the shape preview is redrawn on top of it
   const shapeBaseRef = useRef<PixelData | null>(null)
-  const [firstEntry] = useState<Snapshot>(() => ({ cels: state.cels, layers: state.layers, frame: 0, layer: 0 }))
+  const [firstEntry] = useState<Snapshot>(() => ({
+    cels: state.cels,
+    layers: state.layers,
+    durations: state.durations,
+    frame: 0,
+    layer: 0,
+  }))
   const historyRef = useRef<Snapshot[]>([firstEntry])
   const historyIndexRef = useRef(0)
   // The history entry that matches the file on disk; any other entry means unsaved changes.
@@ -189,16 +189,24 @@ export function useEditor() {
 
   /**
    * Replaces the cels and layers and picks the cel to edit. Not an undo step by itself: follow with commitHistory.
-   * Indices out of range are clamped.
+   * Indices out of range are clamped. Durations stay as they are unless given; they must match the frames.
    */
   const setDocument = useCallback(
-    (cels: PixelData[][], layers: Layer[], frame = frameIndexRef.current, layer = layerIndexRef.current) => {
+    (
+      cels: PixelData[][],
+      layers: Layer[],
+      frame = frameIndexRef.current,
+      layer = layerIndexRef.current,
+      durations = durationsRef.current,
+    ) => {
+      if (durations.length !== cels.length) durations = normalizeDurations(durations, cels.length)
       const previous = pixelDataRef.current
       const f = clamp(frame, 0, cels.length - 1)
       const l = clamp(layer, 0, layers.length - 1)
       const pixelData = cels[f][l]
       celsRef.current = cels
       layersRef.current = layers
+      durationsRef.current = durations
       frameIndexRef.current = f
       layerIndexRef.current = l
       pixelDataRef.current = pixelData
@@ -210,6 +218,7 @@ export function useEditor() {
         pixelData,
         cels,
         layers,
+        durations,
         currentFrame: f,
         currentLayer: l,
         ...(sizeChanged ? { selection: null } : {}),
@@ -220,7 +229,8 @@ export function useEditor() {
 
   /** Replaces the cels, keeping the layers. */
   const setCels = useCallback(
-    (cels: PixelData[][], frame?: number) => setDocument(cels, layersRef.current, frame),
+    (cels: PixelData[][], frame?: number, durations?: FrameDuration[]) =>
+      setDocument(cels, layersRef.current, frame, undefined, durations),
     [setDocument],
   )
 
@@ -261,13 +271,15 @@ export function useEditor() {
       floatRef.current = null
       const cels = celsRef.current
       const layers = layersRef.current
+      const durations = durationsRef.current
       const idx = historyIndexRef.current
       const last = historyRef.current[idx]
-      if (last.cels === cels && last.layers === layers) return
+      if (last.cels === cels && last.layers === layers && last.durations === durations) return
       historyRef.current = historyRef.current.slice(0, idx + 1)
       historyRef.current.push({
         cels,
         layers,
+        durations,
         frame: changedFrame ?? frameIndexRef.current,
         layer: changedLayer ?? layerIndexRef.current,
         before,
@@ -331,10 +343,10 @@ export function useEditor() {
   const paintLine = useCallback(
     (x0: number, y0: number, x1: number, y1: number, color: string, size: number) => {
       const { pixels, width, height } = pixelDataRef.current
-      const newPixels = clonePixels(pixels)
+      const newPixels = [...pixels]
       // A full line rather than single points, so fast pointer moves don't leave gaps
       for (const [x, y] of linePoints(x0, y0, x1, y1)) {
-        stampBrush(newPixels, width, height, x, y, color, size, mirrorRef.current.x, mirrorRef.current.y)
+        stampBrush(newPixels, pixels, width, height, x, y, color, size, mirrorRef.current.x, mirrorRef.current.y)
       }
       setPixelData({ width, height, pixels: newPixels })
     },
@@ -359,11 +371,22 @@ export function useEditor() {
       filled: boolean,
     ) => {
       const base = shapeBaseRef.current ?? pixelDataRef.current
-      const pixels = clonePixels(base.pixels)
+      const pixels = [...base.pixels]
       // A filled shape is the exact area between the two corners, so the brush size only applies to outlines
       const brush = filled && shape !== 'line' ? 1 : size
       for (const [x, y] of shapePoints(shape, x0, y0, x1, y1, filled)) {
-        stampBrush(pixels, base.width, base.height, x, y, color, brush, mirrorRef.current.x, mirrorRef.current.y)
+        stampBrush(
+          pixels,
+          base.pixels,
+          base.width,
+          base.height,
+          x,
+          y,
+          color,
+          brush,
+          mirrorRef.current.x,
+          mirrorRef.current.y,
+        )
       }
       setPixelData({ width: base.width, height: base.height, pixels })
     },
@@ -502,7 +525,7 @@ export function useEditor() {
   const remapColors = useCallback(
     (map: (color: string) => string): number => {
       const { width, height } = pixelDataRef.current
-      const selected = selectionRef.current && clampRegion(selectionRef.current, width, height)
+      const selected = selectionRef.current && clampSelection(selectionRef.current, width, height)
       const region = selected ?? { x: 0, y: 0, width, height }
       let changed = 0
       const remap = (frame: PixelData): PixelData => {
@@ -510,6 +533,7 @@ export function useEditor() {
         const pixels = clonePixels(frame.pixels)
         for (let y = region.y; y < region.y + region.height; y++) {
           for (let x = region.x; x < region.x + region.width; x++) {
+            if (!isSelected(region, x, y)) continue
             const color = map(pixels[y][x])
             if (color === pixels[y][x]) continue
             pixels[y][x] = color
@@ -543,9 +567,9 @@ export function useEditor() {
   /** Copies the selected pixels to the editor clipboard. Returns false if nothing is selected. */
   const copySelection = useCallback((): boolean => {
     const { pixels, width, height } = pixelDataRef.current
-    const region = selectionRef.current && clampRegion(selectionRef.current, width, height)
+    const region = selectionRef.current && clampSelection(selectionRef.current, width, height)
     if (!region) return false
-    clipboardRef.current = extractRegion(pixels, region)
+    clipboardRef.current = extractSelected(pixels, region)
     setHasClipboard(true)
     return true
   }, [])
@@ -553,9 +577,9 @@ export function useEditor() {
   /** Makes the selected pixels transparent, as one undo step. Returns false if nothing is selected. */
   const deleteSelection = useCallback((): boolean => {
     const current = pixelDataRef.current
-    const region = selectionRef.current && clampRegion(selectionRef.current, current.width, current.height)
+    const region = selectionRef.current && clampSelection(selectionRef.current, current.width, current.height)
     if (!region) return false
-    setPixelData({ ...current, pixels: clearRegion(current.pixels, region) })
+    setPixelData({ ...current, pixels: clearSelected(current.pixels, region) })
     commitHistory()
     return true
   }, [setPixelData, commitHistory])
@@ -594,11 +618,11 @@ export function useEditor() {
   const beginMove = useCallback(
     (copy: boolean): boolean => {
       const current = pixelDataRef.current
-      const region = selectionRef.current && clampRegion(selectionRef.current, current.width, current.height)
+      const region = selectionRef.current && clampSelection(selectionRef.current, current.width, current.height)
       if (!region) return false
       floatRef.current = {
-        base: copy ? current : { ...current, pixels: clearRegion(current.pixels, region) },
-        buffer: extractRegion(current.pixels, region),
+        base: copy ? current : { ...current, pixels: clearSelected(current.pixels, region) },
+        buffer: extractSelected(current.pixels, region),
       }
       showSelection(region)
       return true
@@ -618,9 +642,42 @@ export function useEditor() {
       const ny = clamp(y, 0, base.height - height)
       setPixelData({ ...base, pixels: compositeOnto(base.pixels, buffer, nx, ny) })
       const sel = selectionRef.current
-      if (!sel || sel.x !== nx || sel.y !== ny) showSelection({ x: nx, y: ny, width, height })
+      // The shape of a wand or lasso selection travels with it
+      if (!sel || sel.x !== nx || sel.y !== ny) showSelection({ ...sel, x: nx, y: ny, width, height })
     },
     [setPixelData, showSelection],
+  )
+
+  /**
+   * Shows the layer's pixels as they were when the move began, shifted by (dx, dy). What goes past
+   * the edge comes back if the drag returns; it is cut when the move is committed.
+   * Call beginShape first and commitHistory when the drag ends.
+   */
+  const shiftCel = useCallback(
+    (dx: number, dy: number) => {
+      const base = shapeBaseRef.current ?? pixelDataRef.current
+      const { width, height } = base
+      const empty = Array<string>(width).fill(TRANSPARENT)
+      const pixels = Array.from({ length: height }, (_row, y) => {
+        const src = base.pixels[y - dy]
+        if (!src) return empty.slice()
+        // A vertical move keeps whole rows, so what was rendered from them is reused
+        if (dx === 0) return src
+        return Array.from({ length: width }, (_cell, x) => src[x - dx] ?? TRANSPARENT)
+      })
+      setPixelData({ width, height, pixels })
+    },
+    [setPixelData],
+  )
+
+  /** Moves the whole layer by (dx, dy) as one undo step, for the arrow keys. */
+  const nudgeCel = useCallback(
+    (dx: number, dy: number) => {
+      shapeBaseRef.current = pixelDataRef.current
+      shiftCel(dx, dy)
+      commitHistory()
+    },
+    [shiftCel, commitHistory],
   )
 
   /** Moves the selected pixels by (dx, dy) as one undo step. Returns false if nothing is selected. */
@@ -645,10 +702,10 @@ export function useEditor() {
       historyIndexRef.current = to
       floatRef.current = null
       shapeBaseRef.current = null
-      const { cels, layers } = historyRef.current[to]
+      const { cels, layers, durations } = historyRef.current[to]
       const changed = historyRef.current[changedEntry]
       const at = undoing ? { ...changed, ...changed.before } : changed
-      setDocument(cels, layers, at.frame, at.layer)
+      setDocument(cels, layers, at.frame, at.layer, durations)
       showSelection(selHistoryRef.current[to] ?? null)
       syncHistory()
     },
@@ -683,12 +740,14 @@ export function useEditor() {
 
   /** Inserts a frame after the current one and selects it, as one undo step. Without cels, it is empty. */
   const insertFrame = useCallback(
-    (row?: PixelData[]) => {
+    (row?: PixelData[], duration: FrameDuration = null) => {
       const { width, height } = pixelDataRef.current
       const at = frameIndexRef.current + 1
       const cels = [...celsRef.current]
       cels.splice(at, 0, row ?? layersRef.current.map(() => createEmptyPixelData(width, height)))
-      setCels(cels, at)
+      const durations = [...durationsRef.current]
+      durations.splice(at, 0, duration)
+      setCels(cels, at, durations)
       commitHistory()
     },
     [setCels, commitHistory],
@@ -696,8 +755,11 @@ export function useEditor() {
 
   const addFrame = useCallback(() => insertFrame(), [insertFrame])
 
-  // Cels are never mutated, so the copy can share them until either is painted
-  const duplicateFrame = useCallback(() => insertFrame(celsRef.current[frameIndexRef.current]), [insertFrame])
+  // Cels are never mutated, so the copy can share them until either is painted. It keeps the duration too.
+  const duplicateFrame = useCallback(
+    () => insertFrame(celsRef.current[frameIndexRef.current], durationsRef.current[frameIndexRef.current]),
+    [insertFrame],
+  )
 
   /** Removes the current frame, as one undo step. Returns false when it is the only one. */
   const deleteFrame = useCallback((): boolean => {
@@ -707,6 +769,7 @@ export function useEditor() {
     setCels(
       cels.filter((_, i) => i !== index),
       Math.min(index, cels.length - 2),
+      durationsRef.current.filter((_, i) => i !== index),
     )
     // Undoing the deletion shows the frame that comes back
     commitHistory(index)
@@ -720,7 +783,10 @@ export function useEditor() {
       if (from === to || from < 0 || to < 0 || from >= cels.length || to >= cels.length) return
       const [moved] = cels.splice(from, 1)
       cels.splice(to, 0, moved)
-      setCels(cels, to)
+      const durations = [...durationsRef.current]
+      const [duration] = durations.splice(from, 1)
+      durations.splice(to, 0, duration)
+      setCels(cels, to, durations)
       // Undoing puts the frame back where it was, so show it there
       commitHistory(to, undefined, { frame: from })
     },
@@ -833,6 +899,19 @@ export function useEditor() {
     [setDocument, commitHistory],
   )
 
+  /** Gives frame `index` its own duration in milliseconds, or null to follow fps, as one undo step. */
+  const setFrameDuration = useCallback(
+    (index: number, duration: unknown) => {
+      const durations = [...durationsRef.current]
+      if (index < 0 || index >= durations.length) return
+      durations[index] = cleanDuration(duration)
+      if (durations[index] === durationsRef.current[index]) return
+      setCels(celsRef.current, frameIndexRef.current, durations)
+      commitHistory(index)
+    },
+    [setCels, commitHistory],
+  )
+
   const setFps = useCallback((fps: number) => {
     setState(prev => ({ ...prev, fps: clamp(Math.round(fps) || 1, 1, MAX_FPS) }))
   }, [])
@@ -852,7 +931,8 @@ export function useEditor() {
       if (doc.cels.length === 0 || doc.layers.length === 0) return
       const cels = doc.cels.map(row => row.map(pixels => ({ width, height, pixels })))
       const layers = doc.layers.map(({ name, ...rest }) => createLayer(name, rest))
-      historyRef.current = [{ cels, layers, frame: 0, layer: 0 }]
+      const durations = normalizeDurations(doc.durations, cels.length)
+      historyRef.current = [{ cels, layers, durations, frame: 0, layer: 0 }]
       savedEntryRef.current = saved ? historyRef.current[0] : null
       selHistoryRef.current = [null]
       historyIndexRef.current = 0
@@ -860,7 +940,7 @@ export function useEditor() {
       shapeBaseRef.current = null
       selectionRef.current = null
       // Draw on the top layer, as it is the one in front
-      setDocument(cels, layers, 0, layers.length - 1)
+      setDocument(cels, layers, 0, layers.length - 1, durations)
       syncHistory()
       setState(prev => ({
         ...prev,
@@ -874,11 +954,12 @@ export function useEditor() {
 
   /** Replaces the document with frames of a single layer. */
   const importFrames = useCallback(
-    (framePixels: string[][][], width: number, height: number, fps?: number) =>
+    (framePixels: string[][][], width: number, height: number, fps?: number, durations?: FrameDuration[]) =>
       importDocument({
         width,
         height,
         fps,
+        durations,
         cels: framePixels.map(pixels => [pixels]),
         layers: [{ name: 'Layer 1', visible: true, opacity: 1 }],
       }),
@@ -918,6 +999,8 @@ export function useEditor() {
     toggleMirrorY,
     paintLine,
     beginShape,
+    shiftCel,
+    nudgeCel,
     drawShape,
     fillRegion,
     shadePixel,
@@ -943,6 +1026,7 @@ export function useEditor() {
     deleteFrame,
     moveFrame,
     setFps,
+    setFrameDuration,
     toggleOnionSkin,
     hasClipboard,
     getSelection,
