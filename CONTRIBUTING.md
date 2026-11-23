@@ -87,3 +87,12 @@ Los tests usan [Vitest](https://vitest.dev) y viven junto al código que prueban
 4. Fusiona en `main` con `--no-ff` y crea la etiqueta anotada `vX.Y.Z`.
 5. Fusiona `main` de vuelta en `develop`.
 6. Sube `main`, `develop` y la etiqueta: el workflow de release genera los instaladores en un borrador de GitHub Release.
+7. Revisa el borrador (las notas salen de la sección del CHANGELOG, y el workflow falla si no existe) y publícalo como _Latest_. Las copias instaladas encuentran la actualización en el `latest.json` de la última release publicada, así que un borrador no se ofrece a nadie.
+
+### Clave de firma de las actualizaciones
+
+Las actualizaciones automáticas van firmadas, y las copias instaladas solo aceptan las firmadas con la clave del proyecto (su parte pública está en `src-tauri/tauri.conf.json`, en `plugins.updater.pubkey`).
+
+- La clave privada vive en el secreto `TAURI_SIGNING_PRIVATE_KEY` del repositorio, y nunca en el código. Sin ella el workflow de release se detiene al empezar.
+- Para firmar en local, `pnpm run tauri:build` la lee de `~/.tauri/pixel-art-editor.key`. Si no existe, compila los instaladores sin los paquetes de actualización.
+- **Guarda una copia de la clave privada fuera de este equipo.** Si se pierde, las copias ya instaladas no podrán actualizarse con una clave nueva: habría que reinstalar a mano.
