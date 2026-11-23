@@ -1,7 +1,7 @@
+use base64::Engine as _;
 use std::fs;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
-use base64::Engine as _;
 use tauri::Manager;
 
 /// The copy of unsaved work, in the app data folder.

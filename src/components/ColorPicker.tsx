@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { type HSV, hsvToRgb, parseColor, parseHexInput, rgbToHsv, toHex } from '../utils/color'
 
 interface ColorPickerProps {
@@ -53,22 +53,26 @@ export default function ColorPicker({ color, onChange }: ColorPickerProps) {
   const [hsv, setHsv] = useState<HSV>(() => hexToHsv(color))
   const [hexText, setHexText] = useState(color)
   const [hexInvalid, setHexInvalid] = useState(false)
-  const lastSent = useRef(color)
+  // The last color this picker sent: when it comes back as `color`, the hue is kept as it is
+  const [lastSent, setLastSent] = useState(color)
+  const [shownColor, setShownColor] = useState(color)
 
-  // Follow changes made elsewhere (swatches, eyedropper, swap, palette lock)
-  useEffect(() => {
+  // Follow changes made elsewhere (swatches, eyedropper, swap, palette lock), during render
+  // so the field never shows the old color for a frame
+  if (color !== shownColor) {
+    setShownColor(color)
     setHexText(color)
     setHexInvalid(false)
-    if (color !== lastSent.current) {
-      lastSent.current = color
+    if (color !== lastSent) {
+      setLastSent(color)
       setHsv(hexToHsv(color))
     }
-  }, [color])
+  }
 
   const update = (next: HSV) => {
     setHsv(next)
     const hex = hsvToHex(next)
-    lastSent.current = hex
+    setLastSent(hex)
     if (hex !== color) onChange(hex)
   }
 
@@ -90,7 +94,7 @@ export default function ColorPicker({ color, onChange }: ColorPickerProps) {
     setHexInvalid(false)
     setHexText(parsed)
     if (parsed !== color) {
-      lastSent.current = parsed
+      setLastSent(parsed)
       setHsv(hexToHsv(parsed))
       onChange(parsed)
     }

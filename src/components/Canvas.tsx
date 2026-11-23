@@ -1,4 +1,5 @@
 import { useRef, useEffect, useCallback, useImperativeHandle, useState } from 'react'
+import { useLatest } from '../hooks/useLatest'
 import type { PixelData, Tool, ShapeTool, Selection } from '../types'
 import { brushFootprints } from '../utils/brush'
 import { TRANSPARENT } from '../utils/color'
@@ -321,8 +322,7 @@ export default function Canvas({
     shapeFilled,
   ])
 
-  const drawRef = useRef(draw)
-  drawRef.current = draw
+  const drawRef = useLatest(draw)
 
   useEffect(() => {
     if (!onionFrame) {
@@ -340,7 +340,7 @@ export default function Canvas({
       onionTextureRef.current = tc
     }
     drawRef.current()
-  }, [onionFrame])
+  }, [onionFrame, drawRef])
 
   useEffect(() => {
     draw()

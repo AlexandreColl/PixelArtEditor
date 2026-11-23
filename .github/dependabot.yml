@@ -1,0 +1,41 @@
+version: 2
+
+# Weekly, grouped updates opened against develop, following git flow.
+# Major versions arrive one by one so each breaking change can be reviewed on its own.
+updates:
+  - package-ecosystem: npm
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: '⬆️ build(deps)'
+    groups:
+      npm-minor:
+        update-types: [minor, patch]
+
+  - package-ecosystem: cargo
+    directory: /src-tauri
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: '⬆️ build(deps)'
+    groups:
+      cargo-minor:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: '👷 ci(deps)'
+    groups:
+      actions:
+        patterns: ['*']

@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
+import { useLatest } from './useLatest'
 import type { Tool } from '../types'
 
 export interface ShortcutActions {
@@ -73,8 +74,7 @@ function keyIsTaken(e: KeyboardEvent): boolean {
 
 /** The editor's global shortcuts. The actions can change on every render; the listener is registered once. */
 export function useKeyboardShortcuts(actions: ShortcutActions) {
-  const actionsRef = useRef(actions)
-  actionsRef.current = actions
+  const actionsRef = useLatest(actions)
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -112,5 +112,5 @@ export function useKeyboardShortcuts(actions: ShortcutActions) {
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [])
+  }, [actionsRef])
 }

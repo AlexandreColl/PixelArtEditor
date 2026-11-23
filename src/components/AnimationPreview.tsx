@@ -32,11 +32,22 @@ export default function AnimationPreview({
   const [realSize, setRealSize] = useState(false)
   const [fpsText, setFpsText] = useState(String(fps))
 
-  useEffect(() => setFpsText(String(fps)), [fps])
+  // Follow the speed when it changes elsewhere (open, undo...)
+  const [shownFps, setShownFps] = useState(fps)
+  if (fps !== shownFps) {
+    setShownFps(fps)
+    setFpsText(String(fps))
+  }
+
+  // Each start, or change of speed while playing, counts again from the frame being edited
+  const [run, setRun] = useState({ playing, fps })
+  if (run.playing !== playing || run.fps !== fps) {
+    setRun({ playing, fps })
+    if (playing) setTick(0)
+  }
 
   useEffect(() => {
     if (!playing) return
-    setTick(0)
     const id = window.setInterval(() => setTick(t => t + 1), 1000 / fps)
     return () => window.clearInterval(id)
   }, [playing, fps])
