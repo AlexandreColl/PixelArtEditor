@@ -55,3 +55,34 @@ jobs:
         working-directory: src-tauri
       - run: cargo test --locked
         working-directory: src-tauri
+
+  e2e:
+    name: E2E (real app on Linux)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf webkit2gtk-driver xvfb
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Install tauri-driver
+        run: cargo install tauri-driver --version 2.1.0 --locked
+      - name: Build the app
+        run: pnpm tauri build --debug --no-bundle
+      - name: Run the end-to-end tests
+        # A throwaway data folder, so every run starts with nothing to recover
+        env:
+          XDG_DATA_HOME: ${{ runner.temp }}/e2e/data
+          XDG_CONFIG_HOME: ${{ runner.temp }}/e2e/config
+          XDG_CACHE_HOME: ${{ runner.temp }}/e2e/cache
+        run: xvfb-run --auto-servernum pnpm test:e2e

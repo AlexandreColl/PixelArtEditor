@@ -691,6 +691,7 @@ export default function Canvas({
     >
       <canvas
         ref={canvasRef}
+        aria-label="Drawing canvas"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
