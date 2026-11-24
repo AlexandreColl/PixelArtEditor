@@ -7,6 +7,8 @@ y el proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-24
+
 ### Añadido
 
 - **Herramienta de mover** (`V`): arrastra todo el contenido de la capa, o solo la selección si la hay. Las flechas la mueven un píxel por pulsación.
@@ -158,7 +160,8 @@ Primera versión pública.
 - Barra de herramientas con iconos de lucide-react.
 - Scripts `dev.bat` / `build.bat` y helper `scripts/dev.ps1` para Windows.
 
-[Unreleased]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.5.2...HEAD
+[Unreleased]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.5.2...v0.6.0
 [0.5.2]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/AlexandreColl/PixelArtEditor/compare/v0.4.0...v0.5.0
