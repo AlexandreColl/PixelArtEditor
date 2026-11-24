@@ -23,7 +23,15 @@ export const config = {
   port: 4444,
   specs: [path.join(root, 'e2e', '*.e2e.mjs')],
   maxInstances: 1,
-  capabilities: [{ maxInstances: 1, browserName: 'wry', 'tauri:options': { application } }],
+  capabilities: [
+    {
+      maxInstances: 1,
+      browserName: 'wry',
+      'tauri:options': { application },
+      // WebKitWebDriver and msedgedriver for webviews only speak classic WebDriver, not BiDi
+      'wdio:enforceWebDriverClassic': true,
+    },
+  ],
   logLevel: 'warn',
   waitforTimeout: 10000,
   reporters: ['spec'],
