@@ -1,6 +1,6 @@
 [package]
 name = "pixel-art-editor"
-version = "0.5.2"
+version = "0.6.0"
 description = "Editor de pixel art de escritorio con animación, capas y agente IA"
 authors = ["Alexandre Coll Molina"]
 license = "MIT"
