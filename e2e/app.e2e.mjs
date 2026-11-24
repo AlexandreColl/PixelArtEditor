@@ -4,18 +4,31 @@ import os from 'node:os'
 import path from 'node:path'
 import { $, $$, browser, expect } from '@wdio/globals'
 
-/** Calls a Rust command from the page, the way the app does. Never throws: returns the outcome. */
-function invoke(command, args = {}) {
-  return browser.execute(
-    (c, a) =>
+/**
+ * Calls a Rust command from the page, the way the app does. Never throws: returns the outcome.
+ * The call starts in one script and its outcome is read by later ones, because WebKitWebDriver
+ * fails a script that waits on a rejected command even when the page handles the rejection.
+ */
+async function invoke(command, args = {}) {
+  const id = await browser.execute(
+    (c, a) => {
+      const calls = (window.e2eCalls ??= [])
+      const call = { done: false }
+      calls.push(call)
       // oxlint-disable-next-line no-underscore-dangle -- the object Tauri gives the page
       window.__TAURI_INTERNALS__.invoke(c, a).then(
-        value => ({ ok: true, value }),
-        error => ({ ok: false, error: String(error) }),
-      ),
+        value => Object.assign(call, { done: true, ok: true, value }),
+        error => Object.assign(call, { done: true, ok: false, error: String(error) }),
+      )
+      return calls.length - 1
+    },
     command,
     args,
   )
+  const read = () => browser.execute(i => window.e2eCalls[i], id)
+  await browser.waitUntil(async () => (await read()).done, { timeoutMsg: `${command} never answered` })
+  const { done: _done, ...outcome } = await read()
+  return outcome
 }
 
 /** The copy of unsaved work as the Rust side keeps it, or null. */
