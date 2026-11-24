@@ -2,13 +2,17 @@ import { useEffect, useState } from 'react'
 import { Pause, Play } from 'lucide-react'
 import type { PixelData } from '../types'
 import { MAX_FPS } from '../hooks/useEditor'
-import { FrameImage, TIMELINE_HEIGHT, iconBtn } from './Timeline'
+import { FrameImage, TIMELINE_HEIGHT } from './Timeline'
 import { tip } from './Tooltip'
+import { type FrameDuration, frameDuration } from '../utils/timing'
+import Button from './Button'
 
 interface AnimationPreviewProps {
   frames: PixelData[]
   currentFrame: number
   fps: number
+  /** durations[frame] in milliseconds, or null to follow fps */
+  durations: FrameDuration[]
   onFpsChange: (fps: number) => void
   playing: boolean
   onTogglePlay: () => void
@@ -24,6 +28,7 @@ export default function AnimationPreview({
   frames,
   currentFrame,
   fps,
+  durations,
   onFpsChange,
   playing,
   onTogglePlay,
@@ -46,14 +51,17 @@ export default function AnimationPreview({
     if (playing) setTick(0)
   }
 
-  useEffect(() => {
-    if (!playing) return
-    const id = window.setInterval(() => setTick(t => t + 1), 1000 / fps)
-    return () => window.clearInterval(id)
-  }, [playing, fps])
-
   // Starts from the frame being edited, so a long animation plays from where you are
   const shown = playing ? (currentFrame + tick) % frames.length : currentFrame
+
+  // Each frame waits its own duration; every tick arms the wait for the next frame
+  const wait = frameDuration(durations, shown, fps)
+  useEffect(() => {
+    if (!playing) return
+    const id = window.setTimeout(() => setTick(tick + 1), wait)
+    return () => window.clearTimeout(id)
+  }, [playing, tick, wait])
+
   const frame = frames[Math.min(shown, frames.length - 1)]
 
   const commitFps = () => {
@@ -77,8 +85,8 @@ export default function AnimationPreview({
           overflow: 'hidden',
           padding: 0,
           borderRadius: 4,
-          border: '1px solid #444',
-          background: '#1e1e1e',
+          border: '1px solid var(--divider)',
+          background: 'var(--bg)',
           cursor: 'pointer',
         }}
       >
@@ -86,23 +94,18 @@ export default function AnimationPreview({
       </button>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
-        <button
+        <Button
+          icon
           {...tip(playing ? 'Stop' : 'Play the animation', 'P')}
           aria-pressed={playing}
           onClick={onTogglePlay}
           disabled={frames.length < 2}
-          style={{
-            ...iconBtn,
-            opacity: frames.length < 2 ? 0.3 : 1,
-            color: playing ? '#4fc3f7' : iconBtn.color,
-            border: playing ? '1px solid #4fc3f7' : iconBtn.border,
-          }}
         >
           {playing ? <Pause size={14} /> : <Play size={14} />}
-        </button>
+        </Button>
         <label
           {...tip('Speed in frames per second')}
-          style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: '#888' }}
+          style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: 'var(--text-subtle)' }}
         >
           <input
             type="number"
@@ -123,9 +126,9 @@ export default function AnimationPreview({
               width: 36,
               padding: '1px 3px',
               borderRadius: 3,
-              border: '1px solid #555',
-              background: '#1e1e1e',
-              color: '#e0e0e0',
+              border: '1px solid var(--border)',
+              background: 'var(--bg)',
+              color: 'var(--text)',
               fontSize: 11,
             }}
           />
@@ -133,7 +136,7 @@ export default function AnimationPreview({
         </label>
       </div>
 
-      <div style={{ width: 1, alignSelf: 'stretch', margin: '8px 0', background: '#444' }} />
+      <div style={{ width: 1, alignSelf: 'stretch', margin: '8px 0', background: 'var(--divider)' }} />
     </>
   )
 }

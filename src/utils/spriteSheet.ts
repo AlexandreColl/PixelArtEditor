@@ -1,4 +1,5 @@
 import { TRANSPARENT } from './color'
+import { type FrameDuration, normalizeDurations } from './timing'
 
 /** Keyword of the PNG text chunk where a saved animation records how its sheet is laid out. */
 export const ANIMATION_KEY = 'pixel-art-editor'
@@ -10,6 +11,8 @@ export interface AnimationInfo {
   /** Frames per row of the sheet */
   columns: number
   fps: number
+  /** Milliseconds per frame, null to follow fps; only when some frame has its own */
+  durations?: FrameDuration[]
 }
 
 /** All the frames in one image, left to right and then top to bottom, `columns` per row. */
@@ -75,6 +78,7 @@ export function parseAnimationInfo(text: string | null, imageWidth: number, imag
     return null
   }
   const info = Object.fromEntries(ints.map(k => [k, data[k]])) as unknown as AnimationInfo
+  if (Array.isArray(data.durations)) info.durations = normalizeDurations(data.durations, info.frames)
   const rows = Math.ceil(info.frames / info.columns)
   if (info.columns * info.frameWidth !== imageWidth || rows * info.frameHeight !== imageHeight) return null
   return info

@@ -7,6 +7,7 @@ import CanvasSizeControl from './components/CanvasSizeControl'
 import ColorPalette from './components/ColorPalette'
 import AIChat from './components/AIChat'
 import AnimationPreview from './components/AnimationPreview'
+import Button from './components/Button'
 import ConvertDialog from './components/ConvertDialog'
 import Dialog from './components/Dialog'
 import ExportDialog from './components/ExportDialog'
@@ -16,27 +17,19 @@ import LayersPanel from './components/LayersPanel'
 import Toast, { useToast } from './components/Toast'
 import Timeline from './components/Timeline'
 import Toolbar from './components/Toolbar'
+import UpdateDialog from './components/UpdateDialog'
 import TooltipLayer, { tip } from './components/Tooltip'
 import { useEditor } from './hooks/useEditor'
 import { useAutosave } from './hooks/useAutosave'
+import { useUpdater } from './hooks/useUpdater'
 import { useFileActions } from './hooks/useFileActions'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { usePalette } from './hooks/usePalette'
 import type { Selection } from './types'
+import { isTauri } from '@tauri-apps/api/core'
 import { TRANSPARENT, parseColor, toHex } from './utils/color'
 import { paletteSnapper } from './utils/palette'
 import { flattenFrameCached, flattenPixel, visibleCels } from './utils/layers'
-
-const btnAccent: React.CSSProperties = {
-  padding: '4px 14px',
-  borderRadius: 6,
-  border: '1px solid #4fc3f7',
-  background: '#1a3a4a',
-  color: '#4fc3f7',
-  cursor: 'pointer',
-  fontSize: 13,
-  fontWeight: 600,
-}
 
 /** Position and color of the pixel under the pointer, at the right of the status bar. */
 function PixelInfo({ pixel, color }: { pixel: Point | null; color: string | undefined }) {
@@ -85,6 +78,8 @@ export default function App() {
     toggleMirrorY,
     paintLine,
     beginShape,
+    shiftCel,
+    nudgeCel,
     drawShape,
     fillRegion,
     shadePixel,
@@ -114,6 +109,7 @@ export default function App() {
     moveFrame,
     toggleOnionSkin,
     setFps,
+    setFrameDuration,
     selectLayer,
     addLayer,
     duplicateLayer,
@@ -131,6 +127,7 @@ export default function App() {
     layers: state.layers,
     currentFrame: state.currentFrame,
     fps: state.fps,
+    durations: state.durations,
     importFrames,
     importDocument,
     markSaved,
@@ -142,9 +139,13 @@ export default function App() {
     cels: state.cels,
     layers: state.layers,
     fps: state.fps,
+    durations: state.durations,
     fileName: files.fileName,
     isDirty,
   })
+
+  // Installing closes the app: the autosave keeps unsaved work and offers it after the restart
+  const updater = useUpdater({ beforeInstall: autosave.flush, showToast })
 
   const recoverAutosave = () => {
     const r = autosave.takeRecovery()
@@ -299,7 +300,13 @@ export default function App() {
     selectAll: handleSelectAll,
     remove: deleteSelection,
     deselect: () => setSelection(null),
-    nudge: nudgeSelection,
+    // The arrows move the selection, or with the move tool the whole layer
+    nudge: (dx, dy) => {
+      if (nudgeSelection(dx, dy)) return true
+      if (state.activeTool !== 'move') return false
+      nudgeCel(dx, dy)
+      return true
+    },
     setTool,
     swapColors,
     stepFrame,
@@ -313,8 +320,8 @@ export default function App() {
         height: '100vh',
         display: 'flex',
         flexDirection: 'column',
-        background: '#1e1e1e',
-        color: '#e0e0e0',
+        background: 'var(--bg)',
+        color: 'var(--text)',
         fontFamily: 'system-ui, -apple-system, sans-serif',
         overflow: 'hidden',
       }}
@@ -339,12 +346,12 @@ export default function App() {
             inset: 0,
             zIndex: 1000,
             background: 'rgba(79, 195, 247, 0.15)',
-            border: '3px dashed #4fc3f7',
+            border: '3px dashed var(--accent)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             fontSize: 24,
-            color: '#4fc3f7',
+            color: 'var(--accent)',
             fontWeight: 700,
             pointerEvents: 'none',
           }}
@@ -385,6 +392,10 @@ export default function App() {
         </Dialog>
       )}
 
+      {updater.status.phase !== 'idle' && !autosave.recovery && (
+        <UpdateDialog status={updater.status} onInstall={updater.install} onLater={updater.dismiss} />
+      )}
+
       {files.pendingSheet && (
         <SpriteSheetDialog
           image={files.pendingSheet.image}
@@ -399,6 +410,7 @@ export default function App() {
           frames={state.cels.map(row => flattenFrameCached(row, state.layers))}
           currentFrame={state.currentFrame}
           fps={state.fps}
+          durations={state.durations}
           onExport={options => {
             setExportOpen(false)
             files.exportImage(options)
@@ -410,15 +422,15 @@ export default function App() {
       <div
         style={{
           height: 40,
-          background: '#2d2d2d',
-          borderBottom: '1px solid #444',
+          background: 'var(--surface)',
+          borderBottom: '1px solid var(--divider)',
           display: 'flex',
           alignItems: 'center',
           padding: '0 16px',
           gap: 8,
         }}
       >
-        <span style={{ fontWeight: 700, fontSize: 14, color: '#4fc3f7' }}>Pixel Art Editor</span>
+        <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--accent)' }}>Pixel Art Editor</span>
 
         <FileMenu
           onNew={files.newCanvas}
@@ -428,12 +440,13 @@ export default function App() {
           onSave={files.saveImage}
           onSaveAs={() => files.saveAs()}
           onExport={openExport}
+          onCheckUpdates={isTauri() ? updater.checkNow : undefined}
         />
-        <button {...tip('Save', 'Ctrl+S')} onClick={files.saveImage} style={btnAccent}>
+        <Button variant="primary" style={{ padding: '4px 14px' }} {...tip('Save', 'Ctrl+S')} onClick={files.saveImage}>
           <Save size={16} />
-        </button>
+        </Button>
 
-        <div style={{ width: 1, height: 24, background: '#444', margin: '0 8px' }} />
+        <div style={{ width: 1, height: 24, background: 'var(--divider)', margin: '0 8px' }} />
 
         <CanvasSizeControl width={state.pixelData.width} height={state.pixelData.height} onResize={resizeCanvas} />
 
@@ -445,9 +458,9 @@ export default function App() {
           style={{
             padding: '4px 12px',
             borderRadius: 6,
-            border: aiOpen ? '1px solid #4fc3f7' : '1px solid #555',
-            background: aiOpen ? '#1a3a4a' : 'transparent',
-            color: aiOpen ? '#4fc3f7' : '#aaa',
+            border: aiOpen ? '1px solid var(--accent)' : '1px solid var(--border)',
+            background: aiOpen ? 'var(--accent-bg)' : 'transparent',
+            color: aiOpen ? 'var(--accent)' : 'var(--text-muted)',
             cursor: 'pointer',
             fontSize: 13,
           }}
@@ -512,6 +525,7 @@ export default function App() {
           onSelectionChange={setSelection}
           onMoveStart={beginMove}
           onMoveTo={moveSelectionTo}
+          onShiftLayer={shiftCel}
           onZoomStep={handleZoomStep}
           onHoverPixel={setHoverPixel}
         />
@@ -567,11 +581,15 @@ export default function App() {
         onMoveFrame={moveFrame}
         onionSkin={state.onionSkin}
         onToggleOnionSkin={toggleOnionSkin}
+        durations={state.durations}
+        fps={state.fps}
+        onDurationChange={setFrameDuration}
       >
         <AnimationPreview
           frames={frames}
           currentFrame={state.currentFrame}
           fps={state.fps}
+          durations={state.durations}
           onFpsChange={setFps}
           playing={playing && state.cels.length > 1}
           onTogglePlay={togglePlay}
@@ -581,13 +599,13 @@ export default function App() {
       <div
         style={{
           height: 24,
-          background: '#2d2d2d',
-          borderTop: '1px solid #444',
+          background: 'var(--surface)',
+          borderTop: '1px solid var(--divider)',
           display: 'flex',
           alignItems: 'center',
           padding: '0 12px',
           fontSize: 11,
-          color: '#888',
+          color: 'var(--text-subtle)',
           gap: 16,
         }}
       >

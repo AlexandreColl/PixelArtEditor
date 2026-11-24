@@ -82,7 +82,7 @@ export default function SpriteSheetDialog({ image, fileName, onImport, onCancel 
         max={MAX_CANVAS_SIZE}
         value={value || ''}
         onChange={e => set(Number(e.target.value))}
-        style={{ ...fieldStyle, width: 80, borderColor: valid ? '#555' : '#d32f2f' }}
+        style={{ ...fieldStyle, width: 80, borderColor: valid ? 'var(--border)' : 'var(--danger)' }}
       />
     </label>
   )
@@ -98,13 +98,13 @@ export default function SpriteSheetDialog({ image, fileName, onImport, onCancel 
       <div style={{ display: 'flex', gap: 16, alignItems: 'flex-end', flexWrap: 'wrap' }}>
         {sizeField(frameW, setFrameW, 'Frame width')}
         {sizeField(frameH, setFrameH, 'Frame height')}
-        <span style={{ fontSize: 12, color: valid ? '#888' : '#ef5350', paddingBottom: 6 }}>
+        <span style={{ fontSize: 12, color: valid ? 'var(--text-subtle)' : 'var(--danger-text)', paddingBottom: 6 }}>
           {valid
             ? `${cols} × ${rows} = up to ${cols * rows} frame${cols * rows === 1 ? '' : 's'} (empty ones at the end are skipped)`
             : `Frames must fit in the image and be at most ${MAX_CANVAS_SIZE}px`}
         </span>
       </div>
-      <div style={{ display: 'flex', justifyContent: 'center', padding: 8, borderRadius: 6, background: '#1e1e1e' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', padding: 8, borderRadius: 6, background: 'var(--bg)' }}>
         <canvas ref={canvasRef} style={{ background: checkerBackground, imageRendering: 'pixelated' }} />
       </div>
     </Dialog>

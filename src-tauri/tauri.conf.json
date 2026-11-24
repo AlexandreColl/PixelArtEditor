@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Pixel Art Editor",
-  "version": "0.5.2",
+  "version": "0.6.0",
   "identifier": "com.pixelarteditor.editor",
   "build": {
     "frontendDist": "../dist",
@@ -47,6 +47,16 @@
     "category": "GraphicsAndDesign",
     "shortDescription": "Editor de pixel art con agente IA",
     "longDescription": "Editor de pixel art de escritorio para crear sprites y assets de videojuegos, con un panel de IA que edita el arte mediante lenguaje natural.",
-    "license": "MIT"
+    "license": "MIT",
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEY1MkU0QURGM0E5RUFDMUEKUldRYXJKNDYzMG91OVJ0aW53S2lwNWwxd2RtRFpFNHVBWnNoVmpRb2VoNDV6M0NZUWI3MXdadlEK",
+      "endpoints": ["https://github.com/AlexandreColl/PixelArtEditor/releases/latest/download/latest.json"],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

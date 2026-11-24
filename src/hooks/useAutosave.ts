@@ -5,6 +5,7 @@ import type { Layer, PixelData } from '../types'
 import type { EditorDocument } from './useEditor'
 import { type AutosaveStore, defaultAutosaveStore } from '../utils/autosaveStore'
 import { parseProject, serializeProject } from '../utils/project'
+import type { FrameDuration } from '../utils/timing'
 
 /** Wait this long after the last change, so a stroke in progress is not written on every pointer move */
 export const AUTOSAVE_DELAY = 2000
@@ -13,6 +14,7 @@ interface AutosaveOptions {
   cels: PixelData[][]
   layers: Layer[]
   fps: number
+  durations?: FrameDuration[]
   fileName: string
   /** Only unsaved work is kept: once the file is saved there is nothing to recover */
   isDirty: boolean
@@ -45,7 +47,7 @@ function parseStored(raw: string): Recovery | null {
  * Keeps a copy of unsaved work and, on start, offers to recover what a crash or an accidental
  * close left behind. The copy is removed as soon as there are no unsaved changes.
  */
-export function useAutosave({ cels, layers, fps, fileName, isDirty, store }: AutosaveOptions) {
+export function useAutosave({ cels, layers, fps, durations, fileName, isDirty, store }: AutosaveOptions) {
   const storeRef = useRef<AutosaveStore>(store ?? defaultAutosaveStore())
   // Nothing is written until the copy left last time has been read, or while it is being offered,
   // so that copy can't be overwritten before the user decides what to do with it
@@ -105,6 +107,7 @@ export function useAutosave({ cels, layers, fps, fileName, isDirty, store }: Aut
         width: cels[0][0].width,
         height: cels[0][0].height,
         fps,
+        durations,
         layers,
         cels: cels.map(row => row.map(cel => cel.pixels)),
       }
@@ -116,11 +119,13 @@ export function useAutosave({ cels, layers, fps, fileName, isDirty, store }: Aut
     pending.current = write
     const id = window.setTimeout(write, AUTOSAVE_DELAY)
     return () => window.clearTimeout(id)
-  }, [cels, layers, fps, fileName, isDirty, phase, enqueue, removeCopy])
+  }, [cels, layers, fps, durations, fileName, isDirty, phase, enqueue, removeCopy])
+
+  /** Writes what is pending now instead of after the pause, and resolves once it is stored. */
+  const flush = useCallback(() => pending.current?.() ?? queue.current, [])
 
   // Closing must not lose the last seconds of work: write what is pending, and wait for it
   useEffect(() => {
-    const flush = () => pending.current?.() ?? queue.current
     const onPageHide = () => void flush()
     window.addEventListener('pagehide', onPageHide)
     // In the desktop app the window waits for the handler before closing
@@ -137,7 +142,7 @@ export function useAutosave({ cels, layers, fps, fileName, isDirty, store }: Aut
       window.removeEventListener('pagehide', onPageHide)
       unlisten?.()
     }
-  }, [])
+  }, [flush])
 
   /** Hands over the recovered work and starts autosaving again. */
   const takeRecovery = useCallback(() => {
@@ -153,5 +158,5 @@ export function useAutosave({ cels, layers, fps, fileName, isDirty, store }: Aut
     setPhase('active')
   }, [removeCopy])
 
-  return { recovery, takeRecovery, discardRecovery }
+  return { recovery, takeRecovery, discardRecovery, flush }
 }

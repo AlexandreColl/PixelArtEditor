@@ -62,6 +62,13 @@ describe('sheetToFrames', () => {
   })
 })
 
+describe('animation durations in a PNG', () => {
+  it('keeps the frames that have their own duration', () => {
+    const info = { frames: 2, frameWidth: 16, frameHeight: 16, columns: 2, fps: 8, durations: [null, 300] }
+    expect(parseAnimationInfo(serializeAnimationInfo(info), 32, 16)).toEqual(info)
+  })
+})
+
 describe('parseAnimationInfo', () => {
   const info = { frames: 3, frameWidth: 16, frameHeight: 8, columns: 2, fps: 12 }
 

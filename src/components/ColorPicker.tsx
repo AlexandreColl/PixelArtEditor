@@ -158,7 +158,7 @@ export default function ColorPicker({ color, onChange }: ColorPickerProps) {
         />
       </div>
 
-      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#aaa' }}>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-muted)' }}>
         Hex
         <input
           value={hexText}
@@ -178,9 +178,9 @@ export default function ColorPicker({ color, onChange }: ColorPickerProps) {
             minWidth: 0,
             padding: '3px 6px',
             borderRadius: 4,
-            border: `1px solid ${hexInvalid ? '#d32f2f' : '#555'}`,
-            background: '#1e1e1e',
-            color: '#e0e0e0',
+            border: `1px solid ${hexInvalid ? 'var(--danger)' : 'var(--border)'}`,
+            background: 'var(--bg)',
+            color: 'var(--text)',
             fontFamily: 'ui-monospace, Consolas, monospace',
             fontSize: 12,
           }}

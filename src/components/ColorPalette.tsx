@@ -3,6 +3,7 @@ import { ArrowLeftRight, FileDown, FileUp, Lock, LockOpen, Plus, RotateCcw, Wand
 import ColorPicker from './ColorPicker'
 import { PALETTE_EXTENSIONS } from '../utils/palette'
 import { tip } from './Tooltip'
+import Button from './Button'
 
 interface ColorPaletteProps {
   primaryColor: string
@@ -23,20 +24,6 @@ interface ColorPaletteProps {
   onToggleLock: () => void
   /** Maps the canvas, or the selection, to the palette colors */
   onReduce: () => void
-}
-
-const iconBtn: React.CSSProperties = {
-  width: 26,
-  height: 26,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  borderRadius: 4,
-  border: '1px solid #555',
-  background: 'transparent',
-  color: '#ccc',
-  cursor: 'pointer',
-  padding: 0,
 }
 
 const swatchBox: React.CSSProperties = {
@@ -79,12 +66,12 @@ export default function ColorPalette({
     <div
       style={{
         width: 200,
-        background: '#2d2d2d',
+        background: 'var(--surface)',
         padding: '12px',
         display: 'flex',
         flexDirection: 'column',
         gap: 12,
-        borderLeft: '1px solid #444',
+        borderLeft: '1px solid var(--divider)',
         flex: 1,
         minHeight: 0,
       }}
@@ -102,9 +89,9 @@ export default function ColorPalette({
             style={{ ...swatchBox, left: 0, top: 0, background: primaryColor, borderColor: '#fff' }}
           />
         </div>
-        <button {...tip('Swap colors', 'X')} onClick={onSwap} style={iconBtn}>
+        <Button icon {...tip('Swap colors', 'X')} onClick={onSwap}>
           <ArrowLeftRight size={14} />
-        </button>
+        </Button>
       </div>
 
       <ColorPicker color={primaryColor} onChange={onPrimaryChange} />
@@ -112,7 +99,7 @@ export default function ColorPalette({
       <span
         {...tip(paletteName)}
         style={{
-          color: '#aaa',
+          color: 'var(--text-muted)',
           fontSize: 11,
           overflow: 'hidden',
           textOverflow: 'ellipsis',
@@ -124,14 +111,14 @@ export default function ColorPalette({
       </span>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <button
+        <Button
+          icon
           {...tip(inPalette ? 'The primary color is already in the palette' : 'Add the primary color to the palette')}
           onClick={onAddColor}
           disabled={inPalette}
-          style={{ ...iconBtn, opacity: inPalette ? 0.3 : 1 }}
         >
           <Plus size={14} />
-        </button>
+        </Button>
         <input
           ref={fileInputRef}
           type="file"
@@ -143,48 +130,40 @@ export default function ColorPalette({
           }}
           style={{ display: 'none' }}
         />
-        <button
+        <Button
+          icon
           {...tip('Import palette (.gpl GIMP / Aseprite, .hex Lospec)')}
           onClick={() => fileInputRef.current?.click()}
-          style={iconBtn}
         >
           <FileUp size={14} />
-        </button>
-        <button {...tip('Export palette (.gpl or .hex)')} onClick={onExport} style={iconBtn}>
+        </Button>
+        <Button icon {...tip('Export palette (.gpl or .hex)')} onClick={onExport}>
           <FileDown size={14} />
-        </button>
-        <button
+        </Button>
+        <Button
+          icon
           {...tip('Reset to the default palette')}
           onClick={() => {
             if (window.confirm('Replace the current palette with the default one?')) onResetPalette()
           }}
-          style={iconBtn}
         >
           <RotateCcw size={14} />
-        </button>
-        <button
+        </Button>
+        <Button
+          icon
+          aria-pressed={locked}
           {...tip(
             locked
               ? 'Unlock: draw with any color'
               : 'Lock to the palette: everything drawn uses the nearest palette color',
           )}
           onClick={onToggleLock}
-          style={{
-            ...iconBtn,
-            border: locked ? '1px solid #4fc3f7' : iconBtn.border,
-            background: locked ? '#1a3a4a' : iconBtn.background,
-            color: locked ? '#4fc3f7' : iconBtn.color,
-          }}
         >
           {locked ? <Lock size={14} /> : <LockOpen size={14} />}
-        </button>
-        <button
-          {...tip('Reduce the canvas (or the selection) to the palette colors')}
-          onClick={onReduce}
-          style={iconBtn}
-        >
+        </Button>
+        <Button icon {...tip('Reduce the canvas (or the selection) to the palette colors')} onClick={onReduce}>
           <WandSparkles size={14} />
-        </button>
+        </Button>
       </div>
 
       <div
@@ -230,7 +209,7 @@ export default function ColorPalette({
                 dragOver === i && dragFrom !== i
                   ? '2px dashed #fff'
                   : primaryColor === color
-                    ? '2px solid #4fc3f7'
+                    ? '2px solid var(--accent)'
                     : secondaryColor === color
                       ? '2px solid #999'
                       : '2px solid transparent',

@@ -4,6 +4,7 @@ import type { PixelData, Tool, ShapeTool, Selection } from '../types'
 import { brushFootprints } from '../utils/brush'
 import { TRANSPARENT } from '../utils/color'
 import { drawPixels } from '../utils/png'
+import { isSelected, lassoSelection, magicWandSelection, selectionEdges } from '../utils/selection'
 
 const cursorMap: Record<string, string> = {
   pencil: 'crosshair',
@@ -15,9 +16,43 @@ const cursorMap: Record<string, string> = {
   line: 'crosshair',
   rect: 'crosshair',
   ellipse: 'crosshair',
+  wand: 'crosshair',
+  lasso: 'crosshair',
+  move: 'move',
 }
 
 const isShapeTool = (tool: Tool): tool is ShapeTool => tool === 'line' || tool === 'rect' || tool === 'ellipse'
+/** Tools that make selections; dragging inside the current selection with any of them moves it */
+const isSelectTool = (tool: Tool) => tool === 'selection' || tool === 'wand' || tool === 'lasso'
+
+/** The fill and outline of a selection, in screen pixels, built once per selection and zoom. */
+const selectionPaths = new WeakMap<Selection, { pixelSize: number; fill: Path2D; edges: Path2D }>()
+
+function selectionPath(sel: Selection, pixelSize: number) {
+  const hit = selectionPaths.get(sel)
+  if (hit && hit.pixelSize === pixelSize) return hit
+  const fill = new Path2D()
+  for (let y = 0; y < sel.height; y++) {
+    // One rectangle per run of selected pixels in the row
+    let start = -1
+    for (let x = 0; x <= sel.width; x++) {
+      const on = x < sel.width && (!sel.mask || sel.mask[y][x])
+      if (on && start < 0) start = x
+      if (!on && start >= 0) {
+        fill.rect((sel.x + start) * pixelSize, (sel.y + y) * pixelSize, (x - start) * pixelSize, pixelSize)
+        start = -1
+      }
+    }
+  }
+  const edges = new Path2D()
+  for (const [x0, y0, x1, y1] of selectionEdges(sel)) {
+    edges.moveTo(x0 * pixelSize, y0 * pixelSize)
+    edges.lineTo(x1 * pixelSize, y1 * pixelSize)
+  }
+  const paths = { pixelSize, fill, edges }
+  selectionPaths.set(sel, paths)
+  return paths
+}
 
 export interface CanvasHandle {
   /** Zoom at which the whole canvas fits the visible area, or null if the area has no size yet */
@@ -117,6 +152,8 @@ interface CanvasProps {
   /** Starts dragging the selection; with copy the original stays in place. Returns false if nothing is selected. */
   onMoveStart: (copy: boolean) => boolean
   onMoveTo: (x: number, y: number) => void
+  /** The move tool without a selection: the whole layer follows the pointer by (dx, dy) */
+  onShiftLayer: (dx: number, dy: number) => void
   onZoomStep: (direction: 1 | -1) => void
   /** The pixel under the pointer, or null when it leaves the canvas */
   onHoverPixel?: (pixel: Point | null) => void
@@ -148,6 +185,7 @@ export default function Canvas({
   onSelectionChange,
   onMoveStart,
   onMoveTo,
+  onShiftLayer,
   onZoomStep,
   onHoverPixel,
 }: CanvasProps) {
@@ -167,6 +205,10 @@ export default function Canvas({
   const [selDrag, setSelDragState] = useState<{ start: Point; end: Point } | null>(null)
   // Drag of an existing selection: where the pointer started and where the selection was
   const moveRef = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null)
+  const shiftRef = useRef<Point | null>(null)
+  // Outline being drawn with the lasso, in canvas pixels (it may go past the edges)
+  const lassoRef = useRef<Point[] | null>(null)
+  const [lassoPath, setLassoPath] = useState<Point[] | null>(null)
   const [hoverInSelection, setHoverInSelection] = useState(false)
   // Pixel under the pointer, to outline what the tool will paint
   const [hover, setHoverState] = useState<Point | null>(null)
@@ -260,21 +302,36 @@ export default function Canvas({
         }
       : selection
     if (rect) {
-      const rx = rect.x * pixelSize
-      const ry = rect.y * pixelSize
-      const rw = rect.width * pixelSize
-      const rh = rect.height * pixelSize
-
+      const { fill, edges } = selectionPath(rect, pixelSize)
       ctx.fillStyle = 'rgba(79, 195, 247, 0.1)'
-      ctx.fillRect(rx, ry, rw, rh)
+      ctx.fill(fill)
       ctx.strokeStyle = '#4fc3f7'
       ctx.lineWidth = 2
-      ctx.strokeRect(rx, ry, rw, rh)
+      ctx.stroke(edges)
       ctx.setLineDash([4, 4])
       ctx.strokeStyle = '#fff'
       ctx.lineWidth = 1
-      ctx.strokeRect(rx, ry, rw, rh)
+      ctx.stroke(edges)
       ctx.setLineDash([])
+    }
+
+    if (lassoPath && lassoPath.length > 1) {
+      ctx.save()
+      ctx.beginPath()
+      lassoPath.forEach((p, i) => {
+        const x = (p.x + 0.5) * pixelSize
+        const y = (p.y + 0.5) * pixelSize
+        if (i === 0) ctx.moveTo(x, y)
+        else ctx.lineTo(x, y)
+      })
+      ctx.strokeStyle = '#4fc3f7'
+      ctx.lineWidth = 2
+      ctx.stroke()
+      ctx.setLineDash([4, 4])
+      ctx.strokeStyle = '#fff'
+      ctx.lineWidth = 1
+      ctx.stroke()
+      ctx.restore()
     }
 
     // Outline of what the tool will paint, mirrored like the stroke; dark and light so it shows on any color
@@ -310,6 +367,7 @@ export default function Canvas({
     zoom,
     selection,
     selDrag,
+    lassoPath,
     width,
     height,
     showGrid,
@@ -408,24 +466,43 @@ export default function Canvas({
       if (e.button !== 0 && e.button !== 2) return
       const secondary = e.button === 2
 
-      if (tool === 'selection') {
+      if (isSelectTool(tool)) {
         if (secondary) return
         const coords = getPixelCoords(e.clientX, e.clientY)
-        const inside =
-          !!selection &&
-          !!coords &&
-          coords.x >= selection.x &&
-          coords.x < selection.x + selection.width &&
-          coords.y >= selection.y &&
-          coords.y < selection.y + selection.height
+        const inside = !!selection && !!coords && isSelected(selection, coords.x, coords.y)
         // Dragging inside the selection moves it (Alt copies it); anywhere else starts a new selection
         if (inside && onMoveStart(e.altKey)) {
           moveRef.current = { startX: coords.x, startY: coords.y, originX: selection.x, originY: selection.y }
           return
         }
         onSelectionChange(null)
+        if (tool === 'lasso') {
+          const raw = getRawCoords(e.clientX, e.clientY)
+          if (!raw) return
+          lassoRef.current = [raw]
+          setLassoPath([raw])
+          return
+        }
         if (!coords) return
+        if (tool === 'wand') {
+          onSelectionChange(magicWandSelection(pixelData.pixels, coords.x, coords.y))
+          return
+        }
         setSelDrag({ start: coords, end: coords })
+        return
+      }
+
+      if (tool === 'move') {
+        if (secondary) return
+        const raw = getRawCoords(e.clientX, e.clientY)
+        if (!raw) return
+        // With a selection it moves the selected pixels (Alt copies them), otherwise the whole layer
+        if (selection && onMoveStart(e.altKey)) {
+          moveRef.current = { startX: raw.x, startY: raw.y, originX: selection.x, originY: selection.y }
+          return
+        }
+        shiftRef.current = raw
+        onShapeStart()
         return
       }
 
@@ -461,6 +538,7 @@ export default function Canvas({
       primaryColor,
       secondaryColor,
       getPixelCoords,
+      getRawCoords,
       onFillRegion,
       onPickColor,
       onColorPicked,
@@ -475,6 +553,7 @@ export default function Canvas({
       onMoveStart,
       setSelDrag,
       brushSize,
+      pixelData,
     ],
   )
 
@@ -494,6 +573,24 @@ export default function Canvas({
         return
       }
 
+      const lasso = lassoRef.current
+      if (lasso) {
+        const raw = getRawCoords(e.clientX, e.clientY)
+        const last = lasso[lasso.length - 1]
+        if (raw && (raw.x !== last.x || raw.y !== last.y)) {
+          lasso.push(raw)
+          setLassoPath([...lasso])
+        }
+        return
+      }
+
+      const shift = shiftRef.current
+      if (shift) {
+        const raw = getRawCoords(e.clientX, e.clientY)
+        if (raw) onShiftLayer(raw.x - shift.x, raw.y - shift.y)
+        return
+      }
+
       const drag = selDragRef.current
       if (drag) {
         const coords = getPixelCoords(e.clientX, e.clientY)
@@ -501,16 +598,9 @@ export default function Canvas({
         return
       }
 
-      if (tool === 'selection') {
+      if (isSelectTool(tool)) {
         const coords = getPixelCoords(e.clientX, e.clientY)
-        setHoverInSelection(
-          !!selection &&
-            !!coords &&
-            coords.x >= selection.x &&
-            coords.x < selection.x + selection.width &&
-            coords.y >= selection.y &&
-            coords.y < selection.y + selection.height,
-        )
+        setHoverInSelection(!!selection && !!coords && isSelected(selection, coords.x, coords.y))
         return
       }
 
@@ -538,6 +628,7 @@ export default function Canvas({
       getRawCoords,
       setSelDrag,
       onMoveTo,
+      onShiftLayer,
       onShadePixel,
       onPaintLine,
       onDrawShape,
@@ -555,10 +646,22 @@ export default function Canvas({
     }
     setIsPanning(false)
 
-    // Dropping a dragged selection is one undo step
+    // Dropping a dragged selection, or the moved layer, is one undo step
+    if (shiftRef.current) {
+      shiftRef.current = null
+      onStrokeEnd()
+    }
     if (moveRef.current) {
       moveRef.current = null
       onStrokeEnd()
+    }
+
+    const lasso = lassoRef.current
+    if (lasso) {
+      lassoRef.current = null
+      setLassoPath(null)
+      // A click without dragging just deselects, like with the rectangle
+      if (lasso.length > 1) onSelectionChange(lassoSelection(lasso, width, height))
     }
 
     const drag = selDragRef.current
@@ -574,7 +677,7 @@ export default function Canvas({
         })
       }
     }
-  }, [onSelectionChange, onStrokeEnd, setSelDrag])
+  }, [onSelectionChange, onStrokeEnd, setSelDrag, width, height])
 
   return (
     <div
@@ -582,12 +685,8 @@ export default function Canvas({
       style={{
         flex: 1,
         overflow: 'auto',
-        background: '#1e1e1e',
-        cursor: isPanning
-          ? 'grabbing'
-          : tool === 'selection' && hoverInSelection
-            ? 'move'
-            : cursorMap[tool] || 'default',
+        background: 'var(--bg)',
+        cursor: isPanning ? 'grabbing' : isSelectTool(tool) && hoverInSelection ? 'move' : cursorMap[tool] || 'default',
       }}
     >
       <canvas

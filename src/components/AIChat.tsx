@@ -127,9 +127,9 @@ export default function AIChat({ isOpen, onToggle, extractCanvas, applyPixels }:
     width: '100%',
     padding: '6px 8px',
     borderRadius: 6,
-    border: '1px solid #555',
-    background: '#1e1e1e',
-    color: '#e0e0e0',
+    border: '1px solid var(--border)',
+    background: 'var(--bg)',
+    color: 'var(--text)',
     fontSize: 13,
   }
 
@@ -137,8 +137,8 @@ export default function AIChat({ isOpen, onToggle, extractCanvas, applyPixels }:
     <div
       style={{
         width: 320,
-        background: '#2d2d2d',
-        borderLeft: '1px solid #444',
+        background: 'var(--surface)',
+        borderLeft: '1px solid var(--divider)',
         display: 'flex',
         flexDirection: 'column',
       }}
@@ -146,8 +146,8 @@ export default function AIChat({ isOpen, onToggle, extractCanvas, applyPixels }:
       <div
         style={{
           padding: '12px',
-          borderBottom: '1px solid #444',
-          color: '#e0e0e0',
+          borderBottom: '1px solid var(--divider)',
+          color: 'var(--text)',
           fontWeight: 600,
           fontSize: 14,
           display: 'flex',
@@ -158,21 +158,21 @@ export default function AIChat({ isOpen, onToggle, extractCanvas, applyPixels }:
         AI Agent
         <button
           onClick={onToggle}
-          style={{ background: 'none', border: 'none', color: '#aaa', cursor: 'pointer', fontSize: 16 }}
+          style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 16 }}
         >
           ✕
         </button>
       </div>
 
       <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: 10, flex: 1 }}>
-        <label style={{ fontSize: 11, color: '#888' }}>Provider</label>
+        <label style={{ fontSize: 11, color: 'var(--text-subtle)' }}>Provider</label>
         <select value={provider} onChange={e => handleProviderChange(e.target.value as AIProvider)} style={selectStyle}>
           <option value="openai">OpenAI</option>
           <option value="anthropic">Claude (Anthropic)</option>
           <option value="gemini">Gemini (Google)</option>
         </select>
 
-        <label style={{ fontSize: 11, color: '#888' }}>Model</label>
+        <label style={{ fontSize: 11, color: 'var(--text-subtle)' }}>Model</label>
         <select value={model} onChange={e => handleModelChange(e.target.value)} style={selectStyle}>
           {modelOptions[provider].map(opt => (
             <option key={opt.value} value={opt.value}>
@@ -181,7 +181,7 @@ export default function AIChat({ isOpen, onToggle, extractCanvas, applyPixels }:
           ))}
         </select>
 
-        <label style={{ fontSize: 11, color: '#888' }}>{providerLabels[provider]} API Key</label>
+        <label style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{providerLabels[provider]} API Key</label>
         <input
           type="password"
           value={apiKey}
@@ -191,9 +191,9 @@ export default function AIChat({ isOpen, onToggle, extractCanvas, applyPixels }:
             width: '100%',
             padding: '8px',
             borderRadius: 6,
-            border: '1px solid #555',
-            background: '#1e1e1e',
-            color: '#e0e0e0',
+            border: '1px solid var(--border)',
+            background: 'var(--bg)',
+            color: 'var(--text)',
             fontSize: 13,
             boxSizing: 'border-box',
           }}
@@ -208,9 +208,9 @@ export default function AIChat({ isOpen, onToggle, extractCanvas, applyPixels }:
             width: '100%',
             padding: '8px',
             borderRadius: 6,
-            border: '1px solid #555',
-            background: '#1e1e1e',
-            color: '#e0e0e0',
+            border: '1px solid var(--border)',
+            background: 'var(--bg)',
+            color: 'var(--text)',
             fontSize: 13,
             resize: 'none',
             boxSizing: 'border-box',
@@ -219,7 +219,15 @@ export default function AIChat({ isOpen, onToggle, extractCanvas, applyPixels }:
         />
 
         {error && (
-          <div style={{ color: '#ef5350', fontSize: 12, padding: '6px 8px', background: '#3a1a1a', borderRadius: 4 }}>
+          <div
+            style={{
+              color: 'var(--danger-text)',
+              fontSize: 12,
+              padding: '6px 8px',
+              background: '#3a1a1a',
+              borderRadius: 4,
+            }}
+          >
             {error}
           </div>
         )}
@@ -231,8 +239,8 @@ export default function AIChat({ isOpen, onToggle, extractCanvas, applyPixels }:
             padding: '10px',
             borderRadius: 6,
             border: 'none',
-            background: loading ? '#555' : '#4fc3f7',
-            color: loading ? '#888' : '#fff',
+            background: loading ? 'var(--border)' : 'var(--accent)',
+            color: loading ? 'var(--text-subtle)' : '#fff',
             cursor: loading ? 'default' : 'pointer',
             fontSize: 14,
             fontWeight: 600,

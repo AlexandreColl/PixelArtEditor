@@ -1,5 +1,6 @@
 export type ShapeTool = 'line' | 'rect' | 'ellipse'
-export type Tool = 'pencil' | 'eraser' | 'fill' | 'picker' | 'selection' | 'shade' | ShapeTool
+export type Tool =
+  'pencil' | 'eraser' | 'fill' | 'picker' | 'selection' | 'wand' | 'lasso' | 'move' | 'shade' | ShapeTool
 
 export interface PixelData {
   width: number
@@ -12,6 +13,8 @@ export interface Selection {
   y: number
   width: number
   height: number
+  /** mask[y][x], relative to the corner: which pixels are selected. Without it, all of the rectangle */
+  mask?: boolean[][]
 }
 
 /** A layer of the animation; every frame has one cel (PixelData) per layer. */
@@ -41,6 +44,8 @@ export interface EditorState {
   currentLayer: number
   /** Animation speed, in frames per second */
   fps: number
+  /** durations[frame]: milliseconds, or null to follow fps */
+  durations: (number | null)[]
   /** Shows the previous frame faintly under the current one */
   onionSkin: boolean
   activeTool: Tool

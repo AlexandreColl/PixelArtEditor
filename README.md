@@ -66,6 +66,16 @@
 
 ## 🎨 Sobre el Proyecto
 
+<p align="center">
+  <img src="docs/images/editor.png" alt="El editor con un sprite animado de tres capas: cielo nocturno, un slime y destellos, y la tira de cuatro fotogramas con su duración" width="860">
+</p>
+
+<p align="center">
+  <img src="docs/images/slime.gif" alt="La animación del slime saltando, exportada a GIF por el propio editor" width="192">
+  <br>
+  <sub>Animación hecha y exportada con el editor: cuatro fotogramas con su propia duración y tres capas.</sub>
+</p>
+
 Pixel Art Editor es una aplicación de escritorio para crear y editar pixel art, sprites y assets para videojuegos. Está construida con **Tauri** + **React** + **TypeScript**, lo que resulta en un binario pequeño, rápido y nativo.
 
 El editor ofrece herramientas esenciales de dibujo (lápiz, borrador, bote de pintura, selector de color, selección y sombreado), historia completa de deshacer/rehacer, y la posibilidad de abrir y guardar archivos PNG directamente desde el sistema de archivos.
@@ -74,7 +84,8 @@ Además, incluye un **panel de IA** que permite modificar el arte mediante lengu
 
 Características principales:
 
-- :pencil2: Herramientas completas: lápiz, borrador, relleno, selector de color, selección, sombreado y pincel de tamaño ajustable
+- :pencil2: Herramientas completas: lápiz, borrador, relleno, selector de color, formas, sombreado, mover y pincel de tamaño ajustable
+- :dart: Selección rectangular, varita mágica y lazo, para copiar, mover o borrar justo los píxeles que quieres
 - :floppy_disk: Abre y guarda PNG reales directamente en tu disco
 - :framed_picture: Convierte cualquier imagen o foto en pixel art: tamaño, número de colores, dithering y vista previa en vivo
 - :robot: Agente IA integrado que entiende tu arte y lo modifica con lenguaje natural
@@ -82,8 +93,9 @@ Características principales:
 - :mag: Zoom y paneo con rueda del ratón (clic central)
 - :rainbow: Paleta editable con colores primario/secundario (clic izquierdo / derecho), que se recuerda entre sesiones
 - :art: Importación y exportación de paletas `.gpl` (GIMP, Aseprite, Krita) y `.hex` (Lospec), y bloqueo del dibujo a la paleta
-- :film_strip: Animación por fotogramas con papel cebolla y vista previa, exportable a GIF o sprite sheet
+- :film_strip: Animación por fotogramas con papel cebolla, vista previa y duración propia para cada fotograma, exportable a GIF o sprite sheet
 - :card_index_dividers: Capas con visibilidad y opacidad, formato de proyecto `.pxa` y autoguardado
+- :arrows_clockwise: Se actualiza sola: avisa de cada versión nueva y la instala con un clic
 
 <p align="right">(<a href="#readme-top">volver arriba</a>)</p>
 
@@ -109,6 +121,16 @@ Características principales:
 ### Descarga
 
 Los instaladores para Windows, macOS y Linux están disponibles en la página de [Releases](https://github.com/AlexandreColl/PixelArtEditor/releases/latest).
+
+Una vez instalado, el editor busca versiones nuevas al arrancar (y en **File → Check for updates…**) y las instala con un clic. Las actualizaciones van firmadas: la aplicación solo acepta las que se han compilado en este repositorio.
+
+Cada instalador lleva además una atestación de procedencia de GitHub. Para comprobar que una descarga es auténtica, con [GitHub CLI](https://cli.github.com/):
+
+```sh
+gh attestation verify "Pixel.Art.Editor_0.6.0_x64-setup.exe" --repo AlexandreColl/PixelArtEditor
+```
+
+Los instaladores aún no están firmados con un certificado de código, así que Windows SmartScreen y macOS Gatekeeper avisan la primera vez que se abren.
 
 Si prefieres compilarlo desde el código fuente, sigue estos pasos.
 
@@ -160,6 +182,9 @@ Si prefieres compilarlo desde el código fuente, sigue estos pasos.
 | `O`   | Elipse            | Arrastra para dibujar una elipse                 |
 | `S`   | Sombreado         | Difumina mezclando colores de píxeles adyacentes |
 | `M`   | Selección         | Selecciona una región rectangular                |
+| `W`   | Varita mágica     | Selecciona la zona del mismo color que toca      |
+| `Q`   | Lazo              | Selecciona una forma dibujada a mano alzada      |
+| `V`   | Mover             | Arrastra todo el contenido de la capa            |
 
 Al pasar el ratón por un botón aparece su nombre y su atajo. Sobre el lienzo, un contorno marca los píxeles que pintará la herramienta (con el tamaño de pincel y el espejo aplicados), y la barra de estado muestra las coordenadas y el color del píxel bajo el cursor y el tamaño de la selección. Las zonas transparentes se ven como un fondo de cuadros.
 
@@ -169,7 +194,13 @@ Botones **+** / **−** en la barra lateral para ajustar el tamaño del pincel (
 
 ### Selección: mover, copiar y pegar
 
-Con la herramienta `MousePointer`, arrastra para seleccionar una región rectangular. Un clic sin arrastrar, o `Esc`, la deselecciona.
+Hay tres formas de seleccionar:
+
+- **Selección** (`M`): arrastra para marcar un rectángulo.
+- **Varita mágica** (`W`): un clic selecciona la zona del mismo color que toca ese píxel, de lado (como la encuentra el bote de pintura), en la capa actual.
+- **Lazo** (`Q`): dibuja el contorno a mano alzada; al soltar se cierra hasta el punto de partida y se selecciona lo que queda dentro, incluido el propio trazo.
+
+El contorno de la selección sigue su forma, y todas las acciones (mover, copiar, cortar, borrar, reducir a la paleta) afectan solo a los píxeles seleccionados. Con cualquiera de las tres, arrastrar desde dentro de la selección la mueve. Un clic sin arrastrar, o `Esc`, la deselecciona.
 
 | Acción                  | Cómo                                                                                      |
 | ----------------------- | ----------------------------------------------------------------------------------------- |
@@ -181,6 +212,10 @@ Con la herramienta `MousePointer`, arrastra para seleccionar una región rectang
 | Seleccionar todo        | `Ctrl+A`                                                                                  |
 
 Los píxeles transparentes de lo que se mueve o pega no tapan lo que hay debajo. Al pegar, la copia aparece en la esquina superior izquierda de la selección (o del lienzo) y queda seleccionada, lista para arrastrarla. El portapapeles es interno del editor: no se comparte con otras aplicaciones.
+
+### Mover la capa
+
+La herramienta **Mover** (`V`) arrastra todo lo que hay en la capa actual. Mientras arrastras, lo que sale del lienzo vuelve si regresas; al soltar se recorta. Con una selección activa, mueve solo los píxeles seleccionados (con `Alt`, una copia). Las flechas mueven la capa un píxel por pulsación, y cada movimiento se deshace por separado.
 
 ### Dibujo simétrico
 
@@ -223,10 +258,13 @@ La tira de fotogramas está bajo el lienzo. Cada fotograma se dibuja por separad
 | Borrar               | Botón de papelera (siempre queda al menos uno)                                      |
 | Papel cebolla        | Botón de capas: muestra el fotograma anterior en rojo y transparente bajo el actual |
 | Reproducir           | Botón de play o `P`. La velocidad se ajusta en fps (1–60)                           |
+| Duración propia      | Campo `ms` bajo el contador: cuánto dura el fotograma actual (10–10000 ms)          |
 
 Deshacer y rehacer funcionan sobre toda la animación: si lo que se deshace está en otro fotograma, el editor salta a él.
 
 La vista previa de la izquierda reproduce la animación sin dejar de editar. Un clic sobre ella alterna entre tamaño real y ampliado.
+
+Un fotograma sin duración propia (el campo vacío) dura lo que marca la velocidad en fps, como los fotogramas nuevos. Los que tienen duración propia la muestran sobre su miniatura, y la conservan al duplicarlos o moverlos. La vista previa, el GIF exportado, los proyectos `.pxa` y los PNG animados respetan cada duración. El GIF solo admite centésimas de segundo, así que cada duración se redondea sin que el total se desvíe.
 
 ### Capas
 
@@ -289,25 +327,25 @@ Al abrir o arrastrar una imagen grande (más de 128 px) o con muchos colores, co
 
 ## ⌨️ Atajos de Teclado
 
-| Tecla                               | Acción                                            |
-| ----------------------------------- | ------------------------------------------------- |
-| `B` `E` `F` `I` `L` `R` `O` `S` `M` | Elegir herramienta (ver la tabla de herramientas) |
-| `X`                                 | Intercambiar colores primario y secundario        |
-| `,` / `.`                           | Fotograma anterior / siguiente                    |
-| `P`                                 | Reproducir o parar la animación                   |
-| `Ctrl+Z`                            | Deshacer                                          |
-| `Ctrl+Shift+Z` / `Ctrl+Y`           | Rehacer                                           |
-| `Ctrl+S`                            | Guardar (PNG, o proyecto si hay varias capas)     |
-| `Ctrl+Shift+S`                      | Guardar como                                      |
-| `Ctrl+O`                            | Abrir imagen o proyecto                           |
-| `Ctrl+E`                            | Exportar (PNG, sprite sheet o GIF)                |
-| `G`                                 | Mostrar u ocultar la cuadrícula                   |
-| `Ctrl+0`                            | Ajustar el lienzo a la ventana                    |
-| `Ctrl+C` / `Ctrl+X` / `Ctrl+V`      | Copiar, cortar y pegar la selección               |
-| `Ctrl+A`                            | Seleccionar todo                                  |
-| `Supr`                              | Borrar la selección                               |
-| `Esc`                               | Deseleccionar                                     |
-| Flechas                             | Mover la selección 1 píxel                        |
+| Tecla                                           | Acción                                            |
+| ----------------------------------------------- | ------------------------------------------------- |
+| `B` `E` `F` `I` `L` `R` `O` `S` `M` `W` `Q` `V` | Elegir herramienta (ver la tabla de herramientas) |
+| `X`                                             | Intercambiar colores primario y secundario        |
+| `,` / `.`                                       | Fotograma anterior / siguiente                    |
+| `P`                                             | Reproducir o parar la animación                   |
+| `Ctrl+Z`                                        | Deshacer                                          |
+| `Ctrl+Shift+Z` / `Ctrl+Y`                       | Rehacer                                           |
+| `Ctrl+S`                                        | Guardar (PNG, o proyecto si hay varias capas)     |
+| `Ctrl+Shift+S`                                  | Guardar como                                      |
+| `Ctrl+O`                                        | Abrir imagen o proyecto                           |
+| `Ctrl+E`                                        | Exportar (PNG, sprite sheet o GIF)                |
+| `G`                                             | Mostrar u ocultar la cuadrícula                   |
+| `Ctrl+0`                                        | Ajustar el lienzo a la ventana                    |
+| `Ctrl+C` / `Ctrl+X` / `Ctrl+V`                  | Copiar, cortar y pegar la selección               |
+| `Ctrl+A`                                        | Seleccionar todo                                  |
+| `Supr`                                          | Borrar la selección                               |
+| `Esc`                                           | Deseleccionar                                     |
+| Flechas                                         | Mover la selección 1 píxel (o la capa, con Mover) |
 
 <p align="right">(<a href="#readme-top">volver arriba</a>)</p>
 
@@ -321,22 +359,23 @@ Al abrir o arrastrar una imagen grande (más de 128 px) o con muchos colores, co
 pnpm run tauri:build
 ```
 
-El ejecutable se genera en `src-tauri/target/release/app.exe`. También se crean instaladores MSI y NSIS en la carpeta `bundle/`.
+El ejecutable se genera en `src-tauri/target/release/pixel-art-editor.exe`. También se crean instaladores MSI y NSIS en la carpeta `bundle/`.
 
 ### Scripts disponibles
 
-| Comando                 | Descripción                                            |
-| ----------------------- | ------------------------------------------------------ |
-| `pnpm run dev`          | Servidor de desarrollo Vite (solo frontend, sin Tauri) |
-| `pnpm run build`        | Compila TypeScript + Vite                              |
-| `pnpm run tauri:dev`    | Inicia en modo desarrollo con recarga en caliente      |
-| `pnpm run tauri:build`  | Compila el binario de producción                       |
-| `pnpm run format`       | Formatea el código con Prettier                        |
-| `pnpm run format:check` | Comprueba el formato (usado en CI)                     |
-| `pnpm run lint`         | Analiza el código con Oxlint (usado en CI)             |
-| `pnpm run typecheck`    | Comprueba los tipos sin compilar                       |
-| `pnpm test`             | Ejecuta los tests una vez (usado en CI)                |
-| `pnpm run test:watch`   | Ejecuta los tests en modo watch                        |
+| Comando                  | Descripción                                                 |
+| ------------------------ | ----------------------------------------------------------- |
+| `pnpm run dev`           | Servidor de desarrollo Vite (solo frontend, sin Tauri)      |
+| `pnpm run build`         | Compila TypeScript + Vite                                   |
+| `pnpm run tauri:dev`     | Inicia en modo desarrollo con recarga en caliente           |
+| `pnpm run tauri:build`   | Compila el binario de producción                            |
+| `pnpm run format`        | Formatea el código con Prettier                             |
+| `pnpm run format:check`  | Comprueba el formato (usado en CI)                          |
+| `pnpm run lint`          | Analiza el código con Oxlint (usado en CI)                  |
+| `pnpm run typecheck`     | Comprueba los tipos sin compilar                            |
+| `pnpm test`              | Ejecuta los tests una vez (usado en CI)                     |
+| `pnpm run test:watch`    | Ejecuta los tests en modo watch                             |
+| `pnpm run test:coverage` | Tests con informe de cobertura en `coverage/` (usado en CI) |
 
 ### Windows
 
@@ -360,17 +399,22 @@ pixel-art-editor/
 │   │   ├── AnimationPreview.tsx # Vista previa de la animación
 │   │   ├── ExportDialog.tsx    # Exportar fotograma, sprite sheet o GIF
 │   │   ├── LayersPanel.tsx     # Panel de capas
+│   │   ├── UpdateDialog.tsx    # Aviso e instalación de versiones nuevas
+│   │   ├── Button.tsx          # Botón común (su aspecto está en index.css)
 │   │   └── AIChat.tsx          # Panel de chat con IA
 │   ├── hooks/
 │   │   ├── useEditor.ts        # Estado global: capas, fotogramas, herramientas e historial
 │   │   ├── useFileActions.ts   # Abrir, guardar y exportar imágenes, proyectos y paletas
 │   │   ├── useAutosave.ts      # Copia de seguridad del trabajo sin guardar
+│   │   ├── useUpdater.ts       # Busca e instala actualizaciones
 │   │   ├── useKeyboardShortcuts.ts # Atajos de teclado globales
 │   │   └── usePalette.ts       # Paleta activa y bloqueo, guardados entre sesiones
 │   ├── ai/
 │   │   ├── openai.ts           # Cliente OpenAI (visión + JSON)
 │   │   ├── anthropic.ts        # Cliente Anthropic
 │   │   └── gemini.ts           # Cliente Google Gemini
+│   ├── utils/                  # Lógica pura con tests: colores, capas, selección, GIF, proyectos…
+│   ├── index.css               # Colores de la interfaz (variables) y estilos de los botones
 │   ├── types/
 │   │   └── index.ts            # Tipos compartidos
 │   └── App.tsx                 # Layout principal: une el editor, la paleta y los paneles
@@ -380,10 +424,14 @@ pixel-art-editor/
 │   ├── capabilities/
 │   │   └── default.json        # Permisos de plugins
 │   ├── icons/                  # Iconos de la aplicación
-│   └── tauri.conf.json         # Configuración de ventana, build y política de seguridad (CSP)
+│   └── tauri.conf.json         # Ventana, build, política de seguridad (CSP) y actualizaciones
 ├── .github/                    # CI, release, Dependabot y plantillas
+├── docs/images/                # Capturas del README
 ├── scripts/
-│   └── dev.ps1                 # Helper que configura VS + Node + Cargo
+│   ├── dev.ps1                 # Helper que configura VS + Node + Cargo (y firma las actualizaciones)
+│   ├── release-notes.mjs       # Notas de cada release a partir del CHANGELOG
+│   ├── checksums.mjs           # Huellas de los instaladores para la atestación
+│   └── coverage-summary.mjs    # Resumen de cobertura para el CI
 ├── .oxlintrc.json              # Reglas del linter
 ├── pnpm-workspace.yaml         # Configuración de pnpm (hoisting y builds permitidos)
 ├── build.bat                   # Build con un clic
@@ -437,12 +485,18 @@ pixel-art-editor/
 - [x] Formato de proyecto propio que conserve capas y fotogramas
 - [x] Autoguardado
 
+### ✅ 0.6 — Herramientas y distribución
+
+- [x] Herramienta de mover, varita mágica y lazo
+- [x] Duración propia para cada fotograma
+- [x] Actualizaciones automáticas firmadas
+- [x] Política de seguridad de contenido (CSP) activada
+- [x] Atestación de procedencia de los instaladores
+
 ### 1.0 — Estable
 
 - [ ] Atajos de teclado personalizables
-- [ ] Política de seguridad de contenido (CSP) activada
-- [ ] Instaladores firmados
-- [ ] Actualizaciones automáticas
+- [ ] Instaladores firmados con certificado de código
 
 ### Más adelante
 
