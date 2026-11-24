@@ -25,11 +25,13 @@ async function autosaved() {
   return value === null ? null : JSON.parse(value)
 }
 
+// The color picker and the previews are canvases too
+const CANVAS = 'canvas[aria-label="Drawing canvas"]'
 const frames = () => $$('[aria-label="Frames"] [aria-label^="Frame "]')
 
 describe('Pixel Art Editor', () => {
   before(async () => {
-    await $('canvas').waitForDisplayed()
+    await $(CANVAS).waitForDisplayed()
     // Collects whatever the content security policy blocks from here on
     await browser.execute(() => {
       window.cspViolations = []
@@ -40,7 +42,7 @@ describe('Pixel Art Editor', () => {
   })
 
   it('opens ready to draw, with nothing to undo or recover', async () => {
-    await expect($('canvas')).toBeDisplayed()
+    await expect($(CANVAS)).toBeDisplayed()
     await expect($('button[aria-label="Undo"]')).toBeDisabled()
     await expect($('[aria-label="Recover unsaved work?"]')).not.toBeExisting()
   })
@@ -61,7 +63,7 @@ describe('Pixel Art Editor', () => {
 
   it('draws with the pencil', async () => {
     await $('button[aria-label="Pencil"]').click()
-    const canvas = await $('canvas')
+    const canvas = await $(CANVAS)
     await browser
       .action('pointer')
       .move({ origin: canvas, x: 0, y: 0 })
